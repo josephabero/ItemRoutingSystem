@@ -64,9 +64,6 @@ class Menu:
         """
         Prints a menu header as a banner.
 
-        Args:
-            menu_name (str): Name to be displayed in the header
-
         Examples:
             >>> Menu.print_banner()
             ------------------------------------------------------------
@@ -118,6 +115,11 @@ class Menu:
     def add_option(self, index, option):
         """
         Inserts option to existing option list.
+
+        Args:
+            index  (int): Position of menu to insert option to.
+            option (str): Option name or description.
+
         """
         self.options.insert(index, option)
 
@@ -133,6 +135,12 @@ class Menu:
 
 
 class ShoppingForCarts:
+    """
+    Main application for providing directions for a single worker to gather carts.
+
+    Handles user inputs, generation of the map, and settings.
+    """
+
     def __init__(self):
         """
         Initializes Menu class.
@@ -174,10 +182,11 @@ class ShoppingForCarts:
 
     def display_menu(self, menu_type, clear=True):
         """
-        Creates and displays appropriate menu.
+        Creates and displays the appropriate menu.
 
         Args:
-            menu_type (MenuType): type of menu to display
+            menu_type (MenuType): Type of menu to display.
+            clear (bool): Option to clear screen.
 
         Examples:
             >>> ShoppingForCarts.display(MenuType.MAIN_MENU)
@@ -208,10 +217,11 @@ class ShoppingForCarts:
             menu.add_option(1, "Set Map Size")
             menu.add_option(2, "Set Worker Starting Position Mode")
             menu.add_option(3, "Set Cart Position Mode")
-            menu.add_option(4, "Set Cart Minimum and Maximum Amount")
-            menu.add_option(5, "Set Gathering Algorithm")
-            menu.add_option(6, "Toggle Debug Mode")
-            menu.add_option(7, "Back")
+            menu.add_option(4, "Set Obstacle Mode")
+            menu.add_option(5, "Set Cart Minimum and Maximum Amount")
+            menu.add_option(6, "Set Gathering Algorithm")
+            menu.add_option(7, "Toggle Debug Mode")
+            menu.add_option(8, "Back")
 
             info = "Current Settings:\n"                                   \
             f"Map Size: {self.map_x}x{self.map_y}\n"                       \
@@ -231,7 +241,8 @@ class ShoppingForCarts:
             menu = Menu("Set Gathering Algorithm")
             menu.add_option(1, "Use Order of Insertion")
             menu.add_option(2, "Brute Force")
-            menu.add_option(3, "Back")
+            menu.add_option(3, "Third Algorithm")
+            menu.add_option(4, "Back")
 
         elif menu_type == MenuType.WORKER_POSITION:
             menu = Menu("Set Starting Worker Position Mode")
@@ -251,9 +262,9 @@ class ShoppingForCarts:
 
     def generate_map(self, positions=None):
         """
-        Generates list of lists to represent a map of carts.
+        Generates a list of lists to represent a map of carts.
 
-        'S' character represents starting worker position.
+        'S' character represents the starting worker position.
         'C' characters represent carts.
 
         The starting worker position will be placed as specified by the internal
@@ -266,12 +277,14 @@ class ShoppingForCarts:
             grid (list of lists): Map which contains worker starting position
                                   and randomly placed carts.
 
-            inserted_order (list of tuples): positions of carts in order of when
-                                             inserted to grid
+            inserted_order (list of tuples): Positions of carts in order of when
+                                             inserted to grid.
         """
         # Create list of lists to generate map
         # x is number of columns, y is number of rows
-        grid = [['_' for _ in range(self.map_x)] for _ in range(self.map_y)]
+        grid = []
+        for _ in range(self.map_y):
+            grid.append(['_' for _ in range(self.map_x)])
 
         # Get order of list of carts inserted
         inserted_order = []
@@ -338,15 +351,15 @@ class ShoppingForCarts:
 
     def move_to_target(self, start, end):
         """
-        Helper function to evaluate move to make between a start and end
+        Helper function to evaluate moves to make between a start and end
         position.
 
         Args:
-            start (tuple): starting position specified as (X, Y) position
-            end (tuple): end position to move to specified as (X, Y) position
+            start (tuple): Starting position specified as (X, Y) position.
+            end   (tuple): End position to move to specified as (X, Y) position.
 
         Returns:
-            move (str): string describing move to make to reach position
+            move (str): String describing move to make to reach position.
 
         Examples:
             >>> ShoppingForCarts.move_to_target((0, 0), (2, 0))
@@ -398,13 +411,13 @@ class ShoppingForCarts:
     def gather_brute_force(self, targets):
         """
         Performs brute force algorithm to gather all valid permutations of desired path then 
-        finds smallest path.
+        finds shortest path.
 
         Args:
-            targets (list of tuples): positions of carts
+            targets (list of tuples): Positions of carts.
 
         Returns:
-            min_path (list of tuples): list of cart positions to traverse in order
+            min_path (list of tuples): List of cart positions to traverse in order.
         """
 
         smallest = None
@@ -448,11 +461,11 @@ class ShoppingForCarts:
 
     def get_targets(self):
         """
-        Gets full list of targets. Uses stored worker starting position as first and last
+        Gets a full list of targets. Uses stored worker starting position as first and last
         indices.
 
         Returns:
-            targets (list of tuples): positions of worker and carts
+            targets (list of tuples): Positions of the worker and carts.
         """
         targets = []
 
@@ -466,18 +479,18 @@ class ShoppingForCarts:
 
     def get_descriptive_steps(self, targets):
         """
-        Gets list of directions to gather all carts beginning from internal
-        starting position and returning to starting position.
+        Gets a list of directions to gather all carts beginning from the 
+        internal starting position and returning to the starting position.
 
         Algorithm gathers list of target carts by prioritizing top rows and
         moves down to the last row.
 
-        Carts are then gathered in order by list of targets. Worker may only
+        Carts are then gathered in order by list of targets. The worker may only
         move in directions up, down, left, or right.
 
         Returns:
-            path (list of str): list of directions worker should take to gather
-                                all carts from starting position
+            path (list of str): List of directions worker should take to gather
+                                all carts from starting position.
         """
         path = []
         start = targets.pop(0)
@@ -498,6 +511,18 @@ class ShoppingForCarts:
         return path
 
     def get_carts(self, option):
+        """
+        Helper function to retrieve list of directions depending on the 
+        gathering algorithm setting.
+
+        Args:
+            option (AlgoMethod): Gathering algorithm to be used.
+
+        Returns:
+            result (list of str): List of directions worker should take to gather
+                                  all carts from starting position.
+
+        """
         path = []
 
         if option == AlgoMethod.ORDER_OF_INSERTION:
@@ -508,16 +533,17 @@ class ShoppingForCarts:
         elif option == AlgoMethod.BRUTE_FORCE:
             targets = self.get_targets()
             path = self.gather_brute_force(targets)
-            return self.get_descriptive_steps(path)
+            result = self.get_descriptive_steps(path)
+            return result
 
     def verify_settings_range(self, value, minimum, maximum):
         """
-        Helper function to validate integer is within specified range.
+        Helper function to validate the value is within the specified range.
 
         Args:
-            value (int): integer value to validate
-            minimum (int): smallest integer value allowed
-            maximum (int): largest integer value allowed
+            value   (int): Integer value to validate
+            minimum (int): Smallest integer value allowed
+            maximum (int): Largest integer value allowed
 
         Returns:
             True if value falls within minimum and maximum value.
@@ -572,7 +598,7 @@ class ShoppingForCarts:
 
     def set_worker_starting_position(self):
         """
-        Sets internal starting position for worker.
+        Sets an internal starting position for the worker.
 
         Requires user input to be within limits of map size.
 
@@ -617,7 +643,7 @@ class ShoppingForCarts:
 
     def get_cart_positions(self):
         """
-        Gets cart positions depending on cart position mode.
+        Gets cart positions depending on current cart position mode.
 
             Cart Modes:
             1. Manual Mode
@@ -630,7 +656,7 @@ class ShoppingForCarts:
 
 
         Returns:
-            cart_positions (list of tuples): positions of carts on the map
+            cart_positions (list of tuples): Positions of carts on the map.
         """
         cart_positions = []
 
@@ -703,6 +729,10 @@ class ShoppingForCarts:
 
     def set_cart_minimum_maximum(self):
         """
+        Changes the setting for minimum and maximum number of carts.
+
+        Returns:
+            success (bool): Status whether settings were changed successfully.
         """
         banner = Menu("Set Cart Minimum and Maximum Amount")
         banner.display()
@@ -731,6 +761,7 @@ class ShoppingForCarts:
 
         print(f"Minimum Carts: {self.minimum_carts}")
         print(f"Maximum Carts: {self.maximum_carts}")
+        
         return success
 
     def handle_option(self, option):
@@ -738,7 +769,7 @@ class ShoppingForCarts:
         Handles menu options for main application and corresponding submenus.
 
         Args:
-            option (str): choice user chooses from main menu
+            option (str): Choice user chooses from main menu.
         """
         # Go Get Carts
         update = True
@@ -800,7 +831,7 @@ class ShoppingForCarts:
                     print("Invalid choice. Try again.")
                     update = False
 
-        # Generate Map
+        # Settings
         elif option == '2':
             clear = True
 
@@ -836,6 +867,9 @@ class ShoppingForCarts:
                             self.worker_mode = GenerateMode.RANDOM
 
                             self.set_worker_starting_position()
+
+                            # Generate map with new starting position
+                            self.map, self.inserted_order = self.generate_map()
                             break
                         
                         # Set manual starting position
@@ -873,6 +907,9 @@ class ShoppingForCarts:
                             self.cart_mode = GenerateMode.RANDOM
 
                             self.carts = self.get_cart_positions()
+
+                            # Generate map with new cart positions
+                            self.map, self.inserted_order = self.generate_map()
                             break
                         
                         # Set manual starting position
@@ -894,14 +931,19 @@ class ShoppingForCarts:
                             update = False
                             clear = False
 
-                # Set Cart Minimum and Maximum Amount
+                # Set Obstacle Mode
                 elif suboption == '4':
+                    print("You chose an Unimplemented Obstacle Mode.")
+                    update = False
+                    clear = False
+
+                # Set Cart Minimum and Maximum Amount
+                elif suboption == '5':
                     self.set_cart_minimum_maximum()
                     self.carts = self.get_cart_positions()
 
-
                 # Set Algorithm Method
-                elif suboption == '5':
+                elif suboption == '6':
                     while True:
                         if update:
                             self.display_menu(MenuType.ALGO_METHOD, clear=clear)
@@ -921,8 +963,14 @@ class ShoppingForCarts:
                             self.gathering_algo = AlgoMethod.BRUTE_FORCE
                             break
 
-                        # Back
+                        # Third Algorithm
                         elif algo_option == '3':
+                            print("You chose an Unimplemented Third Algorithm.")
+                            update = False
+                            clear = False
+
+                        # Back
+                        elif algo_option == '4':
                             break
 
                         else:
@@ -931,11 +979,11 @@ class ShoppingForCarts:
                             clear = False
 
                 # Toggle Debug
-                elif suboption == '6':
+                elif suboption == '7':
                     self.debug = not self.debug
 
                 # Back
-                elif suboption == '7':
+                elif suboption == '8':
                     break
                 else:
                     print("Invalid choice. Try again.")
@@ -951,8 +999,8 @@ class ShoppingForCarts:
 
     def run(self):
         """
-        Helper function to run application. Loops main menu until user chooses
-        to exit.
+        Helper function to run the application. Loops the main menu until the user
+        chooses to exit.
         """
         while True:
             self.display_menu(MenuType.MAIN_MENU)
@@ -961,6 +1009,9 @@ class ShoppingForCarts:
             self.handle_option(choice)
 
 def main():
+    """
+    Main application code to run the ShoppingForCarts application.
+    """
     app = ShoppingForCarts()
     app.run()
 
