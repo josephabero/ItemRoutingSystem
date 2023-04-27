@@ -12,6 +12,7 @@ from enum import Enum
 import itertools
 import os
 import random
+import time
 
 class MenuType(Enum):
     """
@@ -423,6 +424,8 @@ class ShoppingForCarts:
         Returns:
             min_path (list of tuples): List of cart positions to traverse in order.
         """
+        if self.debug:
+            start_time = time.time()
 
         smallest = None
         min_path = None
@@ -463,6 +466,8 @@ class ShoppingForCarts:
                 min_path = list(path).copy()
 
         if self.debug:
+            end_time = time.time()
+            print(f"Total Time: {(end_time - start_time):.4f}")
             print(f"Minimum Path: {min_path}")
             print(f"Shortest Number of Steps: {smallest}")
 
@@ -476,12 +481,19 @@ class ShoppingForCarts:
         Returns:
             targets (list of tuples): Positions of the worker and carts.
         """
+        if self.debug:
+            start_time = time.time()
+
         targets = []
 
         if self.inserted_order:
             targets = self.inserted_order.copy()
             targets.insert(0, self.starting_position)
             targets.append(self.starting_position)
+
+        if self.debug:
+            end_time = time.time()
+            print(f"Total Time: {(end_time - start_time):.4f}")
 
         return targets
 
