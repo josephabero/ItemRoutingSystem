@@ -360,6 +360,7 @@ class ShoppingForCarts:
 
         Returns:
             move (str): String describing move to make to reach position.
+            total_steps (int): Total umber of steps taken.
 
         Examples:
             >>> ShoppingForCarts.move_to_target((0, 0), (2, 0))
@@ -368,6 +369,7 @@ class ShoppingForCarts:
         current_position = start
         x_done = y_done = False
         x_direction = y_direction = None
+        x_diff = y_diff = 0
 
         # Move X position
         if current_position[0] != end[0]:
@@ -406,7 +408,9 @@ class ShoppingForCarts:
             move += f", move {y_direction} {abs(y_diff)}"
         move += f" to {end}."
 
-        return move, end
+        total_steps = abs(x_diff) + abs(y_diff)
+
+        return move, end, total_steps
 
     def gather_brute_force(self, targets):
         """
@@ -445,7 +449,11 @@ class ShoppingForCarts:
                     distance += abs(path[i][1] - path[j][1])
 
                     if self.debug:
-                        print(path[i], path[j], abs(path[i][0] - path[j][0]), abs(path[i][1] - path[j][1]))
+                        print(f"Path[i]: {path[i]} " \
+                              f"Path[j]: {path[j]} " \
+                              f"X Diff: {abs(path[i][0] - path[j][0])} " \
+                              f"Y Diff: {abs(path[i][1] - path[j][1])} " \
+                              f"Distance: {distance}")
 
             if self.debug:
                 print(path, distance)
@@ -455,7 +463,8 @@ class ShoppingForCarts:
                 min_path = list(path).copy()
 
         if self.debug:
-            print(min_path, smallest)
+            print(f"Minimum Path: {min_path}")
+            print(f"Shortest Number of Steps: {smallest}")
 
         return min_path
 
@@ -498,15 +507,21 @@ class ShoppingForCarts:
 
         path.append(f"Start at position {start}!")
         current_position = start
+        total_steps = 0
 
         for target in targets:
-            move, current_position = self.move_to_target(current_position, target)
+            move, current_position, steps = self.move_to_target(current_position, target)
+            total_steps += steps
             path.append(move)
             path.append("Pick up cart.")
 
-        back_to_start, _ = self.move_to_target(current_position, end)
+        back_to_start, _, steps = self.move_to_target(current_position, end)
+        total_steps += steps
         path.append(back_to_start)
         path.append("Pickup completed.")
+
+        if self.debug:
+            print(f"Total Steps: {total_steps}")
 
         return path
 
@@ -524,6 +539,9 @@ class ShoppingForCarts:
 
         """
         path = []
+
+        if self.debug:
+            print(f"Inserted Cart Order: {self.inserted_order}")
 
         if option == AlgoMethod.ORDER_OF_INSERTION:
             targets = self.get_targets()
