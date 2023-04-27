@@ -31,6 +31,7 @@ class AlgoMethod(Enum):
     """
     ORDER_OF_INSERTION = "Order of Insertion"
     BRUTE_FORCE = "Brute Force"
+    THIRD_ALGORITHM = "Third Algorithm"
 
     def __str__(cls):
         return cls.value
