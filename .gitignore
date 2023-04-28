@@ -1,0 +1,4 @@
+# Ignore Build Files
+app.spec
+build/*
+dist/*
