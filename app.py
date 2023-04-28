@@ -12,6 +12,7 @@ from enum import Enum
 import itertools
 import os
 import random
+import sys
 import time
 
 class MenuType(Enum):
@@ -149,6 +150,9 @@ class ShoppingForCarts:
 
         Defaults a 5x5 map with a worker starting position of (0, 0).
         """
+        # Default debug mode
+        self.debug = False
+
         # Default 5x5 map size
         self.map_x = 5
         self.map_y = 5
@@ -162,9 +166,6 @@ class ShoppingForCarts:
         self.minimum_carts = 3
         self.maximum_carts = 8
         self.carts = self.get_cart_positions()
-
-        # Default debug mode
-        self.debug = False
 
         # Default algorithm
         self.gathering_algo = AlgoMethod.BRUTE_FORCE
@@ -701,13 +702,15 @@ class ShoppingForCarts:
                     y = random.randint(0, self.map_y - 1)
 
                     position = (x, y)
-                    # Repeat Cart Position
-                    if position in cart_positions:
-                        print("Repeat cart position! Please Try Again.\n")
 
-                    # Overlapping Cart and Worker Positions
-                    elif position == self.starting_position:
-                        print("Cart position is the same as the worker position! Please Try Again.\n")
+                    # Repeat Cart Position
+                    if self.debug:
+                        if position in cart_positions:
+                            print("Repeat cart position! Please Try Again.\n")
+
+                        # Overlapping Cart and Worker Positions
+                        elif position == self.starting_position:
+                            print("Cart position is the same as the worker position! Please Try Again.\n")
 
                     else:
                         cart_positions.append(position)
@@ -1023,7 +1026,7 @@ class ShoppingForCarts:
         # Exit
         elif option == '3':
             print("Exiting...")
-            exit()
+            sys.exit()
         else:
             print("Invalid choice. Try again.")
             update = False
