@@ -32,7 +32,7 @@ class AlgoMethod(Enum):
     """
     ORDER_OF_INSERTION = "Order of Insertion"
     BRUTE_FORCE = "Brute Force"
-    THIRD_ALGORITHM = "Third Algorithm"
+    DIJKSTRA = "Dijkstra"
 
     def __str__(cls):
         return cls.value
@@ -244,7 +244,7 @@ class ShoppingForCarts:
             menu = Menu("Set Gathering Algorithm")
             menu.add_option(1, "Use Order of Insertion")
             menu.add_option(2, "Brute Force")
-            menu.add_option(3, "Third Algorithm")
+            menu.add_option(3, "Dijkstra")
             menu.add_option(4, "Back")
 
         elif menu_type == MenuType.WORKER_POSITION:
@@ -997,9 +997,9 @@ class ShoppingForCarts:
                             self.gathering_algo = AlgoMethod.BRUTE_FORCE
                             break
 
-                        # Third Algorithm
+                        # Dijkstra
                         elif algo_option == '3':
-                            print("You chose an Unimplemented Third Algorithm.")
+                            print("You chose an Unimplemented Dijkstra's Algorithm.")
                             update = False
                             clear = False
 
