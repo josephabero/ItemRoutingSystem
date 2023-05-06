@@ -9,6 +9,7 @@ store parking lot.
 """
 
 from enum import Enum
+import heapq
 import itertools
 import os
 import random
@@ -213,7 +214,9 @@ class ShoppingForCarts:
         elif menu_type == MenuType.GO_GET_CARTS:
             menu = Menu("Go Get Carts Menu")
             menu.add_option(1, "Generate New Map")
-            menu.add_option(2, "Back")
+            menu.add_option(2, "Get Location of Product")
+            menu.add_option(3, "Get Path to Product")
+            menu.add_option(4, "Back")
 
         elif menu_type == MenuType.SETTINGS:
             menu = Menu("Settings Menu")
@@ -286,14 +289,14 @@ class ShoppingForCarts:
         # Create list of lists to generate map
         # x is number of columns, y is number of rows
         grid = []
-        for _ in range(self.map_y):
-            grid.append(['_' for _ in range(self.map_x)])
+        for _ in range(self.map_x):
+            grid.append(['_' for _ in range(self.map_y)])
 
         # Get order of list of carts inserted
         inserted_order = []
 
         # Set the starting position (Defaults to (0, 0))
-        grid[self.starting_position[1]][self.starting_position[0]] = 'S'
+        grid[self.starting_position[0]][self.starting_position[1]] = 'S'
 
         # Insert cart positions
         if positions is None:
@@ -302,13 +305,10 @@ class ShoppingForCarts:
 
             positions = self.carts
 
-        if self.debug:
-            print(positions)
-
         for position in positions:
             # Set position in grid
             x, y = position
-            grid[y][x] = 'C'
+            grid[x][y] = 'C'
             inserted_order.append((x, y))
 
         return grid, inserted_order
@@ -339,8 +339,15 @@ class ShoppingForCarts:
         banner = Menu("Shopping Cart Map Layout")
         banner.display()
 
-        for i, row in enumerate(self.map):
-            row_string = f"{i} " + " ".join(val for val in row)
+        grid = []
+        for y in range(len(self.map[0])):
+            col = []
+            for x in range(len(self.map)):
+                col.append(self.map[x][y])
+            grid.append(col)
+
+        for i, col in enumerate(grid):
+            row_string = f"{i} " + " ".join(val for val in col)
             print(row_string.center(banner_length))
 
         print(" " + " ".join(str(i) for i in range(len(self.map[0]))).center(banner_length))
@@ -474,6 +481,93 @@ class ShoppingForCarts:
             print(f"Shortest Number of Steps: {smallest}")
 
         return min_path
+
+    def dijkstra(self, grid, target):
+        
+        def is_valid_position(x, y):
+            return x < 0 or x >= self.map_x or y < 0 or y >= self.map_y
+
+        start = None
+
+        x, y = target
+        if is_valid_position(x, y):
+            if self.debug:
+                print(f"Invalid target position: {target}")
+            return []
+        
+        # Find the starting position
+        for i in range(self.map_x):
+            for j in range(self.map_y):
+                if grid[j][i] == 'S':
+                    start = (i, j)
+                    break
+            if start: break
+        
+        if not start:
+            raise ValueError("Starting position 'S' not found in grid.")
+        
+        # Initialize the distance to all positions to infinity and to the starting position to 0
+        dist = {(i, j): float('inf') for i in range(self.map_x) for j in range(self.map_y)}
+        dist[start] = 0
+        
+        # Initialize the priority queue with the starting position
+        pq = [(0, start)]
+        
+        # Initialize the previous position dictionary
+        prev = {}
+        
+        while pq:
+            # Get the position with the smallest distance from the priority queue
+            (cost, position) = heapq.heappop(pq)
+            
+            # If we've found the target, we're done
+            if position == target:
+                if self.debug:
+                    print(f"Found path to target {target}!")
+                break
+            
+            # Check the neighbors of the current position
+            for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                x, y = position[0] + dx, position[1] + dy
+
+                if self.debug:
+                    print(position, (x, y))
+
+                if is_valid_position(x, y):
+                    if self.debug:
+                        print(f"Skipping {(x, y)}: Invalid Position")
+                    continue
+
+                if grid[x][y] == 'C':
+                    if self.debug:
+                        print(f"Skipping {(x, y)}: Cart")
+                    continue
+                
+                # Compute the distance to the neighbor
+                neighbor_cost = cost + 1
+
+                # Update the distance and previous position if we've found a shorter path
+                if neighbor_cost < dist[(x, y)]:
+                    dist[(x, y)] = neighbor_cost
+                    prev[(x, y)] = position
+                    heapq.heappush(pq, (neighbor_cost, (x, y)))
+        
+        # Reconstruct the path
+        path = []
+        while position != start:
+            path.append(position)
+            position = prev[position]
+        path.append(start)
+        path.reverse()
+        
+        if target in path:
+            if self.debug:
+                print(f"Path found: {path}")
+            return path
+        else:
+            if self.debug:
+                print("Path not found")
+            return []
 
     def get_targets(self):
         """
@@ -704,12 +798,13 @@ class ShoppingForCarts:
                     position = (x, y)
 
                     # Repeat Cart Position
-                    if self.debug:
-                        if position in cart_positions:
+                    if position in cart_positions:
+                        if self.debug:
                             print("Repeat cart position! Please Try Again.\n")
 
-                        # Overlapping Cart and Worker Positions
-                        elif position == self.starting_position:
+                    # Overlapping Cart and Worker Positions
+                    elif position == self.starting_position:
+                        if self.debug:
                             print("Cart position is the same as the worker position! Please Try Again.\n")
 
                     else:
@@ -858,8 +953,42 @@ class ShoppingForCarts:
 
                     clear = False
 
-                # Back
                 elif suboption == '2':
+                    print("Get Location of Product")
+
+                elif suboption == '3':
+                    print("Get Path to Product")
+                    position = (4, 4)
+
+                    shortest_path = []
+                    for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                        x, y = position[0] + dx, position[1] + dy
+                        
+                        path = self.dijkstra(self.map, (x, y))
+
+                        if path:
+                            if len(path) < len(shortest_path) or not shortest_path:
+                                shortest_path = path
+
+                        if self.debug:
+                            print(f"Shortest Path for {(x, y)}: {shortest_path}")
+
+                    if shortest_path:
+                        if self.debug:
+                            print(f"Path to product is: {shortest_path}")
+                        steps = self.get_descriptive_steps(shortest_path)
+
+                        print("Directions:")
+                        print("-----------")
+                        for step, action in enumerate(steps, 1):
+                            print(f"{step}. {action}")
+                    else:
+                        print(f"Path to {position} was not found!")
+
+                    clear = False
+
+                # Back
+                elif suboption == '4':
                     break
                 else:
                     print("Invalid choice. Try again.")
