@@ -147,6 +147,8 @@ class ItemRoutingSystem:
 
     Handles user inputs, generation of the map, and settings.
     """
+    WORKER_SYMBOL = 'S'
+    ITEM_SYMBOL = chr(9641) # ▩
 
     def __init__(self):
         """
@@ -281,9 +283,6 @@ class ItemRoutingSystem:
         """
         Generates a list of lists to represent a map of items.
 
-        'S' character represents the starting worker position.
-        'C' characters represent items.
-
         The starting worker position will be placed as specified by the internal
         starting position.
         Items will be randomly placed in other places on the map. A random
@@ -307,7 +306,7 @@ class ItemRoutingSystem:
         inserted_order = []
 
         # Set the starting position (Defaults to (0, 0))
-        grid[self.starting_position[0]][self.starting_position[1]] = 'S'
+        grid[self.starting_position[0]][self.starting_position[1]] = ItemRoutingSystem.WORKER_SYMBOL
 
         # Insert item positions
         if positions is None:
@@ -318,7 +317,7 @@ class ItemRoutingSystem:
         for position in positions:
             # Set position in grid
             x, y = position
-            grid[x][y] = 'C'
+            grid[x][y] = ItemRoutingSystem.ITEM_SYMBOL
             inserted_order.append((x, y))
 
         return grid, inserted_order
@@ -333,16 +332,16 @@ class ItemRoutingSystem:
             ------------------------------------------------------------
                               Warehouse Map Layout
             ------------------------------------------------------------
-                                    0 S _ C _ _
-                                    1 _ C _ C _
+                                    0 S _ ▩ _ _
+                                    1 _ ▩ _ ▩ _
                                     2 _ _ _ _ _
-                                    3 C _ C C C
-                                    4 _ _ _ C _
+                                    3 ▩ _ ▩ ▩ ▩
+                                    4 _ _ _ ▩ _
                                       0 1 2 3 4
 
                                       LEGEND:
                              'S': Worker Starting Spot
-                                 'C': Shopping Item
+                                 '▩': Item
                           Positions are labeled as (X, Y)
         """
         banner_length = 60
@@ -364,8 +363,8 @@ class ItemRoutingSystem:
 
         self.log("")
         self.log("LEGEND:".center(banner_length))
-        self.log("'S': Worker Starting Spot".center(banner_length))
-        self.log("'C': Item".center(banner_length))
+        self.log(f"{ItemRoutingSystem.WORKER_SYMBOL}: Worker Starting Spot".center(banner_length))
+        self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
         self.log("")
 
@@ -506,13 +505,13 @@ class ItemRoutingSystem:
         # Find the starting position
         for i in range(self.map_x):
             for j in range(self.map_y):
-                if grid[j][i] == 'S':
+                if grid[j][i] == ItemRoutingSystem.WORKER_SYMBOL:
                     start = (i, j)
                     break
             if start: break
         
         if not start:
-            raise ValueError("Starting position 'S' not found in grid.")
+            raise ValueError("Starting position ItemRoutingSystem.WORKER_SYMBOL not found in grid.")
         
         # Initialize the distance to all positions to infinity and to the starting position to 0
         dist = {(i, j): float('inf') for i in range(self.map_x) for j in range(self.map_y)}
@@ -543,7 +542,7 @@ class ItemRoutingSystem:
                     self.log(f"Skipping {(x, y)}: Invalid Position", print_type=PrintType.DEBUG)
                     continue
 
-                if grid[x][y] == 'C':
+                if grid[x][y] == ItemRoutingSystem.ITEM_SYMBOL:
                     self.log(f"Skipping {(x, y)}: Item", print_type=PrintType.DEBUG)
                     continue
                 
