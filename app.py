@@ -1,11 +1,10 @@
 """
-Welcome to Shopping For Carts!
+Welcome to Item Routing System!
 
 Authors: Joseph Abero, ChatGPT
 
-Shopping For Carts is a text-based shopping cart gathering application used to
-provide store workers with directions to gather shopping carts around a
-store parking lot.
+ItemRoutingSystem is a text-based application used to provide store workers with 
+directions to gather shopping items around a warehouse.
 """
 
 from enum import Enum
@@ -21,15 +20,15 @@ class MenuType(Enum):
     Constants for menu types.
     """
     MAIN_MENU = 0
-    GO_GET_CARTS = 1
+    VIEW_MAP = 1
     SETTINGS = 2
     ALGO_METHOD = 3
     WORKER_POSITION = 4
-    CART_POSITION = 5
+    ITEM_POSITION = 5
 
 class AlgoMethod(Enum):
     """
-    Constants for algorithms used to gather carts 
+    Constants for algorithms used to gather items 
     """
     ORDER_OF_INSERTION = "Order of Insertion"
     BRUTE_FORCE = "Brute Force"
@@ -142,9 +141,9 @@ class Menu:
             self.misc_info = info
 
 
-class ShoppingForCarts:
+class ItemRoutingSystem:
     """
-    Main application for providing directions for a single worker to gather carts.
+    Main application for providing directions for a single worker to gather items.
 
     Handles user inputs, generation of the map, and settings.
     """
@@ -166,11 +165,11 @@ class ShoppingForCarts:
         self.worker_mode = GenerateMode.MANUAL
         self.starting_position = (0, 0)
 
-        # Default cart settings
-        self.cart_mode = GenerateMode.RANDOM
-        self.minimum_carts = 3
-        self.maximum_carts = 8
-        self.carts = self.get_cart_positions()
+        # Default item settings
+        self.item_mode = GenerateMode.RANDOM
+        self.minimum_items = 3
+        self.maximum_items = 8
+        self.items = self.get_item_positions()
 
         # Default algorithm
         self.gathering_algo = AlgoMethod.BRUTE_FORCE
@@ -183,7 +182,7 @@ class ShoppingForCarts:
         self.log(banner)
         self.log("")
         self.log("")
-        self.log(f'{"Welcome to Shopping For Carts!".center(len(banner))}')
+        self.log(f'{"Welcome to Item Routing System!".center(len(banner))}')
         self.log("")
         self.log("")
         self.log(banner)
@@ -205,12 +204,12 @@ class ShoppingForCarts:
             clear (bool): Option to clear screen.
 
         Examples:
-            >>> ShoppingForCarts.display(MenuType.MAIN_MENU)
+            >>> ItemRoutingSystem.display(MenuType.MAIN_MENU)
             ------------------------------------------------------------
                                      Main Menu
             ------------------------------------------------------------
 
-            1. Go Get Carts
+            1. View Map
             2. Settings
             3. Exit
 
@@ -219,12 +218,12 @@ class ShoppingForCarts:
 
         if menu_type == MenuType.MAIN_MENU:
             menu = Menu("Main Menu")
-            menu.add_option(1, "Go Get Carts")
+            menu.add_option(1, "View Map")
             menu.add_option(2, "Settings")
             menu.add_option(3, "Exit")
 
-        elif menu_type == MenuType.GO_GET_CARTS:
-            menu = Menu("Go Get Carts Menu")
+        elif menu_type == MenuType.VIEW_MAP:
+            menu = Menu("View Map Menu")
             menu.add_option(1, "Generate New Map")
             menu.add_option(2, "Get Location of Product")
             menu.add_option(3, "Get Path to Product")
@@ -234,9 +233,9 @@ class ShoppingForCarts:
             menu = Menu("Settings Menu")
             menu.add_option(1, "Set Map Size")
             menu.add_option(2, "Set Worker Starting Position Mode")
-            menu.add_option(3, "Set Cart Position Mode")
+            menu.add_option(3, "Set Item Position Mode")
             menu.add_option(4, "Set Obstacle Mode")
-            menu.add_option(5, "Set Cart Minimum and Maximum Amount")
+            menu.add_option(5, "Set Item Minimum and Maximum Amount")
             menu.add_option(6, "Set Gathering Algorithm")
             menu.add_option(7, "Toggle Debug Mode")
             menu.add_option(8, "Back")
@@ -247,9 +246,9 @@ class ShoppingForCarts:
             f"Worker Settings:\n"                                          \
             f"  Mode: {self.worker_mode}\n"                                \
             f"  Position: {self.starting_position}\n"                      \
-            f"Cart Settings:\n"                                            \
-            f"  Mode: {self.cart_mode}\n"                                  \
-            f"  Positions: {' '.join(str(p) for p in self.carts)}\n"       \
+            f"Item Settings:\n"                                            \
+            f"  Mode: {self.item_mode}\n"                                  \
+            f"  Positions: {' '.join(str(p) for p in self.items)}\n"       \
             f"Gathering Algorithm: {self.gathering_algo}\n"                \
             f"Debug Mode: {self.debug}\n"
 
@@ -268,8 +267,8 @@ class ShoppingForCarts:
             menu.add_option(2, "Manually Set Position")
             menu.add_option(3, "Back")
 
-        elif menu_type == MenuType.CART_POSITION:
-            menu = Menu("Set Cart Position Mode")
+        elif menu_type == MenuType.ITEM_POSITION:
+            menu = Menu("Set Item Position Mode")
             menu.add_option(1, "Randomly Set Position")
             menu.add_option(2, "Manually Set Position")
             menu.add_option(3, "Back")
@@ -280,22 +279,22 @@ class ShoppingForCarts:
 
     def generate_map(self, positions=None):
         """
-        Generates a list of lists to represent a map of carts.
+        Generates a list of lists to represent a map of items.
 
         'S' character represents the starting worker position.
-        'C' characters represent carts.
+        'C' characters represent items.
 
         The starting worker position will be placed as specified by the internal
         starting position.
-        Carts will be randomly placed in other places on the map. A random
-        number of carts will be placed between a minimum and maximum number of
-        carts.
+        Items will be randomly placed in other places on the map. A random
+        number of items will be placed between a minimum and maximum number of
+        items.
 
         Returns:
             grid (list of lists): Map which contains worker starting position
-                                  and randomly placed carts.
+                                  and randomly placed items.
 
-            inserted_order (list of tuples): Positions of carts in order of when
+            inserted_order (list of tuples): Positions of items in order of when
                                              inserted to grid.
         """
         # Create list of lists to generate map
@@ -304,17 +303,17 @@ class ShoppingForCarts:
         for _ in range(self.map_x):
             grid.append(['_' for _ in range(self.map_y)])
 
-        # Get order of list of carts inserted
+        # Get order of list of items inserted
         inserted_order = []
 
         # Set the starting position (Defaults to (0, 0))
         grid[self.starting_position[0]][self.starting_position[1]] = 'S'
 
-        # Insert cart positions
+        # Insert item positions
         if positions is None:
-            self.log(self.carts, print_type=PrintType.DEBUG)
+            self.log(self.items, print_type=PrintType.DEBUG)
 
-            positions = self.carts
+            positions = self.items
 
         for position in positions:
             # Set position in grid
@@ -330,9 +329,9 @@ class ShoppingForCarts:
         banner.
 
         Examples:
-            >>> ShoppingForCarts.display_map()
+            >>> ItemRoutingSystem.display_map()
             ------------------------------------------------------------
-                              Shopping Cart Map Layout
+                              Warehouse Map Layout
             ------------------------------------------------------------
                                     0 S _ C _ _
                                     1 _ C _ C _
@@ -343,11 +342,11 @@ class ShoppingForCarts:
 
                                       LEGEND:
                              'S': Worker Starting Spot
-                                 'C': Shopping Cart
+                                 'C': Shopping Item
                           Positions are labeled as (X, Y)
         """
         banner_length = 60
-        banner = Menu("Shopping Cart Map Layout")
+        banner = Menu("Warehouse Map Layout")
         banner.display()
 
         grid = []
@@ -366,7 +365,7 @@ class ShoppingForCarts:
         self.log("")
         self.log("LEGEND:".center(banner_length))
         self.log("'S': Worker Starting Spot".center(banner_length))
-        self.log("'C': Shopping Cart".center(banner_length))
+        self.log("'C': Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
         self.log("")
 
@@ -384,7 +383,7 @@ class ShoppingForCarts:
             total_steps (int): Total umber of steps taken.
 
         Examples:
-            >>> ShoppingForCarts.move_to_target((0, 0), (2, 0))
+            >>> ItemRoutingSystem.move_to_target((0, 0), (2, 0))
             "From (0, 0), move right 2 to (2, 0).", (2, 0)
         """
         current_position = start
@@ -439,10 +438,10 @@ class ShoppingForCarts:
         finds shortest path.
 
         Args:
-            targets (list of tuples): Positions of carts.
+            targets (list of tuples): Positions of item.
 
         Returns:
-            min_path (list of tuples): List of cart positions to traverse in order.
+            min_path (list of tuples): List of item positions to traverse in order.
         """
         if self.debug:
             start_time = time.time()
@@ -545,7 +544,7 @@ class ShoppingForCarts:
                     continue
 
                 if grid[x][y] == 'C':
-                    self.log(f"Skipping {(x, y)}: Cart", print_type=PrintType.DEBUG)
+                    self.log(f"Skipping {(x, y)}: Item", print_type=PrintType.DEBUG)
                     continue
                 
                 # Compute the distance to the neighbor
@@ -578,7 +577,7 @@ class ShoppingForCarts:
         indices.
 
         Returns:
-            targets (list of tuples): Positions of the worker and carts.
+            targets (list of tuples): Positions of the worker and items.
         """
         if self.debug:
             start_time = time.time()
@@ -599,18 +598,18 @@ class ShoppingForCarts:
 
     def get_descriptive_steps(self, targets):
         """
-        Gets a list of directions to gather all carts beginning from the 
+        Gets a list of directions to gather all items beginning from the 
         internal starting position and returning to the starting position.
 
-        Algorithm gathers list of target carts by prioritizing top rows and
+        Algorithm gathers list of target items by prioritizing top rows and
         moves down to the last row.
 
-        Carts are then gathered in order by list of targets. The worker may only
+        Items are then gathered in order by list of targets. The worker may only
         move in directions up, down, left, or right.
 
         Returns:
             path (list of str): List of directions worker should take to gather
-                                all carts from starting position.
+                                all items from starting position.
         """
         path = []
         start = targets.pop(0)
@@ -624,7 +623,7 @@ class ShoppingForCarts:
             move, current_position, steps = self.move_to_target(current_position, target)
             total_steps += steps
             path.append(move)
-            path.append("Pick up cart.")
+            path.append("Pick up item.")
 
         back_to_start, _, steps = self.move_to_target(current_position, end)
         total_steps += steps
@@ -635,7 +634,7 @@ class ShoppingForCarts:
 
         return path
 
-    def get_carts(self, option):
+    def get_items(self, option):
         """
         Helper function to retrieve list of directions depending on the 
         gathering algorithm setting.
@@ -645,12 +644,12 @@ class ShoppingForCarts:
 
         Returns:
             result (list of str): List of directions worker should take to gather
-                                  all carts from starting position.
+                                  all items from starting position.
 
         """
         path = []
 
-        self.log(f"Inserted Cart Order: {self.inserted_order}", print_type=PrintType.DEBUG)
+        self.log(f"Inserted Item Order: {self.inserted_order}", print_type=PrintType.DEBUG)
 
         if option == AlgoMethod.ORDER_OF_INSERTION:
             targets = self.get_targets()
@@ -739,8 +738,8 @@ class ShoppingForCarts:
                 x = random.randint(0, self.map_x - 1)
                 y = random.randint(0, self.map_y - 1)
 
-                # Verify Cart and Worker Positions do not overlap
-                if (x, y) not in self.carts:
+                # Verify Item and Worker Positions do not overlap
+                if (x, y) not in self.items:
                     self.starting_position = (x, y)
                     success = True
 
@@ -757,9 +756,9 @@ class ShoppingForCarts:
 
                 if x_success and y_success:
 
-                    # Overlapping Cart and Worker Positions
-                    if (int(x), int(y)) in self.carts:
-                        self.log("Worker position is the same as a cart position! Please Try Again.\n")
+                    # Overlapping Item and Worker Positions
+                    if (int(x), int(y)) in self.items:
+                        self.log("Worker position is the same as a item position! Please Try Again.\n")
 
                     else:
                         self.starting_position = (int(x), int(y))
@@ -768,29 +767,29 @@ class ShoppingForCarts:
                 self.log(f"Current Worker Starting Position: {self.starting_position}")
         return success
 
-    def get_cart_positions(self):
+    def get_item_positions(self):
         """
-        Gets cart positions depending on current cart position mode.
+        Gets item positions depending on current item position mode.
 
-            Cart Modes:
+            Item Modes:
             1. Manual Mode
-                A. Choose number of carts
-                B. Set positions for each cart (cannot repeat position)
+                A. Choose number of items
+                B. Set positions for each item (cannot repeat position)
 
             2. Random Mode
-                A. Set minimum number of carts
-                B. Set maximum number of carts
+                A. Set minimum number of items
+                B. Set maximum number of items
 
 
         Returns:
-            cart_positions (list of tuples): Positions of carts on the map.
+            item_positions (list of tuples): Positions of items on the map.
         """
-        cart_positions = []
+        item_positions = []
 
-        if self.cart_mode == GenerateMode.RANDOM:
-            number_of_carts = random.randint(self.minimum_carts, self.maximum_carts)
+        if self.item_mode == GenerateMode.RANDOM:
+            number_of_items = random.randint(self.minimum_items, self.maximum_items)
 
-            for _ in range(number_of_carts):
+            for _ in range(number_of_items):
                 success = False
                 while not success:
                     x = random.randint(0, self.map_x - 1)
@@ -798,37 +797,37 @@ class ShoppingForCarts:
 
                     position = (x, y)
 
-                    # Repeat Cart Position
-                    if position in cart_positions:
-                        self.log("Repeat cart position! Please Try Again.\n", print_type=PrintType.DEBUG)
+                    # Repeat Item Position
+                    if position in item_positions:
+                        self.log("Repeat item position! Please Try Again.\n", print_type=PrintType.DEBUG)
 
-                    # Overlapping Cart and Worker Positions
+                    # Overlapping Item and Worker Positions
                     elif position == self.starting_position:
-                        self.log("Cart position is the same as the worker position! Please Try Again.\n", print_type=PrintType.DEBUG)
+                        self.log("Item position is the same as the worker position! Please Try Again.\n", print_type=PrintType.DEBUG)
 
                     else:
-                        cart_positions.append(position)
+                        item_positions.append(position)
                         success = True
 
-        elif self.cart_mode == GenerateMode.MANUAL:
-            banner = Menu("Set Cart Starting Position")
+        elif self.item_mode == GenerateMode.MANUAL:
+            banner = Menu("Set Item Starting Position")
             banner.display()
 
-            number_of_carts = input(f"Set number of carts (Range {self.minimum_carts} to {self.maximum_carts}): ")
+            number_of_items = input(f"Set number of items (Range {self.minimum_items} to {self.maximum_items}): ")
 
-            cart_success = self.verify_settings_range(number_of_carts, self.minimum_carts, self.maximum_carts)
+            item_success = self.verify_settings_range(number_of_items, self.minimum_items, self.maximum_items)
 
-            if not cart_success:
-                self.log("Failed to set number of carts in range.")
+            if not item_success:
+                self.log("Failed to set number of items in range.")
                 return []
 
-            for cart in range(int(number_of_carts)):
+            for item in range(int(number_of_items)):
                 x_success = False
                 y_success = False
 
                 while not x_success or not y_success:
 
-                    self.log(f"\nFor Cart #{cart + 1}:")
+                    self.log(f"\nFor Item #{item + 1}:")
                     x = input(f"Set X position (0 - {self.map_x - 1}): ")
                     y = input(f"Set Y position (0 - {self.map_y - 1}): ")
 
@@ -839,55 +838,55 @@ class ShoppingForCarts:
                     # Within Valid Range
                     if x_success and y_success:
 
-                        # Repeat Cart Position
-                        if position in cart_positions:
-                            self.log("Repeat cart position! Please Try Again.\n")
+                        # Repeat Item Position
+                        if position in item_positions:
+                            self.log("Repeat item position! Please Try Again.\n")
 
-                        # Overlapping Cart and Worker Positions
+                        # Overlapping Item and Worker Positions
                         elif position == self.starting_position:
-                            self.log("Cart position is the same as the worker position! Please Try Again.\n")
+                            self.log("Item position is the same as the worker position! Please Try Again.\n")
 
                         else:
-                            cart_positions.append(position)
+                            item_positions.append(position)
                             
                     else:
                         self.log("Invalid position! Please Try Again!\n")
 
-        return cart_positions
+        return item_positions
 
-    def set_cart_minimum_maximum(self):
+    def set_item_minimum_maximum(self):
         """
-        Changes the setting for minimum and maximum number of carts.
+        Changes the setting for minimum and maximum number of items.
 
         Returns:
             success (bool): Status whether settings were changed successfully.
         """
-        banner = Menu("Set Cart Minimum and Maximum Amount")
+        banner = Menu("Set Item Minimum and Maximum Amount")
         banner.display()
 
         success = False
 
-        max_carts = (self.map_x) * (self.map_y) - 1
+        max_items = (self.map_x) * (self.map_y) - 1
 
         while not success:
-            user_max = input(f"Set Maximum Amount (Currently {self.maximum_carts}, Maximum {max_carts}): ")
-            user_min = input(f"Set Minimum Amount (Currently {self.minimum_carts}): ")
+            user_max = input(f"Set Maximum Amount (Currently {self.maximum_items}, Maximum {max_items}): ")
+            user_min = input(f"Set Minimum Amount (Currently {self.minimum_items}): ")
 
-            max_success = self.verify_settings_range(user_max, int(user_min), max_carts)
+            max_success = self.verify_settings_range(user_max, int(user_min), max_items)
             min_success = self.verify_settings_range(user_min, 0, int(user_max) - 1)
 
-            self.log(f"Cart Min Success & Max Success: {max_success}, {min_success}", print_type=PrintType.DEBUG)
+            self.log(f"Item Min Success & Max Success: {max_success}, {min_success}", print_type=PrintType.DEBUG)
 
             if max_success and min_success:
-                self.minimum_carts = int(user_min)
-                self.maximum_carts = int(user_max)
+                self.minimum_items = int(user_min)
+                self.maximum_items = int(user_max)
                 success = True
 
             else:
                 self.log("Invalid values, please try again!")
 
-        self.log(f"Minimum Carts: {self.minimum_carts}")
-        self.log(f"Maximum Carts: {self.maximum_carts}")
+        self.log(f"Minimum Items: {self.minimum_items}")
+        self.log(f"Maximum Items: {self.maximum_items}")
         
         return success
 
@@ -898,7 +897,7 @@ class ShoppingForCarts:
         Args:
             option (str): Choice user chooses from main menu.
         """
-        # Go Get Carts
+        # View Map
         update = True
         clear = True
 
@@ -907,8 +906,8 @@ class ShoppingForCarts:
             if update:
                 self.display_map()
 
-                # Evaluate directions to gather carts
-                path = self.get_carts(self.gathering_algo)
+                # Evaluate directions to gather items
+                path = self.get_items(self.gathering_algo)
 
                 # Display directions
                 self.log("Directions:")
@@ -919,13 +918,13 @@ class ShoppingForCarts:
             else:
                 update = True
 
-            # Don't clear for first Go Get Carts Menu
+            # Don't clear for first View Map Menu
             clear = False
 
             while True:
-                # Create carts menu
+                # Create items menu
                 if update:
-                    self.display_menu(MenuType.GO_GET_CARTS, clear=clear)
+                    self.display_menu(MenuType.VIEW_MAP, clear=clear)
                 else:
                     update = True
                     clear = True
@@ -936,12 +935,12 @@ class ShoppingForCarts:
                 # Generate New Map
                 if suboption == '1':
                     self.log("Generate New Map")
-                    self.carts = self.get_cart_positions()
+                    self.items = self.get_item_positions()
                     self.map, self.inserted_order = self.generate_map()
                     self.display_map()
 
-                    # Evaluate directions to gather carts
-                    path = self.get_carts(self.gathering_algo)
+                    # Evaluate directions to gather items
+                    path = self.get_items(self.gathering_algo)
 
                     # Display directions
                     self.log("Directions:")
@@ -1050,34 +1049,34 @@ class ShoppingForCarts:
                             update = False
                             clear = False
 
-                # Set Cart Position Mode
+                # Set Item Position Mode
                 elif suboption == '3':
                     while True:
                         if update:
-                            self.display_menu(MenuType.CART_POSITION, clear=clear)
+                            self.display_menu(MenuType.ITEM_POSITION, clear=clear)
                         else:
                             update = True
                             clear = True
 
-                        mode_option = input(f"Set Cart Position Mode (Currently {self.cart_mode}): ")
+                        mode_option = input(f"Set Item Position Mode (Currently {self.item_mode}): ")
 
                         # Set random starting position
                         if mode_option == '1':
-                            self.cart_mode = GenerateMode.RANDOM
+                            self.item_mode = GenerateMode.RANDOM
 
-                            self.carts = self.get_cart_positions()
+                            self.items = self.get_item_positions()
 
-                            # Generate map with new cart positions
+                            # Generate map with new item positions
                             self.map, self.inserted_order = self.generate_map()
                             break
                         
                         # Set manual starting position
                         elif mode_option == '2':
-                            self.cart_mode = GenerateMode.MANUAL
+                            self.item_mode = GenerateMode.MANUAL
 
-                            self.carts = self.get_cart_positions()
+                            self.items = self.get_item_positions()
 
-                            # Generate map with new cart positions
+                            # Generate map with new item positions
                             self.map, self.inserted_order = self.generate_map()
                             break
 
@@ -1096,10 +1095,10 @@ class ShoppingForCarts:
                     update = False
                     clear = False
 
-                # Set Cart Minimum and Maximum Amount
+                # Set Item Minimum and Maximum Amount
                 elif suboption == '5':
-                    self.set_cart_minimum_maximum()
-                    self.carts = self.get_cart_positions()
+                    self.set_item_minimum_maximum()
+                    self.items = self.get_item_positions()
 
                 # Set Algorithm Method
                 elif suboption == '6':
@@ -1169,9 +1168,9 @@ class ShoppingForCarts:
 
 def main():
     """
-    Main application code to run the ShoppingForCarts application.
+    Main application code to run the ItemRoutingSystem application.
     """
-    app = ShoppingForCarts()
+    app = ItemRoutingSystem()
     app.run()
 
 if __name__ == "__main__":
