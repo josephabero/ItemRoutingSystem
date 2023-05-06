@@ -48,6 +48,10 @@ class GenerateMode(Enum):
     def __str__(cls):
         return cls.value
 
+class PrintType(Enum):
+    NORMAL = 0
+    DEBUG = 1
+
 class Menu:
     """
     Displays menu options to screen.
@@ -176,13 +180,21 @@ class ShoppingForCarts:
 
         # Display welcome banner
         banner = "------------------------------------------------------------"
-        print(banner)
-        print("")
-        print("")
-        print(f'{"Welcome to Shopping For Carts!".center(len(banner))}')
-        print("")
-        print("")
-        print(banner)
+        self.log(banner)
+        self.log("")
+        self.log("")
+        self.log(f'{"Welcome to Shopping For Carts!".center(len(banner))}')
+        self.log("")
+        self.log("")
+        self.log(banner)
+
+    def log(self, *args, print_type=PrintType.NORMAL):
+        if print_type == PrintType.NORMAL:
+            print(*args)
+
+        elif print_type == PrintType.DEBUG:
+            if self.debug:
+                print(*args)
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -300,8 +312,7 @@ class ShoppingForCarts:
 
         # Insert cart positions
         if positions is None:
-            if self.debug:
-                print(self.carts)
+            self.log(self.carts, print_type=PrintType.DEBUG)
 
             positions = self.carts
 
@@ -348,16 +359,16 @@ class ShoppingForCarts:
 
         for i, col in enumerate(grid):
             row_string = f"{i} " + " ".join(val for val in col)
-            print(row_string.center(banner_length))
+            self.log(row_string.center(banner_length))
 
-        print(" " + " ".join(str(i) for i in range(len(self.map[0]))).center(banner_length))
+        self.log(" " + " ".join(str(i) for i in range(len(self.map[0]))).center(banner_length))
 
-        print("")
-        print("LEGEND:".center(banner_length))
-        print("'S': Worker Starting Spot".center(banner_length))
-        print("'C': Shopping Cart".center(banner_length))
-        print("Positions are labeled as (X, Y)".center(banner_length))
-        print("")
+        self.log("")
+        self.log("LEGEND:".center(banner_length))
+        self.log("'S': Worker Starting Spot".center(banner_length))
+        self.log("'C': Shopping Cart".center(banner_length))
+        self.log("Positions are labeled as (X, Y)".center(banner_length))
+        self.log("")
 
     def move_to_target(self, start, end):
         """
@@ -460,15 +471,14 @@ class ShoppingForCarts:
                     distance += abs(path[i][0] - path[j][0])
                     distance += abs(path[i][1] - path[j][1])
 
-                    if self.debug:
-                        print(f"Path[i]: {path[i]} " \
-                              f"Path[j]: {path[j]} " \
-                              f"X Diff: {abs(path[i][0] - path[j][0])} " \
-                              f"Y Diff: {abs(path[i][1] - path[j][1])} " \
-                              f"Distance: {distance}")
+                    self.log(f"Path[i]: {path[i]} " \
+                            f"Path[j]: {path[j]} " \
+                            f"X Diff: {abs(path[i][0] - path[j][0])} " \
+                            f"Y Diff: {abs(path[i][1] - path[j][1])} " \
+                            f"Distance: {distance}",
+                            print_type=PrintType.DEBUG)
 
-            if self.debug:
-                print(path, distance)
+            self.log(path, distance, print_type=PrintType.DEBUG)
 
             if smallest is None or distance < smallest:
                 smallest = distance
@@ -476,9 +486,9 @@ class ShoppingForCarts:
 
         if self.debug:
             end_time = time.time()
-            print(f"Total Time: {(end_time - start_time):.4f}")
-            print(f"Minimum Path: {min_path}")
-            print(f"Shortest Number of Steps: {smallest}")
+            self.log(f"Total Time: {(end_time - start_time):.4f}")
+            self.log(f"Minimum Path: {min_path}")
+            self.log(f"Shortest Number of Steps: {smallest}")
 
         return min_path
 
@@ -491,8 +501,7 @@ class ShoppingForCarts:
 
         x, y = target
         if is_valid_position(x, y):
-            if self.debug:
-                print(f"Invalid target position: {target}")
+            self.log(f"Invalid target position: {target}", print_type=PrintType.DEBUG)
             return []
         
         # Find the starting position
@@ -522,25 +531,21 @@ class ShoppingForCarts:
             
             # If we've found the target, we're done
             if position == target:
-                if self.debug:
-                    print(f"Found path to target {target}!")
+                self.log(f"Found path to target {target}!", print_type=PrintType.DEBUG)
                 break
             
             # Check the neighbors of the current position
             for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 x, y = position[0] + dx, position[1] + dy
 
-                if self.debug:
-                    print(position, (x, y))
+                self.log(position, (x, y), print_type=PrintType.DEBUG)
 
                 if is_valid_position(x, y):
-                    if self.debug:
-                        print(f"Skipping {(x, y)}: Invalid Position")
+                    self.log(f"Skipping {(x, y)}: Invalid Position", print_type=PrintType.DEBUG)
                     continue
 
                 if grid[x][y] == 'C':
-                    if self.debug:
-                        print(f"Skipping {(x, y)}: Cart")
+                    self.log(f"Skipping {(x, y)}: Cart", print_type=PrintType.DEBUG)
                     continue
                 
                 # Compute the distance to the neighbor
@@ -561,12 +566,10 @@ class ShoppingForCarts:
         path.reverse()
         
         if target in path:
-            if self.debug:
-                print(f"Path found: {path}")
+            self.log(f"Path found: {path}", print_type=PrintType.DEBUG)
             return path
         else:
-            if self.debug:
-                print("Path not found")
+            self.log("Path not found", print_type=PrintType.DEBUG)
             return []
 
     def get_targets(self):
@@ -589,7 +592,7 @@ class ShoppingForCarts:
 
         if self.debug:
             end_time = time.time()
-            print(f"Total Time: {(end_time - start_time):.4f}")
+            self.log(f"Total Time: {(end_time - start_time):.4f}")
 
         return targets
 
@@ -628,8 +631,7 @@ class ShoppingForCarts:
         path.append(back_to_start)
         path.append("Pickup completed.")
 
-        if self.debug:
-            print(f"Total Steps: {total_steps}")
+        self.log(f"Total Steps: {total_steps}", print_type=PrintType.DEBUG)
 
         return path
 
@@ -648,8 +650,7 @@ class ShoppingForCarts:
         """
         path = []
 
-        if self.debug:
-            print(f"Inserted Cart Order: {self.inserted_order}")
+        self.log(f"Inserted Cart Order: {self.inserted_order}", print_type=PrintType.DEBUG)
 
         if option == AlgoMethod.ORDER_OF_INSERTION:
             targets = self.get_targets()
@@ -679,13 +680,13 @@ class ShoppingForCarts:
             if minimum <= int(value) <= maximum:
                 return True
             elif int(value) < minimum:
-                print(f"Try again! {value} is too small, must be minimum {minimum}.")
+                self.log(f"Try again! {value} is too small, must be minimum {minimum}.")
             elif int(value) > maximum:
-                print(f"Try again! {value} is too large, must be maximum {maximum}.")
+                self.log(f"Try again! {value} is too large, must be maximum {maximum}.")
             else:
-                print(f"Invalid option: {value}")
+                self.log(f"Invalid option: {value}")
         except Exception as e:
-            print(f"Invalid option: {value}")
+            self.log(f"Invalid option: {value}")
 
         return False
 
@@ -719,7 +720,7 @@ class ShoppingForCarts:
             self.map_y = int(y)
             success = True
 
-        print(f"Current Map Size: {self.map_x}x{self.map_y}")
+        self.log(f"Current Map Size: {self.map_x}x{self.map_y}")
         return success
 
     def set_worker_starting_position(self):
@@ -758,13 +759,13 @@ class ShoppingForCarts:
 
                     # Overlapping Cart and Worker Positions
                     if (int(x), int(y)) in self.carts:
-                        print("Worker position is the same as a cart position! Please Try Again.\n")
+                        self.log("Worker position is the same as a cart position! Please Try Again.\n")
 
                     else:
                         self.starting_position = (int(x), int(y))
                         success = True
 
-                print(f"Current Worker Starting Position: {self.starting_position}")
+                self.log(f"Current Worker Starting Position: {self.starting_position}")
         return success
 
     def get_cart_positions(self):
@@ -799,13 +800,11 @@ class ShoppingForCarts:
 
                     # Repeat Cart Position
                     if position in cart_positions:
-                        if self.debug:
-                            print("Repeat cart position! Please Try Again.\n")
+                        self.log("Repeat cart position! Please Try Again.\n", print_type=PrintType.DEBUG)
 
                     # Overlapping Cart and Worker Positions
                     elif position == self.starting_position:
-                        if self.debug:
-                            print("Cart position is the same as the worker position! Please Try Again.\n")
+                        self.log("Cart position is the same as the worker position! Please Try Again.\n", print_type=PrintType.DEBUG)
 
                     else:
                         cart_positions.append(position)
@@ -820,7 +819,7 @@ class ShoppingForCarts:
             cart_success = self.verify_settings_range(number_of_carts, self.minimum_carts, self.maximum_carts)
 
             if not cart_success:
-                print("Failed to set number of carts in range.")
+                self.log("Failed to set number of carts in range.")
                 return []
 
             for cart in range(int(number_of_carts)):
@@ -829,7 +828,7 @@ class ShoppingForCarts:
 
                 while not x_success or not y_success:
 
-                    print(f"\nFor Cart #{cart + 1}:")
+                    self.log(f"\nFor Cart #{cart + 1}:")
                     x = input(f"Set X position (0 - {self.map_x - 1}): ")
                     y = input(f"Set Y position (0 - {self.map_y - 1}): ")
 
@@ -842,17 +841,17 @@ class ShoppingForCarts:
 
                         # Repeat Cart Position
                         if position in cart_positions:
-                            print("Repeat cart position! Please Try Again.\n")
+                            self.log("Repeat cart position! Please Try Again.\n")
 
                         # Overlapping Cart and Worker Positions
                         elif position == self.starting_position:
-                            print("Cart position is the same as the worker position! Please Try Again.\n")
+                            self.log("Cart position is the same as the worker position! Please Try Again.\n")
 
                         else:
                             cart_positions.append(position)
                             
                     else:
-                        print("Invalid position! Please Try Again!\n")
+                        self.log("Invalid position! Please Try Again!\n")
 
         return cart_positions
 
@@ -877,8 +876,7 @@ class ShoppingForCarts:
             max_success = self.verify_settings_range(user_max, int(user_min), max_carts)
             min_success = self.verify_settings_range(user_min, 0, int(user_max) - 1)
 
-            if self.debug:
-                print(f"Cart Min Success & Max Success: {max_success}, {min_success}")
+            self.log(f"Cart Min Success & Max Success: {max_success}, {min_success}", print_type=PrintType.DEBUG)
 
             if max_success and min_success:
                 self.minimum_carts = int(user_min)
@@ -886,10 +884,10 @@ class ShoppingForCarts:
                 success = True
 
             else:
-                print("Invalid values, please try again!")
+                self.log("Invalid values, please try again!")
 
-        print(f"Minimum Carts: {self.minimum_carts}")
-        print(f"Maximum Carts: {self.maximum_carts}")
+        self.log(f"Minimum Carts: {self.minimum_carts}")
+        self.log(f"Maximum Carts: {self.maximum_carts}")
         
         return success
 
@@ -913,10 +911,10 @@ class ShoppingForCarts:
                 path = self.get_carts(self.gathering_algo)
 
                 # Display directions
-                print("Directions:")
-                print("-----------")
+                self.log("Directions:")
+                self.log("-----------")
                 for step, action in enumerate(path):
-                    print(f"{step}. {action}")
+                    self.log(f"{step}. {action}")
 
             else:
                 update = True
@@ -937,7 +935,7 @@ class ShoppingForCarts:
 
                 # Generate New Map
                 if suboption == '1':
-                    print("Generate New Map")
+                    self.log("Generate New Map")
                     self.carts = self.get_cart_positions()
                     self.map, self.inserted_order = self.generate_map()
                     self.display_map()
@@ -946,18 +944,18 @@ class ShoppingForCarts:
                     path = self.get_carts(self.gathering_algo)
 
                     # Display directions
-                    print("Directions:")
-                    print("-----------")
+                    self.log("Directions:")
+                    self.log("-----------")
                     for step, action in enumerate(path):
-                        print(f"{step}. {action}")
+                        self.log(f"{step}. {action}")
 
                     clear = False
 
                 elif suboption == '2':
-                    print("Get Location of Product")
+                    self.log("Get Location of Product")
 
                 elif suboption == '3':
-                    print("Get Path to Product")
+                    self.log("Get Path to Product")
                     position = (4, 4)
 
                     shortest_path = []
@@ -970,20 +968,18 @@ class ShoppingForCarts:
                             if len(path) < len(shortest_path) or not shortest_path:
                                 shortest_path = path
 
-                        if self.debug:
-                            print(f"Shortest Path for {(x, y)}: {shortest_path}")
+                        self.log(f"Shortest Path for {(x, y)}: {shortest_path}", print_type=PrintType.DEBUG)
 
                     if shortest_path:
-                        if self.debug:
-                            print(f"Path to product is: {shortest_path}")
+                        self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
                         steps = self.get_descriptive_steps(shortest_path)
 
-                        print("Directions:")
-                        print("-----------")
+                        self.log("Directions:")
+                        self.log("-----------")
                         for step, action in enumerate(steps, 1):
-                            print(f"{step}. {action}")
+                            self.log(f"{step}. {action}")
                     else:
-                        print(f"Path to {position} was not found!")
+                        self.log(f"Path to {position} was not found!")
 
                     clear = False
 
@@ -991,7 +987,7 @@ class ShoppingForCarts:
                 elif suboption == '4':
                     break
                 else:
-                    print("Invalid choice. Try again.")
+                    self.log("Invalid choice. Try again.")
                     update = False
 
         # Settings
@@ -1050,7 +1046,7 @@ class ShoppingForCarts:
                             break
 
                         else:
-                            print("Invalid choice. Try again.")
+                            self.log("Invalid choice. Try again.")
                             update = False
                             clear = False
 
@@ -1090,13 +1086,13 @@ class ShoppingForCarts:
                             break
 
                         else:
-                            print("Invalid choice. Try again.")
+                            self.log("Invalid choice. Try again.")
                             update = False
                             clear = False
 
                 # Set Obstacle Mode
                 elif suboption == '4':
-                    print("You chose an Unimplemented Obstacle Mode.")
+                    self.log("You chose an Unimplemented Obstacle Mode.")
                     update = False
                     clear = False
 
@@ -1128,7 +1124,7 @@ class ShoppingForCarts:
 
                         # Dijkstra
                         elif algo_option == '3':
-                            print("You chose an Unimplemented Dijkstra's Algorithm.")
+                            self.log("You chose an Unimplemented Dijkstra's Algorithm.")
                             update = False
                             clear = False
 
@@ -1137,7 +1133,7 @@ class ShoppingForCarts:
                             break
 
                         else:
-                            print("Invalid choice. Try again.")
+                            self.log("Invalid choice. Try again.")
                             update = False
                             clear = False
 
@@ -1149,15 +1145,15 @@ class ShoppingForCarts:
                 elif suboption == '8':
                     break
                 else:
-                    print("Invalid choice. Try again.")
+                    self.log("Invalid choice. Try again.")
                     update = False
 
         # Exit
         elif option == '3':
-            print("Exiting...")
+            self.log("Exiting...")
             sys.exit()
         else:
-            print("Invalid choice. Try again.")
+            self.log("Invalid choice. Try again.")
             update = False
 
     def run(self):
