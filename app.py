@@ -175,6 +175,7 @@ class ShoppingForCarts:
 
         # Default product info list
         self.product_info = {}
+        self.product_file = None
 
         # Display welcome banner
         banner = "------------------------------------------------------------"
@@ -191,13 +192,13 @@ class ShoppingForCarts:
         loads the product file into a dictionary called product_list where the key is productID and the value 
         is the pair (X, Y).
         """
-
+        self.product_file = fname
         f = open(fname, 'r')
         next(f)
         
         for line in f:
             fields = line.strip().split()
-            self.product_info[fields[0]] = fields[1] , fields[2]
+            self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
         f.close()
 #        print(self.product_info)
 
@@ -227,8 +228,7 @@ class ShoppingForCarts:
             menu = Menu("Main Menu")
             menu.add_option(1, "Go Get Carts")
             menu.add_option(2, "Settings")
-            menu.add_option(3, "Load Product File")
-            menu.add_option(4, "Exit")
+            menu.add_option(3, "Exit")
             
 
         elif menu_type == MenuType.GO_GET_CARTS:
@@ -245,7 +245,8 @@ class ShoppingForCarts:
             menu.add_option(5, "Set Cart Minimum and Maximum Amount")
             menu.add_option(6, "Set Gathering Algorithm")
             menu.add_option(7, "Toggle Debug Mode")
-            menu.add_option(8, "Back")
+            menu.add_option(8, "Load Product File")
+            menu.add_option(9, "Back")
 
             info = "Current Settings:\n"                                   \
             f"Map Size: {self.map_x}x{self.map_y}\n"                       \
@@ -257,6 +258,7 @@ class ShoppingForCarts:
             f"  Mode: {self.cart_mode}\n"                                  \
             f"  Positions: {' '.join(str(p) for p in self.carts)}\n"       \
             f"Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"Loaded Product File: {self.product_file}\n"                  \
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
@@ -264,8 +266,6 @@ class ShoppingForCarts:
 
         elif menu_type == MenuType.LOAD_PRODUCT_FILE:
             menu = Menu("Load Product File Menu")
-            menu.add_option(1, "Set File Name")
-            menu.add_option(2,"Back")
 
         elif menu_type == MenuType.ALGO_METHOD:
             menu = Menu("Set Gathering Algorithm")
@@ -1043,36 +1043,29 @@ class ShoppingForCarts:
                 elif suboption == '7':
                     self.debug = not self.debug
 
-                # Back
+                # Load Product File
                 elif suboption == '8':
+                    while True:
+                        if update:
+                            self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
+                        else:
+                            update = True
+                            clear = True
+
+                        # Set Product File Name
+                        fname = input("Enter filename: ")
+                        self.load_product_file(fname)
+                        break
+
+                # Back
+                elif suboption == '9':
                     break
                 else:
                     print("Invalid choice. Try again.")
                     update = False
 
-        # Load Product File
-        elif option == '3':
-            clear = True
-
-            while True:
-                # Create load product file Menu
-                if update:
-                    self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
-                    clear = True
-                else:
-                    update = True
-                
-                suboption = input("> ")
-
-                # Set Product File Name
-                if (suboption == '1'):
-                    fname = input("Enter filename: ")
-                    self.load_product_file(fname)
-                
-                elif (suboption == '2'):
-                    break
         # Exit
-        elif option == '4':
+        elif option == '3':
             print("Exiting...")
             sys.exit()
         else:
