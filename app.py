@@ -485,12 +485,13 @@ class ShoppingForCarts:
     def dijkstra(self, grid, target):
         
         def is_valid_position(x, y):
-            return x < 0 or x >= self.map_x or y < 0 or y >= self.map_y
+            return 0 <= x < self.map_x  and \
+                   0 <= y < self.map_y
 
         start = None
 
         x, y = target
-        if is_valid_position(x, y):
+        if not is_valid_position(x, y):
             if self.debug:
                 print(f"Invalid target position: {target}")
             return []
@@ -533,7 +534,7 @@ class ShoppingForCarts:
                 if self.debug:
                     print(position, (x, y))
 
-                if is_valid_position(x, y):
+                if not is_valid_position(x, y):
                     if self.debug:
                         print(f"Skipping {(x, y)}: Invalid Position")
                     continue
