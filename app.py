@@ -25,6 +25,7 @@ class MenuType(Enum):
     ALGO_METHOD = 3
     WORKER_POSITION = 4
     CART_POSITION = 5
+    LOAD_PRODUCT_FILE = 6
 
 class AlgoMethod(Enum):
     """
@@ -143,7 +144,6 @@ class ShoppingForCarts:
 
     Handles user inputs, generation of the map, and settings.
     """
-
     def __init__(self):
         """
         Initializes Menu class.
@@ -173,6 +173,9 @@ class ShoppingForCarts:
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
 
+        # Default product info list
+        self.product_info = {}
+
         # Display welcome banner
         banner = "------------------------------------------------------------"
         print(banner)
@@ -182,6 +185,21 @@ class ShoppingForCarts:
         print("")
         print("")
         print(banner)
+
+    def load_product_file(self, fname):
+        """
+        loads the product file into a dictionary called product_list where the key is productID and the value 
+        is the pair (X, Y).
+        """
+
+        f = open(fname, 'r')
+        next(f)
+        
+        for line in f:
+            fields = line.strip().split()
+            self.product_info[fields[0]] = fields[1] , fields[2]
+        print(self.product_info)
+
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -208,7 +226,9 @@ class ShoppingForCarts:
             menu = Menu("Main Menu")
             menu.add_option(1, "Go Get Carts")
             menu.add_option(2, "Settings")
-            menu.add_option(3, "Exit")
+            menu.add_option(3, "Load Product File")
+            menu.add_option(4, "Exit")
+            
 
         elif menu_type == MenuType.GO_GET_CARTS:
             menu = Menu("Go Get Carts Menu")
@@ -239,6 +259,12 @@ class ShoppingForCarts:
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
+
+
+        elif menu_type == MenuType.LOAD_PRODUCT_FILE:
+            menu = Menu("Load Product File Menu")
+            menu.add_option(1, "Set File Name")
+            menu.add_option(2,"Back")
 
         elif menu_type == MenuType.ALGO_METHOD:
             menu = Menu("Set Gathering Algorithm")
@@ -1023,13 +1049,35 @@ class ShoppingForCarts:
                     print("Invalid choice. Try again.")
                     update = False
 
-        # Exit
+        # Load Product File
         elif option == '3':
+            clear = True
+
+            while True:
+                # Create load product file Menu
+                if update:
+                    self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
+                    clear = True
+                else:
+                    update = True
+                
+                suboption = input("> ")
+
+                # Set Product File Name
+                if (suboption == '1'):
+                    fname = input("Enter filename: ")
+                    self.load_product_file(fname)
+                
+                elif (suboption == '2'):
+                    break
+        # Exit
+        elif option == '4':
             print("Exiting...")
             sys.exit()
         else:
             print("Invalid choice. Try again.")
             update = False
+
 
     def run(self):
         """
@@ -1042,12 +1090,15 @@ class ShoppingForCarts:
             choice = input("> ")
             self.handle_option(choice)
 
+
 def main():
     """
     Main application code to run the ShoppingForCarts application.
     """
+
     app = ShoppingForCarts()
     app.run()
+
 
 if __name__ == "__main__":
     main()
