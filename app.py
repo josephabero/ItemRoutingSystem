@@ -152,7 +152,7 @@ class ItemRoutingSystem:
 
     def __init__(self):
         """
-        Initializes Menu class.
+        Initializes ItemRoutingSystem application class.
 
         Defaults a 5x5 map with a worker starting position of (0, 0).
         """
@@ -226,10 +226,15 @@ class ItemRoutingSystem:
 
         elif menu_type == MenuType.VIEW_MAP:
             menu = Menu("View Map Menu")
-            menu.add_option(1, "Generate New Map")
-            menu.add_option(2, "Get Location of Product")
-            menu.add_option(3, "Get Path to Product")
-            menu.add_option(4, "Back")
+            menu.add_option(1, "Get Location of Product")
+            menu.add_option(2, "Get Path to Product")
+
+            # Only expose developer option in debug mode
+            if self.debug:
+                menu.add_option(3, "Generate New Map")
+                menu.add_option(4, "Back")
+            else:
+                menu.add_option(3, "Back")
 
         elif menu_type == MenuType.SETTINGS:
             menu = Menu("Settings Menu")
@@ -904,16 +909,6 @@ class ItemRoutingSystem:
             # Display map at start of menu
             if update:
                 self.display_map()
-
-                # Evaluate directions to gather items
-                path = self.get_items(self.gathering_algo)
-
-                # Display directions
-                self.log("Directions:")
-                self.log("-----------")
-                for step, action in enumerate(path):
-                    self.log(f"{step}. {action}")
-
             else:
                 update = True
 
@@ -933,26 +928,6 @@ class ItemRoutingSystem:
 
                 # Generate New Map
                 if suboption == '1':
-                    self.log("Generate New Map")
-                    self.items = self.get_item_positions()
-                    self.map, self.inserted_order = self.generate_map()
-                    self.display_map()
-
-                    # Evaluate directions to gather items
-                    path = self.get_items(self.gathering_algo)
-
-                    # Display directions
-                    self.log("Directions:")
-                    self.log("-----------")
-                    for step, action in enumerate(path):
-                        self.log(f"{step}. {action}")
-
-                    clear = False
-
-                elif suboption == '2':
-                    self.log("Get Location of Product")
-
-                elif suboption == '3':
                     self.log("Get Path to Product")
                     position = (4, 4)
 
@@ -981,12 +956,41 @@ class ItemRoutingSystem:
 
                     clear = False
 
+                elif suboption == '2':
+                    self.log("Get Location of Product")
+
                 # Back
-                elif suboption == '4':
-                    break
+                elif suboption == '3':
+                    # Debug Mode: Generate New Map
+                    if self.debug:
+                        self.log("Generate New Map")
+                        self.items = self.get_item_positions()
+                        self.map, self.inserted_order = self.generate_map()
+                        self.display_map()
+
+                        # Evaluate directions to gather items
+                        path = self.get_items(self.gathering_algo)
+
+                        # Display directions
+                        self.log("Directions:")
+                        self.log("-----------")
+                        for step, action in enumerate(path):
+                            self.log(f"{step}. {action}")
+
+                        clear = False
+
+                    # Normal Mode: Back
+                    else:
+                        break
+
                 else:
-                    self.log("Invalid choice. Try again.")
-                    update = False
+                    # Debug Mode: Back
+                    if self.debug:
+                        break
+
+                    else:
+                        self.log("Invalid choice. Try again.")
+                        update = False
 
         # Settings
         elif option == '2':
