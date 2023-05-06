@@ -214,8 +214,8 @@ class ShoppingForCarts:
         elif menu_type == MenuType.GO_GET_CARTS:
             menu = Menu("Go Get Carts Menu")
             menu.add_option(1, "Generate New Map")
-            menu.add_option(2, "Get Location of Product")
-            menu.add_option(3, "Get Path to Product")
+            menu.add_option(2, "Get Path to Product")
+            menu.add_option(3, "Get Location to Product")
             menu.add_option(4, "Back")
 
         elif menu_type == MenuType.SETTINGS:
