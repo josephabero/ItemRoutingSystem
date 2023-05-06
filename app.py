@@ -198,7 +198,8 @@ class ShoppingForCarts:
         for line in f:
             fields = line.strip().split()
             self.product_info[fields[0]] = fields[1] , fields[2]
-        print(self.product_info)
+        f.close()
+#        print(self.product_info)
 
 
     def display_menu(self, menu_type, clear=True):
