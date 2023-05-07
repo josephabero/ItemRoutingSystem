@@ -273,16 +273,10 @@ class ItemRoutingSystem:
                 menu.add_option(7, "Back")
 
             info = "Current Settings:\n"                                   \
-            f"Map Size: {self.map_x}x{self.map_y}\n"                       \
-            f"\n"                                                          \
-            f"Worker Settings:\n"                                          \
-            f"  Mode: {self.worker_mode}\n"                                \
-            f"  Position: {self.starting_position}\n"                      \
-            f"Item Settings:\n"                                            \
-            f"  Mode: {self.item_mode}\n"                                  \
-            f"  Positions: {' '.join(str(p) for p in self.items)}\n"       \
-            f"Gathering Algorithm: {self.gathering_algo}\n"                \
             f"Loaded Product File: {self.product_file}\n"                  \
+            f"Worker Settings:\n"                                          \
+            f"  Position: {self.starting_position}\n"                      \
+            f"Gathering Algorithm: {self.gathering_algo}\n"                \
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
@@ -293,6 +287,18 @@ class ItemRoutingSystem:
             menu.add_option(2, "Set Item Position Mode")
             menu.add_option(3, "Set Map Orientation")
             menu.add_option(4, "Back")
+
+            info = "Current Developer Settings:\n"                         \
+            f"Map Size: {self.map_x}x{self.map_y}\n"                       \
+            f"\n"                                                          \
+            f"Worker Settings:\n"                                          \
+            f"  Mode: {self.worker_mode}\n"                                \
+            f"Item Settings:\n"                                            \
+            f"  Mode: {self.item_mode}\n"                                  \
+            f"  Positions: {' '.join(str(p) for p in self.items)}\n"       \
+            f"Debug Mode: {self.debug}\n"
+
+            menu.set_misc_info(info)
 
         elif menu_type == MenuType.LOAD_PRODUCT_FILE:
             menu = Menu("Load Product File Menu")
