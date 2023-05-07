@@ -3,7 +3,7 @@ Welcome to Item Routing System!
 
 Authors: Joseph Abero, ChatGPT
 
-ItemRoutingSystem is a text-based application used to provide store workers with 
+ItemRoutingSystem is a text-based application used to provide store workers with
 directions to gather shopping items around a warehouse.
 """
 
@@ -25,10 +25,11 @@ class MenuType(Enum):
     ALGO_METHOD = 3
     WORKER_POSITION = 4
     ITEM_POSITION = 5
+    LOAD_PRODUCT_FILE = 6
 
 class AlgoMethod(Enum):
     """
-    Constants for algorithms used to gather items 
+    Constants for algorithms used to gather items
     """
     ORDER_OF_INSERTION = "Order of Insertion"
     BRUTE_FORCE = "Brute Force"
@@ -179,6 +180,10 @@ class ItemRoutingSystem:
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
 
+        # Default product info list
+        self.product_info = {}
+        self.product_file = None
+
         # Display welcome banner
         banner = "------------------------------------------------------------"
         self.log(banner)
@@ -196,6 +201,20 @@ class ItemRoutingSystem:
         elif print_type == PrintType.DEBUG:
             if self.debug:
                 print(*args)
+
+    def load_product_file(self, fname):
+        """
+        loads the product file into a dictionary called product_list where the key is productID and the value
+        is the pair (X, Y).
+        """
+        self.product_file = fname
+        f = open(fname, 'r')
+        next(f)
+
+        for line in f:
+            fields = line.strip().split()
+            self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
+        f.close()
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -227,8 +246,8 @@ class ItemRoutingSystem:
         elif menu_type == MenuType.VIEW_MAP:
             menu = Menu("View Map Menu")
             menu.add_option(1, "Generate New Map")
-            menu.add_option(2, "Get Location of Product")
-            menu.add_option(3, "Get Path to Product")
+            menu.add_option(2, "Get Path to Product")
+            menu.add_option(3, "Get Location to Product")
             menu.add_option(4, "Back")
 
         elif menu_type == MenuType.SETTINGS:
@@ -240,7 +259,8 @@ class ItemRoutingSystem:
             menu.add_option(5, "Set Item Minimum and Maximum Amount")
             menu.add_option(6, "Set Gathering Algorithm")
             menu.add_option(7, "Toggle Debug Mode")
-            menu.add_option(8, "Back")
+            menu.add_option(8, "Load Product File")
+            menu.add_option(9, "Back")
 
             info = "Current Settings:\n"                                   \
             f"Map Size: {self.map_x}x{self.map_y}\n"                       \
@@ -252,9 +272,13 @@ class ItemRoutingSystem:
             f"  Mode: {self.item_mode}\n"                                  \
             f"  Positions: {' '.join(str(p) for p in self.items)}\n"       \
             f"Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"Loaded Product File: {self.product_file}\n"                  \
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
+
+        elif menu_type == MenuType.LOAD_PRODUCT_FILE:
+            menu = Menu("Load Product File Menu")
 
         elif menu_type == MenuType.ALGO_METHOD:
             menu = Menu("Set Gathering Algorithm")
@@ -493,12 +517,13 @@ class ItemRoutingSystem:
     def dijkstra(self, grid, target):
         
         def is_valid_position(x, y):
-            return x < 0 or x >= self.map_x or y < 0 or y >= self.map_y
+            return 0 <= x < self.map_x  and \
+                   0 <= y < self.map_y
 
         start = None
 
         x, y = target
-        if is_valid_position(x, y):
+        if not is_valid_position(x, y):
             self.log(f"Invalid target position: {target}", print_type=PrintType.DEBUG)
             return []
         
@@ -538,7 +563,7 @@ class ItemRoutingSystem:
 
                 self.log(position, (x, y), print_type=PrintType.DEBUG)
 
-                if is_valid_position(x, y):
+                if not is_valid_position(x, y):
                     self.log(f"Skipping {(x, y)}: Invalid Position", print_type=PrintType.DEBUG)
                     continue
 
@@ -597,7 +622,7 @@ class ItemRoutingSystem:
 
     def get_descriptive_steps(self, targets):
         """
-        Gets a list of directions to gather all items beginning from the 
+        Gets a list of directions to gather all items beginning from the
         internal starting position and returning to the starting position.
 
         Algorithm gathers list of target items by prioritizing top rows and
@@ -1139,8 +1164,22 @@ class ItemRoutingSystem:
                 elif suboption == '7':
                     self.debug = not self.debug
 
-                # Back
+                # Load Product File
                 elif suboption == '8':
+                    while True:
+                        if update:
+                            self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
+                        else:
+                            update = True
+                            clear = True
+
+                        # Set Product File Name
+                        fname = input("Enter filename: ")
+                        self.load_product_file(fname)
+                        break
+
+                # Back
+                elif suboption == '9':
                     break
                 else:
                     self.log("Invalid choice. Try again.")
