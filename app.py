@@ -10,6 +10,7 @@ directions to gather shopping items around a warehouse.
 from enum import Enum
 import heapq
 import itertools
+import json
 import os
 import random
 import sys
@@ -45,6 +46,7 @@ class GenerateMode(Enum):
     """
     MANUAL = "Manual"
     RANDOM = "Random"
+    LOADED_FILE = "Loaded File"
 
     def __str__(cls):
         return cls.value
@@ -156,14 +158,18 @@ class ItemRoutingSystem:
         """
         Initializes ItemRoutingSystem application class.
 
-        Defaults a 5x5 map with a worker starting position of (0, 0).
+        Defaults a map with a worker starting position of (0, 0).
         """
         # Default debug mode
         self.debug = False
 
-        # Default 5x5 map size
-        self.map_x = 5
-        self.map_y = 5
+        # Default map size
+        self.map_x = 40
+        self.map_y = 21
+
+        # Default product info list
+        self.product_info = {}
+        self.product_file = None
 
         # Default worker settings
         self.worker_mode = GenerateMode.MANUAL
@@ -180,10 +186,6 @@ class ItemRoutingSystem:
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
-
-        # Default product info list
-        self.product_info = {}
-        self.product_file = None
 
         # Display welcome banner
         banner = "------------------------------------------------------------"
@@ -415,7 +417,7 @@ class ItemRoutingSystem:
             row_string = f"{i} " + " ".join(val for val in col)
             self.log(row_string.center(banner_length))
 
-        self.log(" " + " ".join(str(i) for i in range(len(self.map[0]))).center(banner_length))
+        self.log(" " + " ".join(str(i) for i in range(len(self.map))).center(banner_length))
 
         self.log("")
         self.log("LEGEND:".center(banner_length))
@@ -759,8 +761,8 @@ class ItemRoutingSystem:
 
         minimum_x = 5
         minimum_y = 5
-        maximum_x = 20
-        maximum_y = 20
+        maximum_x = 40
+        maximum_y = 40
 
         success = False
 
@@ -842,7 +844,12 @@ class ItemRoutingSystem:
         """
         item_positions = []
 
-        if self.item_mode == GenerateMode.RANDOM:
+        if self.item_mode == GenerateMode.LOADED_FILE:
+            if self.product_file:
+                for product, position in self.product_info.items():
+                    item_positions.append(position)
+
+        elif self.item_mode == GenerateMode.RANDOM:
             number_of_items = random.randint(self.minimum_items, self.maximum_items)
 
             for _ in range(number_of_items):
@@ -973,8 +980,15 @@ class ItemRoutingSystem:
 
                     success = self.load_product_file(product_file)
 
-                    if not success:
+                    if success:
+                        self.item_mode = GenerateMode.LOADED_FILE
+                        self.items = self.get_item_positions()
+                        self.map, self.inserted_order = self.generate_map()
+                        print(self.items)
+
+                    else:
                         self.log(f"File '{product_file}' was not found, please try entering full path to file!")
+
 
             # Display map after file is loaded
             if update:
