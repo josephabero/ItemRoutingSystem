@@ -10,4 +10,4 @@ clean:
 	rm -f app.spec
 
 run:
-	./dist/app
+	python3 app.py
