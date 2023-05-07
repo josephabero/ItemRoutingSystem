@@ -25,6 +25,7 @@ class MenuType(Enum):
     ALGO_METHOD = 3
     WORKER_POSITION = 4
     CART_POSITION = 5
+    LOAD_PRODUCT_FILE = 6
 
 class AlgoMethod(Enum):
     """
@@ -143,7 +144,6 @@ class ShoppingForCarts:
 
     Handles user inputs, generation of the map, and settings.
     """
-
     def __init__(self):
         """
         Initializes Menu class.
@@ -173,6 +173,10 @@ class ShoppingForCarts:
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
 
+        # Default product info list
+        self.product_info = {}
+        self.product_file = None
+
         # Display welcome banner
         banner = "------------------------------------------------------------"
         print(banner)
@@ -182,6 +186,22 @@ class ShoppingForCarts:
         print("")
         print("")
         print(banner)
+
+    def load_product_file(self, fname):
+        """
+        loads the product file into a dictionary called product_list where the key is productID and the value 
+        is the pair (X, Y).
+        """
+        self.product_file = fname
+        f = open(fname, 'r')
+        next(f)
+        
+        for line in f:
+            fields = line.strip().split()
+            self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
+        f.close()
+#        print(self.product_info)
+
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -209,6 +229,7 @@ class ShoppingForCarts:
             menu.add_option(1, "Go Get Carts")
             menu.add_option(2, "Settings")
             menu.add_option(3, "Exit")
+            
 
         elif menu_type == MenuType.GO_GET_CARTS:
             menu = Menu("Go Get Carts Menu")
@@ -224,7 +245,8 @@ class ShoppingForCarts:
             menu.add_option(5, "Set Cart Minimum and Maximum Amount")
             menu.add_option(6, "Set Gathering Algorithm")
             menu.add_option(7, "Toggle Debug Mode")
-            menu.add_option(8, "Back")
+            menu.add_option(8, "Load Product File")
+            menu.add_option(9, "Back")
 
             info = "Current Settings:\n"                                   \
             f"Map Size: {self.map_x}x{self.map_y}\n"                       \
@@ -236,9 +258,14 @@ class ShoppingForCarts:
             f"  Mode: {self.cart_mode}\n"                                  \
             f"  Positions: {' '.join(str(p) for p in self.carts)}\n"       \
             f"Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"Loaded Product File: {self.product_file}\n"                  \
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
+
+
+        elif menu_type == MenuType.LOAD_PRODUCT_FILE:
+            menu = Menu("Load Product File Menu")
 
         elif menu_type == MenuType.ALGO_METHOD:
             menu = Menu("Set Gathering Algorithm")
@@ -1016,8 +1043,22 @@ class ShoppingForCarts:
                 elif suboption == '7':
                     self.debug = not self.debug
 
-                # Back
+                # Load Product File
                 elif suboption == '8':
+                    while True:
+                        if update:
+                            self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
+                        else:
+                            update = True
+                            clear = True
+
+                        # Set Product File Name
+                        fname = input("Enter filename: ")
+                        self.load_product_file(fname)
+                        break
+
+                # Back
+                elif suboption == '9':
                     break
                 else:
                     print("Invalid choice. Try again.")
@@ -1031,6 +1072,7 @@ class ShoppingForCarts:
             print("Invalid choice. Try again.")
             update = False
 
+
     def run(self):
         """
         Helper function to run the application. Loops the main menu until the user
@@ -1042,12 +1084,15 @@ class ShoppingForCarts:
             choice = input("> ")
             self.handle_option(choice)
 
+
 def main():
     """
     Main application code to run the ShoppingForCarts application.
     """
+
     app = ShoppingForCarts()
     app.run()
+
 
 if __name__ == "__main__":
     main()
