@@ -208,14 +208,21 @@ class ItemRoutingSystem:
         loads the product file into a dictionary called product_list where the key is productID and the value
         is the pair (X, Y).
         """
-        self.product_file = fname
-        f = open(fname, 'r')
-        next(f)
+        success = True
 
-        for line in f:
-            fields = line.strip().split()
-            self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
-        f.close()
+        try:
+            self.product_file = fname
+            f = open(fname, 'r')
+            next(f)
+
+            for line in f:
+                fields = line.strip().split()
+                self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
+            f.close()
+        except FileNotFoundError:
+            success = False
+
+        return success
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -951,7 +958,25 @@ class ItemRoutingSystem:
         clear = True
 
         if option == '1':
-            # Display map at start of menu
+            # Load product file if one hasn't been loaded yet
+            if self.product_file is None:
+                if update:
+                    self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
+                else:
+                    update = True
+                    clear = True
+
+                # Set Product File Name
+                success = False
+                while not success:
+                    product_file = input("Enter product filename: ")
+
+                    success = self.load_product_file(product_file)
+
+                    if not success:
+                        self.log(f"File '{product_file}' was not found, please try entering full path to file!")
+
+            # Display map after file is loaded
             if update:
                 self.display_map()
             else:
@@ -971,7 +996,7 @@ class ItemRoutingSystem:
                 # Handle menu options
                 suboption = input("> ")
 
-                # Generate New Map
+                # Get Path to Product
                 if suboption == '1':
                     self.log("Get Path to Product")
                     position = (4, 4)
@@ -1001,6 +1026,7 @@ class ItemRoutingSystem:
 
                     clear = False
 
+                # Get Location of Product
                 elif suboption == '2':
                     self.log("Get Location of Product")
 
@@ -1060,8 +1086,8 @@ class ItemRoutingSystem:
                         clear = True
 
                     # Set Product File Name
-                    fname = input("Enter filename: ")
-                    self.load_product_file(fname)
+                    product_file = input("Enter filename: ")
+                    self.load_product_file(product_file)
 
                 # Set Worker Starting Position
                 elif suboption == '2':
