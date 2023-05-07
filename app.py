@@ -3,7 +3,7 @@ Welcome to Item Routing System!
 
 Authors: Joseph Abero, ChatGPT
 
-ItemRoutingSystem is a text-based application used to provide store workers with 
+ItemRoutingSystem is a text-based application used to provide store workers with
 directions to gather shopping items around a warehouse.
 """
 
@@ -30,7 +30,7 @@ class MenuType(Enum):
 
 class AlgoMethod(Enum):
     """
-    Constants for algorithms used to gather items 
+    Constants for algorithms used to gather items
     """
     ORDER_OF_INSERTION = "Order of Insertion"
     BRUTE_FORCE = "Brute Force"
@@ -205,19 +205,17 @@ class ItemRoutingSystem:
 
     def load_product_file(self, fname):
         """
-        loads the product file into a dictionary called product_list where the key is productID and the value 
+        loads the product file into a dictionary called product_list where the key is productID and the value
         is the pair (X, Y).
         """
         self.product_file = fname
         f = open(fname, 'r')
         next(f)
-        
+
         for line in f:
             fields = line.strip().split()
             self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
         f.close()
-#        print(self.product_info)
-
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -245,7 +243,6 @@ class ItemRoutingSystem:
             menu.add_option(1, "View Map")
             menu.add_option(2, "Settings")
             menu.add_option(3, "Exit")
-            
 
         elif menu_type == MenuType.VIEW_MAP:
             menu = Menu("View Map Menu")
@@ -539,12 +536,13 @@ class ItemRoutingSystem:
     def dijkstra(self, grid, target):
         
         def is_valid_position(x, y):
-            return x < 0 or x >= self.map_x or y < 0 or y >= self.map_y
+            return 0 <= x < self.map_x  and \
+                   0 <= y < self.map_y
 
         start = None
 
         x, y = target
-        if is_valid_position(x, y):
+        if not is_valid_position(x, y):
             self.log(f"Invalid target position: {target}", print_type=PrintType.DEBUG)
             return []
         
@@ -584,7 +582,7 @@ class ItemRoutingSystem:
 
                 self.log(position, (x, y), print_type=PrintType.DEBUG)
 
-                if is_valid_position(x, y):
+                if not is_valid_position(x, y):
                     self.log(f"Skipping {(x, y)}: Invalid Position", print_type=PrintType.DEBUG)
                     continue
 
@@ -643,7 +641,7 @@ class ItemRoutingSystem:
 
     def get_descriptive_steps(self, targets):
         """
-        Gets a list of directions to gather all items beginning from the 
+        Gets a list of directions to gather all items beginning from the
         internal starting position and returning to the starting position.
 
         Algorithm gathers list of target items by prioritizing top rows and
@@ -1081,7 +1079,7 @@ class ItemRoutingSystem:
                                 # Generate map with new starting position
                                 self.map, self.inserted_order = self.generate_map()
                                 break
-                            
+
                             # Set manual starting position
                             elif mode_option == '2':
                                 self.worker_mode = GenerateMode.MANUAL
@@ -1201,7 +1199,7 @@ class ItemRoutingSystem:
                                         # Generate map with new item positions
                                         self.map, self.inserted_order = self.generate_map()
                                         break
-                                    
+
                                     # Set manual starting position
                                     elif mode_option == '2':
                                         self.item_mode = GenerateMode.MANUAL
@@ -1254,7 +1252,6 @@ class ItemRoutingSystem:
             self.log("Invalid choice. Try again.")
             update = False
 
-
     def run(self):
         """
         Helper function to run the application. Loops the main menu until the user
@@ -1266,14 +1263,12 @@ class ItemRoutingSystem:
             choice = input("> ")
             self.handle_option(choice)
 
-
 def main():
     """
     Main application code to run the ItemRoutingSystem application.
     """
     app = ItemRoutingSystem()
     app.run()
-
 
 if __name__ == "__main__":
     main()
