@@ -407,13 +407,13 @@ class ItemRoutingSystem:
         banner.display()
 
         grid = []
-        for y in range(len(self.map[0])):
+        for y in reversed(range(len(self.map[0]))):
             col = []
             for x in range(len(self.map)):
                 col.append(self.map[x][y])
             grid.append(col)
 
-        for i, col in enumerate(grid):
+        for i, col in zip(reversed(range(len(grid))), grid):
             row_string = f"{i} " + " ".join(val for val in col)
             self.log(row_string.center(banner_length))
 
