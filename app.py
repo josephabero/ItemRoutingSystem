@@ -1100,8 +1100,20 @@ class ItemRoutingSystem:
                         clear = True
 
                     # Set Product File Name
-                    product_file = input("Enter filename: ")
-                    self.load_product_file(product_file)
+                    success = False
+                    while not success:
+                        product_file = input("Enter product filename: ")
+
+                        success = self.load_product_file(product_file)
+
+                        if success:
+                            self.item_mode = GenerateMode.LOADED_FILE
+                            self.items = self.get_item_positions()
+                            self.map, self.inserted_order = self.generate_map()
+                            print(self.items)
+
+                        else:
+                            self.log(f"File '{product_file}' was not found, please try entering full path to file!")
 
                 # Set Worker Starting Position
                 elif suboption == '2':
