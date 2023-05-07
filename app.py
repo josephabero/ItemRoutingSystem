@@ -26,6 +26,7 @@ class MenuType(Enum):
     ALGO_METHOD = 4
     WORKER_POSITION = 5
     ITEM_POSITION = 6
+    LOAD_PRODUCT_FILE = 7
 
 class AlgoMethod(Enum):
     """
@@ -180,6 +181,10 @@ class ItemRoutingSystem:
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
 
+        # Default product info list
+        self.product_info = {}
+        self.product_file = None
+
         # Display welcome banner
         banner = "------------------------------------------------------------"
         self.log(banner)
@@ -197,6 +202,22 @@ class ItemRoutingSystem:
         elif print_type == PrintType.DEBUG:
             if self.debug:
                 print(*args)
+
+    def load_product_file(self, fname):
+        """
+        loads the product file into a dictionary called product_list where the key is productID and the value 
+        is the pair (X, Y).
+        """
+        self.product_file = fname
+        f = open(fname, 'r')
+        next(f)
+        
+        for line in f:
+            fields = line.strip().split()
+            self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
+        f.close()
+#        print(self.product_info)
+
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -224,6 +245,7 @@ class ItemRoutingSystem:
             menu.add_option(1, "View Map")
             menu.add_option(2, "Settings")
             menu.add_option(3, "Exit")
+            
 
         elif menu_type == MenuType.VIEW_MAP:
             menu = Menu("View Map Menu")
@@ -263,6 +285,7 @@ class ItemRoutingSystem:
             f"  Mode: {self.item_mode}\n"                                  \
             f"  Positions: {' '.join(str(p) for p in self.items)}\n"       \
             f"Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"Loaded Product File: {self.product_file}\n"                  \
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
@@ -273,6 +296,9 @@ class ItemRoutingSystem:
             menu.add_option(2, "Set Item Position Mode")
             menu.add_option(3, "Set Map Orientation")
             menu.add_option(4, "Back")
+
+        elif menu_type == MenuType.LOAD_PRODUCT_FILE:
+            menu = Menu("Load Product File Menu")
 
         elif menu_type == MenuType.ALGO_METHOD:
             menu = Menu("Set Gathering Algorithm")
@@ -1023,7 +1049,15 @@ class ItemRoutingSystem:
 
                 # Load Product File
                 if suboption == '1':
-                    print("Load Product File")
+                    if update:
+                        self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
+                    else:
+                        update = True
+                        clear = True
+
+                    # Set Product File Name
+                    fname = input("Enter filename: ")
+                    self.load_product_file(fname)
 
                 # Set Worker Starting Position
                 elif suboption == '2':
@@ -1220,6 +1254,7 @@ class ItemRoutingSystem:
             self.log("Invalid choice. Try again.")
             update = False
 
+
     def run(self):
         """
         Helper function to run the application. Loops the main menu until the user
@@ -1231,12 +1266,14 @@ class ItemRoutingSystem:
             choice = input("> ")
             self.handle_option(choice)
 
+
 def main():
     """
     Main application code to run the ItemRoutingSystem application.
     """
     app = ItemRoutingSystem()
     app.run()
+
 
 if __name__ == "__main__":
     main()
