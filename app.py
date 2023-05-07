@@ -1044,6 +1044,26 @@ class ItemRoutingSystem:
                 elif suboption == '2':
                     self.log("Get Location of Product")
 
+                    complete = False
+                    while not complete:
+                        try:
+                            if self.debug:
+                                self.log("Product IDs:")
+                                for i, product in enumerate(self.product_info, 1):
+                                    self.log(f"{i}. {product}")
+
+                            product_id = input("Enter Product ID: ")
+
+                            self.log(f"Product {product_id} located at {self.product_info[int(product_id)]}")
+                            complete = True
+
+                        except ValueError:
+                            self.log(f"Invalid Product ID '{product_id}', please try again!")
+
+                        except KeyError:
+                            self.log("Product was not found!")
+                            complete = True
+
                 # Back
                 elif suboption == '3':
                     # Debug Mode: Generate New Map
