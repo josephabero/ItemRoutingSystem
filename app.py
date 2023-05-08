@@ -375,8 +375,11 @@ class ItemRoutingSystem:
         for position in positions:
             # Set position in grid
             x, y = position
-            grid[x][y] = ItemRoutingSystem.ITEM_SYMBOL
-            inserted_order.append((x, y))
+
+            # Only set item if its position is within defined grid
+            if x < self.map_x and y < self.map_y:
+                grid[x][y] = ItemRoutingSystem.ITEM_SYMBOL
+                inserted_order.append((x, y))
 
         return grid, inserted_order
 
@@ -410,7 +413,9 @@ class ItemRoutingSystem:
         for y in reversed(range(len(self.map[0]))):
             col = []
             for x in range(len(self.map)):
-                col.append(self.map[x][y])
+                # Only display item if its position is within defined grid
+                if x < self.map_x and y < self.map_y:
+                    col.append(self.map[x][y])
             grid.append(col)
 
         for i, col in zip(reversed(range(len(grid))), grid):
@@ -1129,6 +1134,22 @@ class ItemRoutingSystem:
                         if success:
                             self.item_mode = GenerateMode.LOADED_FILE
                             self.items = self.get_item_positions()
+
+                            # Set new map parameters
+                            max_x = self.map_x
+                            max_y = self.map_y
+
+                            for item in self.items:
+                                x, y = item
+                                if x > max_x:
+                                    max_x = x
+                                if y > max_y:
+                                    max_y = y
+
+                            self.map_x = max_x + 1
+                            self.map_y = max_y + 1
+                            print(self.map_x, self.map_y)
+
                             self.map, self.inserted_order = self.generate_map()
                             print(self.items)
 
