@@ -697,7 +697,7 @@ class ItemRoutingSystem:
 
         return path
 
-    def get_items(self, option):
+    def get_items(self, option, target):
         """
         Helper function to retrieve list of directions depending on the 
         gathering algorithm setting.
@@ -715,14 +715,37 @@ class ItemRoutingSystem:
         self.log(f"Inserted Item Order: {self.inserted_order}", print_type=PrintType.DEBUG)
 
         if option == AlgoMethod.ORDER_OF_INSERTION:
-            targets = self.get_targets()
+            # targets = self.get_targets()
+            targets = [self.starting_position, target, self.starting_position]
             result = self.get_descriptive_steps(targets)
             return result
 
         elif option == AlgoMethod.BRUTE_FORCE:
-            targets = self.get_targets()
+            # targets = self.get_targets()
+            targets = [self.starting_position, target, self.starting_position]
             path = self.gather_brute_force(targets)
             result = self.get_descriptive_steps(path)
+            return result
+
+        elif option == AlgoMethod.DIJKSTRA:
+            shortest_path = []
+
+            # Run Dijkstra's for every position next to the target item
+            for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                x, y = target[0] + dx, target[1] + dy
+
+                path = self.dijkstra(self.map, (x, y))
+
+                if path:
+                    if len(path) < len(shortest_path) or not shortest_path:
+                        shortest_path = path
+
+                self.log(f"Shortest Path for {(x, y)}: {shortest_path}", print_type=PrintType.DEBUG)
+
+            result = []
+            if shortest_path:
+                self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
+                result = self.get_descriptive_steps(shortest_path)
             return result
 
     def verify_settings_range(self, value, minimum, maximum):
@@ -1018,24 +1041,31 @@ class ItemRoutingSystem:
                 # Get Path to Product
                 if suboption == '1':
                     self.log("Get Path to Product")
-                    position = (4, 4)
 
-                    shortest_path = []
-                    for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-                        x, y = position[0] + dx, position[1] + dy
-                        
-                        path = self.dijkstra(self.map, (x, y))
+                    # Request Product ID to find path for
+                    complete = False
+                    while not complete:
+                        try:
+                            if self.debug:
+                                self.log("Product IDs:")
+                                for i, product in enumerate(self.product_info, 1):
+                                    self.log(f"{i}. {product}")
 
-                        if path:
-                            if len(path) < len(shortest_path) or not shortest_path:
-                                shortest_path = path
+                            product_id = input("Enter Product ID: ")
+                            item_position = self.product_info[int(product_id)]
 
-                        self.log(f"Shortest Path for {(x, y)}: {shortest_path}", print_type=PrintType.DEBUG)
+                            complete = True
 
-                    if shortest_path:
-                        self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
-                        steps = self.get_descriptive_steps(shortest_path)
+                        except ValueError:
+                            self.log(f"Invalid Product ID '{product_id}', please try again!")
 
+                        except KeyError:
+                            self.log("Product was not found!")
+                            complete = False
+
+                    steps = self.get_items(self.gathering_algo, item_position)
+
+                    if steps:
                         self.log("Directions:")
                         self.log("-----------")
                         for step, action in enumerate(steps, 1):
@@ -1077,15 +1107,6 @@ class ItemRoutingSystem:
                         self.items = self.get_item_positions()
                         self.map, self.inserted_order = self.generate_map()
                         self.display_map()
-
-                        # Evaluate directions to gather items
-                        path = self.get_items(self.gathering_algo)
-
-                        # Display directions
-                        self.log("Directions:")
-                        self.log("-----------")
-                        for step, action in enumerate(path):
-                            self.log(f"{step}. {action}")
 
                         clear = False
 
@@ -1241,9 +1262,8 @@ class ItemRoutingSystem:
 
                         # Dijkstra
                         elif algo_option == '3':
-                            self.log("You chose an Unimplemented Dijkstra's Algorithm.")
-                            update = False
-                            clear = False
+                            self.gathering_algo = AlgoMethod.DIJKSTRA
+                            break
 
                         # Back
                         elif algo_option == '4':
@@ -1320,7 +1340,9 @@ class ItemRoutingSystem:
 
                             # Set Map Orientation
                             elif dev_option == '3':
-                                print("Set Map Orientation")
+                                print("Set Map Orientation is currently under development!")
+                                update = False
+                                clear = False
 
                             # Back
                             elif dev_option == '4':
