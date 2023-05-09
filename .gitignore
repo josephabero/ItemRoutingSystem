@@ -2,3 +2,6 @@
 app.spec
 build/*
 dist/*
+
+# Ignore DS store
+.DS_store

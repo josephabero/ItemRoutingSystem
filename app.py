@@ -22,10 +22,11 @@ class MenuType(Enum):
     MAIN_MENU = 0
     VIEW_MAP = 1
     SETTINGS = 2
-    ALGO_METHOD = 3
-    WORKER_POSITION = 4
-    ITEM_POSITION = 5
-    LOAD_PRODUCT_FILE = 6
+    ADVANCED_SETTINGS = 3
+    ALGO_METHOD = 4
+    WORKER_POSITION = 5
+    ITEM_POSITION = 6
+    LOAD_PRODUCT_FILE = 7
 
 class AlgoMethod(Enum):
     """
@@ -153,7 +154,7 @@ class ItemRoutingSystem:
 
     def __init__(self):
         """
-        Initializes Menu class.
+        Initializes ItemRoutingSystem application class.
 
         Defaults a 5x5 map with a worker starting position of (0, 0).
         """
@@ -245,34 +246,56 @@ class ItemRoutingSystem:
 
         elif menu_type == MenuType.VIEW_MAP:
             menu = Menu("View Map Menu")
-            menu.add_option(1, "Generate New Map")
-            menu.add_option(2, "Get Path to Product")
-            menu.add_option(3, "Get Location to Product")
-            menu.add_option(4, "Back")
+            menu.add_option(1, "Get Path to Product")
+            menu.add_option(2, "Get Location of Product")
+
+            # Only expose advanced setting option in debug m1ode
+            if self.debug:
+                menu.add_option(3, "Generate New Map")
+                menu.add_option(4, "Back")
+            else:
+                menu.add_option(3, "Back")
 
         elif menu_type == MenuType.SETTINGS:
             menu = Menu("Settings Menu")
-            menu.add_option(1, "Set Map Size")
+            menu.add_option(1, "Load Product File")
             menu.add_option(2, "Set Worker Starting Position Mode")
-            menu.add_option(3, "Set Item Position Mode")
-            menu.add_option(4, "Set Obstacle Mode")
-            menu.add_option(5, "Set Item Minimum and Maximum Amount")
-            menu.add_option(6, "Set Gathering Algorithm")
-            menu.add_option(7, "Toggle Debug Mode")
-            menu.add_option(8, "Load Product File")
-            menu.add_option(9, "Back")
+            menu.add_option(3, "Set Item Maximum")
+            menu.add_option(4, "Set Routine Time Maximum")
+            menu.add_option(5, "Set Algorithm")
+            menu.add_option(6, "Toggle Debug Mode")
+
+            if self.debug:
+                menu.add_option(7, "Advanced Settings")
+                menu.add_option(8, "Back")
+
+            else:
+                menu.add_option(7, "Back")
 
             info = "Current Settings:\n"                                   \
+            f"Loaded Product File: {self.product_file}\n"                  \
+            f"Worker Settings:\n"                                          \
+            f"  Position: {self.starting_position}\n"                      \
+            f"Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"Debug Mode: {self.debug}\n"
+
+            menu.set_misc_info(info)
+
+        elif menu_type == MenuType.ADVANCED_SETTINGS:
+            menu = Menu("Advanced Settings Menu")
+            menu.add_option(1, "Set Map Size")
+            menu.add_option(2, "Set Item Position Mode")
+            menu.add_option(3, "Set Map Orientation")
+            menu.add_option(4, "Back")
+
+            info = "Current Advanced Settings:\n"                         \
             f"Map Size: {self.map_x}x{self.map_y}\n"                       \
             f"\n"                                                          \
             f"Worker Settings:\n"                                          \
             f"  Mode: {self.worker_mode}\n"                                \
-            f"  Position: {self.starting_position}\n"                      \
             f"Item Settings:\n"                                            \
             f"  Mode: {self.item_mode}\n"                                  \
             f"  Positions: {' '.join(str(p) for p in self.items)}\n"       \
-            f"Gathering Algorithm: {self.gathering_algo}\n"                \
-            f"Loaded Product File: {self.product_file}\n"                  \
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
@@ -289,9 +312,11 @@ class ItemRoutingSystem:
 
         elif menu_type == MenuType.WORKER_POSITION:
             menu = Menu("Set Starting Worker Position Mode")
-            menu.add_option(1, "Randomly Set Position")
-            menu.add_option(2, "Manually Set Position")
-            menu.add_option(3, "Back")
+
+            if self.debug:
+                menu.add_option(1, "Randomly Set Position")
+                menu.add_option(2, "Manually Set Position")
+                menu.add_option(3, "Back")
 
         elif menu_type == MenuType.ITEM_POSITION:
             menu = Menu("Set Item Position Mode")
@@ -855,8 +880,8 @@ class ItemRoutingSystem:
                     x = input(f"Set X position (0 - {self.map_x - 1}): ")
                     y = input(f"Set Y position (0 - {self.map_y - 1}): ")
 
-                    x_success = self.verify_settings_range(x, 0, self.map_x)
-                    y_success = self.verify_settings_range(y, 0, self.map_y)
+                    x_success = self.verify_settings_range(x, 0, self.map_x - 1)
+                    y_success = self.verify_settings_range(y, 0, self.map_y - 1)
 
                     position = (int(x), int(y))
                     # Within Valid Range
@@ -929,16 +954,6 @@ class ItemRoutingSystem:
             # Display map at start of menu
             if update:
                 self.display_map()
-
-                # Evaluate directions to gather items
-                path = self.get_items(self.gathering_algo)
-
-                # Display directions
-                self.log("Directions:")
-                self.log("-----------")
-                for step, action in enumerate(path):
-                    self.log(f"{step}. {action}")
-
             else:
                 update = True
 
@@ -946,7 +961,7 @@ class ItemRoutingSystem:
             clear = False
 
             while True:
-                # Create items menu
+                # Create View Map menu
                 if update:
                     self.display_menu(MenuType.VIEW_MAP, clear=clear)
                 else:
@@ -958,26 +973,6 @@ class ItemRoutingSystem:
 
                 # Generate New Map
                 if suboption == '1':
-                    self.log("Generate New Map")
-                    self.items = self.get_item_positions()
-                    self.map, self.inserted_order = self.generate_map()
-                    self.display_map()
-
-                    # Evaluate directions to gather items
-                    path = self.get_items(self.gathering_algo)
-
-                    # Display directions
-                    self.log("Directions:")
-                    self.log("-----------")
-                    for step, action in enumerate(path):
-                        self.log(f"{step}. {action}")
-
-                    clear = False
-
-                elif suboption == '2':
-                    self.log("Get Location of Product")
-
-                elif suboption == '3':
                     self.log("Get Path to Product")
                     position = (4, 4)
 
@@ -1006,9 +1001,37 @@ class ItemRoutingSystem:
 
                     clear = False
 
+                elif suboption == '2':
+                    self.log("Get Location of Product")
+
                 # Back
-                elif suboption == '4':
+                elif suboption == '3':
+                    # Debug Mode: Generate New Map
+                    if self.debug:
+                        self.log("Generate New Map")
+                        self.items = self.get_item_positions()
+                        self.map, self.inserted_order = self.generate_map()
+                        self.display_map()
+
+                        # Evaluate directions to gather items
+                        path = self.get_items(self.gathering_algo)
+
+                        # Display directions
+                        self.log("Directions:")
+                        self.log("-----------")
+                        for step, action in enumerate(path):
+                            self.log(f"{step}. {action}")
+
+                        clear = False
+
+                    # Normal Mode: Back
+                    else:
+                        break
+
+                # Debug Mode: Back
+                elif suboption == '4' and self.debug:
                     break
+
                 else:
                     self.log("Invalid choice. Try again.")
                     update = False
@@ -1028,10 +1051,17 @@ class ItemRoutingSystem:
                 # Handle Settings Menu Options
                 suboption = input("> ")
 
-                # Set Map Size
+                # Load Product File
                 if suboption == '1':
-                    clear = self.set_map_size()
-                    self.map, self.inserted_order = self.generate_map()
+                    if update:
+                        self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
+                    else:
+                        update = True
+                        clear = True
+
+                    # Set Product File Name
+                    fname = input("Enter filename: ")
+                    self.load_product_file(fname)
 
                 # Set Worker Starting Position
                 elif suboption == '2':
@@ -1042,90 +1072,61 @@ class ItemRoutingSystem:
                             update = True
                             clear = True
 
-                        mode_option = input(f"Set Worker Position Mode (Currently {self.worker_mode}): ")
+                        # Give Worker Mode options in debug mode
+                        if self.debug:
+                            mode_option = input(f"Set Worker Position Mode (Currently {self.worker_mode}): ")
 
-                        # Set random starting position
-                        if mode_option == '1':
-                            self.worker_mode = GenerateMode.RANDOM
+                            # Set random starting position
+                            if mode_option == '1':
+                                self.worker_mode = GenerateMode.RANDOM
 
-                            self.set_worker_starting_position()
+                                self.set_worker_starting_position()
 
-                            # Generate map with new starting position
-                            self.map, self.inserted_order = self.generate_map()
-                            break
-                        
-                        # Set manual starting position
-                        elif mode_option == '2':
+                                # Generate map with new starting position
+                                self.map, self.inserted_order = self.generate_map()
+                                break
+
+                            # Set manual starting position
+                            elif mode_option == '2':
+                                self.worker_mode = GenerateMode.MANUAL
+
+                                self.set_worker_starting_position()
+
+                                # Generate map with new starting position
+                                self.map, self.inserted_order = self.generate_map()
+                                break
+
+                            # Back
+                            elif mode_option == '3':
+                                break
+
+                            else:
+                                self.log("Invalid choice. Try again.")
+                                update = False
+                                clear = False
+
+                        # Normal case, always request user input
+                        else:
                             self.worker_mode = GenerateMode.MANUAL
 
                             self.set_worker_starting_position()
 
                             # Generate map with new starting position
                             self.map, self.inserted_order = self.generate_map()
+
+                            # Go back to Settings menu
                             break
-
-                        # Back
-                        elif mode_option == '3':
-                            break
-
-                        else:
-                            self.log("Invalid choice. Try again.")
-                            update = False
-                            clear = False
-
-                # Set Item Position Mode
-                elif suboption == '3':
-                    while True:
-                        if update:
-                            self.display_menu(MenuType.ITEM_POSITION, clear=clear)
-                        else:
-                            update = True
-                            clear = True
-
-                        mode_option = input(f"Set Item Position Mode (Currently {self.item_mode}): ")
-
-                        # Set random starting position
-                        if mode_option == '1':
-                            self.item_mode = GenerateMode.RANDOM
-
-                            self.items = self.get_item_positions()
-
-                            # Generate map with new item positions
-                            self.map, self.inserted_order = self.generate_map()
-                            break
-                        
-                        # Set manual starting position
-                        elif mode_option == '2':
-                            self.item_mode = GenerateMode.MANUAL
-
-                            self.items = self.get_item_positions()
-
-                            # Generate map with new item positions
-                            self.map, self.inserted_order = self.generate_map()
-                            break
-
-                        # Back
-                        elif algo_option == '3':
-                            break
-
-                        else:
-                            self.log("Invalid choice. Try again.")
-                            update = False
-                            clear = False
-
-                # Set Obstacle Mode
-                elif suboption == '4':
-                    self.log("You chose an Unimplemented Obstacle Mode.")
-                    update = False
-                    clear = False
 
                 # Set Item Minimum and Maximum Amount
-                elif suboption == '5':
+                elif suboption == '3':
                     self.set_item_minimum_maximum()
                     self.items = self.get_item_positions()
 
+                elif suboption == '4':
+                    print("Set Routing Time Maximum")
+
                 # Set Algorithm Method
-                elif suboption == '6':
+                elif suboption == '5':
                     while True:
                         if update:
                             self.display_menu(MenuType.ALGO_METHOD, clear=clear)
@@ -1161,26 +1162,90 @@ class ItemRoutingSystem:
                             clear = False
 
                 # Toggle Debug
-                elif suboption == '7':
+                elif suboption == '6':
                     self.debug = not self.debug
 
-                # Load Product File
-                elif suboption == '8':
-                    while True:
-                        if update:
-                            self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
-                        else:
-                            update = True
-                            clear = True
+                # Debug Mode:       Advanced Settings
+                # Non-Debug Mode:   Back
+                elif suboption == '7':
 
-                        # Set Product File Name
-                        fname = input("Enter filename: ")
-                        self.load_product_file(fname)
+                    # Debug Mode: Advanced Settings
+                    if self.debug:
+                        while True:
+                            if update:
+                                self.display_menu(MenuType.ADVANCED_SETTINGS, clear=clear)
+                            else:
+                                update = True
+                                clear = True
+
+                            adv_option = input("> ")
+
+                            # Set Map Size
+                            if adv_option == '1':
+                                clear = self.set_map_size()
+                                self.map, self.inserted_order = self.generate_map()
+
+                            # Set Item Position Mode
+                            elif adv_option == '2':
+                                while True:
+                                    if update:
+                                        self.display_menu(MenuType.ITEM_POSITION, clear=clear)
+                                    else:
+                                        update = True
+                                        clear = True
+
+                                    mode_option = input(f"Set Item Position Mode (Currently {self.item_mode}): ")
+
+                                    # Set random starting position
+                                    if mode_option == '1':
+                                        self.item_mode = GenerateMode.RANDOM
+
+                                        self.items = self.get_item_positions()
+
+                                        # Generate map with new item positions
+                                        self.map, self.inserted_order = self.generate_map()
+                                        break
+
+                                    # Set manual starting position
+                                    elif mode_option == '2':
+                                        self.item_mode = GenerateMode.MANUAL
+
+                                        self.items = self.get_item_positions()
+
+                                        # Generate map with new item positions
+                                        self.map, self.inserted_order = self.generate_map()
+                                        break
+
+                                    # Back
+                                    elif mode_option == '3':
+                                        break
+
+                                    else:
+                                        self.log("Invalid choice. Try again.")
+                                        update = False
+                                        clear = False
+
+                            # Set Map Orientation
+                            elif adv_option == '3':
+                                print("Set Map Orientation")
+
+                            # Back
+                            elif adv_option == '4':
+                                break
+
+                            else:
+                                self.log("Invalid choice. Try again.")
+                                update = False
+                                clear = False
+
+                    # Non-Debug Mode: Back
+                    else:
                         break
 
-                # Back
-                elif suboption == '9':
+                # Debug Mode: Back
+                elif suboption == '8' and self.debug:
                     break
+
                 else:
                     self.log("Invalid choice. Try again.")
                     update = False
