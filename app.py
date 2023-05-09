@@ -23,7 +23,7 @@ class MenuType(Enum):
     MAIN_MENU = 0
     VIEW_MAP = 1
     SETTINGS = 2
-    DEVELOPER_SETTINGS = 3
+    ADVANCED_SETTINGS = 3
     ALGO_METHOD = 4
     WORKER_POSITION = 5
     ITEM_POSITION = 6
@@ -258,7 +258,7 @@ class ItemRoutingSystem:
             menu.add_option(1, "Get Path to Product")
             menu.add_option(2, "Get Location of Product")
 
-            # Only expose developer option in debug m1ode
+            # Only expose advanced setting option in debug m1ode
             if self.debug:
                 menu.add_option(3, "Generate New Map")
                 menu.add_option(4, "Back")
@@ -275,7 +275,7 @@ class ItemRoutingSystem:
             menu.add_option(6, "Toggle Debug Mode")
 
             if self.debug:
-                menu.add_option(7, "Developer Settings")
+                menu.add_option(7, "Advanced Settings")
                 menu.add_option(8, "Back")
 
             else:
@@ -290,14 +290,14 @@ class ItemRoutingSystem:
 
             menu.set_misc_info(info)
 
-        elif menu_type == MenuType.DEVELOPER_SETTINGS:
-            menu = Menu("Developer Settings Menu")
+        elif menu_type == MenuType.ADVANCED_SETTINGS:
+            menu = Menu("Advanced Settings Menu")
             menu.add_option(1, "Set Map Size")
             menu.add_option(2, "Set Item Position Mode")
             menu.add_option(3, "Set Map Orientation")
             menu.add_option(4, "Back")
 
-            info = "Current Developer Settings:\n"                         \
+            info = "Current Advanced Settings:\n"                         \
             f"Map Size: {self.map_x}x{self.map_y}\n"                       \
             f"\n"                                                          \
             f"Worker Settings:\n"                                          \
@@ -1278,28 +1278,28 @@ class ItemRoutingSystem:
                 elif suboption == '6':
                     self.debug = not self.debug
 
-                # Debug Mode:       Developer Settings
+                # Debug Mode:       Advanced Settings
                 # Non-Debug Mode:   Back
                 elif suboption == '7':
 
-                    # Debug Mode: Developer Settings
+                    # Debug Mode: Advanced Settings
                     if self.debug:
                         while True:
                             if update:
-                                self.display_menu(MenuType.DEVELOPER_SETTINGS, clear=clear)
+                                self.display_menu(MenuType.ADVANCED_SETTINGS, clear=clear)
                             else:
                                 update = True
                                 clear = True
 
-                            dev_option = input("> ")
+                            adv_option = input("> ")
 
                             # Set Map Size
-                            if dev_option == '1':
+                            if adv_option == '1':
                                 clear = self.set_map_size()
                                 self.map, self.inserted_order = self.generate_map()
 
                             # Set Item Position Mode
-                            elif dev_option == '2':
+                            elif adv_option == '2':
                                 while True:
                                     if update:
                                         self.display_menu(MenuType.ITEM_POSITION, clear=clear)
@@ -1345,7 +1345,7 @@ class ItemRoutingSystem:
                                 clear = False
 
                             # Back
-                            elif dev_option == '4':
+                            elif adv_option == '4':
                                 break
 
                             else:
