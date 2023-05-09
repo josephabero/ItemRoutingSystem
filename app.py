@@ -600,7 +600,6 @@ class ShoppingForCarts:
         back_to_start, _, steps = self.move_to_target(current_position, end)
         total_steps += steps
         path.append(back_to_start)
-        path.append(f"Pick up item at {current_position}")
         path.append("Pickup completed.")
 
         if self.debug:
