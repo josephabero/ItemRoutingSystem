@@ -10,6 +10,7 @@ directions to gather shopping items around a warehouse.
 from enum import Enum
 import heapq
 import itertools
+import json
 import os
 import random
 import sys
@@ -45,6 +46,7 @@ class GenerateMode(Enum):
     """
     MANUAL = "Manual"
     RANDOM = "Random"
+    LOADED_FILE = "Loaded File"
 
     def __str__(cls):
         return cls.value
@@ -156,14 +158,18 @@ class ItemRoutingSystem:
         """
         Initializes ItemRoutingSystem application class.
 
-        Defaults a 5x5 map with a worker starting position of (0, 0).
+        Defaults a map with a worker starting position of (0, 0).
         """
         # Default debug mode
         self.debug = False
 
-        # Default 5x5 map size
-        self.map_x = 5
-        self.map_y = 5
+        # Default map size
+        self.map_x = 40
+        self.map_y = 21
+
+        # Default product info list
+        self.product_info = {}
+        self.product_file = None
 
         # Default worker settings
         self.worker_mode = GenerateMode.MANUAL
@@ -180,10 +186,6 @@ class ItemRoutingSystem:
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
-
-        # Default product info list
-        self.product_info = {}
-        self.product_file = None
 
         # Display welcome banner
         banner = "------------------------------------------------------------"
@@ -208,14 +210,21 @@ class ItemRoutingSystem:
         loads the product file into a dictionary called product_list where the key is productID and the value
         is the pair (X, Y).
         """
-        self.product_file = fname
-        f = open(fname, 'r')
-        next(f)
+        success = True
 
-        for line in f:
-            fields = line.strip().split()
-            self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
-        f.close()
+        try:
+            self.product_file = fname
+            f = open(fname, 'r')
+            next(f)
+
+            for line in f:
+                fields = line.strip().split()
+                self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
+            f.close()
+        except FileNotFoundError:
+            success = False
+
+        return success
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -366,8 +375,11 @@ class ItemRoutingSystem:
         for position in positions:
             # Set position in grid
             x, y = position
-            grid[x][y] = ItemRoutingSystem.ITEM_SYMBOL
-            inserted_order.append((x, y))
+
+            # Only set item if its position is within defined grid
+            if x < self.map_x and y < self.map_y:
+                grid[x][y] = ItemRoutingSystem.ITEM_SYMBOL
+                inserted_order.append((x, y))
 
         return grid, inserted_order
 
@@ -398,17 +410,19 @@ class ItemRoutingSystem:
         banner.display()
 
         grid = []
-        for y in range(len(self.map[0])):
+        for y in reversed(range(len(self.map[0]))):
             col = []
             for x in range(len(self.map)):
-                col.append(self.map[x][y])
+                # Only display item if its position is within defined grid
+                if x < self.map_x and y < self.map_y:
+                    col.append(self.map[x][y])
             grid.append(col)
 
-        for i, col in enumerate(grid):
+        for i, col in zip(reversed(range(len(grid))), grid):
             row_string = f"{i} " + " ".join(val for val in col)
             self.log(row_string.center(banner_length))
 
-        self.log(" " + " ".join(str(i) for i in range(len(self.map[0]))).center(banner_length))
+        self.log(" " + " ".join(str(i) for i in range(len(self.map))).center(banner_length))
 
         self.log("")
         self.log("LEGEND:".center(banner_length))
@@ -752,8 +766,8 @@ class ItemRoutingSystem:
 
         minimum_x = 5
         minimum_y = 5
-        maximum_x = 20
-        maximum_y = 20
+        maximum_x = 40
+        maximum_y = 40
 
         success = False
 
@@ -835,7 +849,12 @@ class ItemRoutingSystem:
         """
         item_positions = []
 
-        if self.item_mode == GenerateMode.RANDOM:
+        if self.item_mode == GenerateMode.LOADED_FILE:
+            if self.product_file:
+                for product, position in self.product_info.items():
+                    item_positions.append(position)
+
+        elif self.item_mode == GenerateMode.RANDOM:
             number_of_items = random.randint(self.minimum_items, self.maximum_items)
 
             for _ in range(number_of_items):
@@ -951,7 +970,32 @@ class ItemRoutingSystem:
         clear = True
 
         if option == '1':
-            # Display map at start of menu
+            # Load product file if one hasn't been loaded yet
+            if self.product_file is None:
+                if update:
+                    self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
+                else:
+                    update = True
+                    clear = True
+
+                # Set Product File Name
+                success = False
+                while not success:
+                    product_file = input("Enter product filename: ")
+
+                    success = self.load_product_file(product_file)
+
+                    if success:
+                        self.item_mode = GenerateMode.LOADED_FILE
+                        self.items = self.get_item_positions()
+                        self.map, self.inserted_order = self.generate_map()
+                        print(self.items)
+
+                    else:
+                        self.log(f"File '{product_file}' was not found, please try entering full path to file!")
+
+
+            # Display map after file is loaded
             if update:
                 self.display_map()
             else:
@@ -971,7 +1015,7 @@ class ItemRoutingSystem:
                 # Handle menu options
                 suboption = input("> ")
 
-                # Generate New Map
+                # Get Path to Product
                 if suboption == '1':
                     self.log("Get Path to Product")
                     position = (4, 4)
@@ -1001,8 +1045,29 @@ class ItemRoutingSystem:
 
                     clear = False
 
+                # Get Location of Product
                 elif suboption == '2':
                     self.log("Get Location of Product")
+
+                    complete = False
+                    while not complete:
+                        try:
+                            if self.debug:
+                                self.log("Product IDs:")
+                                for i, product in enumerate(self.product_info, 1):
+                                    self.log(f"{i}. {product}")
+
+                            product_id = input("Enter Product ID: ")
+
+                            self.log(f"Product {product_id} located at {self.product_info[int(product_id)]}")
+                            complete = True
+
+                        except ValueError:
+                            self.log(f"Invalid Product ID '{product_id}', please try again!")
+
+                        except KeyError:
+                            self.log("Product was not found!")
+                            complete = True
 
                 # Back
                 elif suboption == '3':
@@ -1060,8 +1125,36 @@ class ItemRoutingSystem:
                         clear = True
 
                     # Set Product File Name
-                    fname = input("Enter filename: ")
-                    self.load_product_file(fname)
+                    success = False
+                    while not success:
+                        product_file = input("Enter product filename: ")
+
+                        success = self.load_product_file(product_file)
+
+                        if success:
+                            self.item_mode = GenerateMode.LOADED_FILE
+                            self.items = self.get_item_positions()
+
+                            # Set new map parameters
+                            max_x = self.map_x
+                            max_y = self.map_y
+
+                            for item in self.items:
+                                x, y = item
+                                if x > max_x:
+                                    max_x = x
+                                if y > max_y:
+                                    max_y = y
+
+                            self.map_x = max_x + 1
+                            self.map_y = max_y + 1
+                            print(self.map_x, self.map_y)
+
+                            self.map, self.inserted_order = self.generate_map()
+                            print(self.items)
+
+                        else:
+                            self.log(f"File '{product_file}' was not found, please try entering full path to file!")
 
                 # Set Worker Starting Position
                 elif suboption == '2':
