@@ -193,13 +193,17 @@ class ShoppingForCarts:
         is the pair (X, Y).
         """
         self.product_file = fname
-        f = open(fname, 'r')
-        next(f)
-        
-        for line in f:
-            fields = line.strip().split()
-            self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
-        f.close()
+        try:
+            f = open(fname, 'r')
+        except:
+            return 1
+        else:
+            next(f)  
+            for line in f:
+                fields = line.strip().split()
+                self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
+            f.close()
+            return 0
 #        print(self.product_info)
 
 
@@ -545,26 +549,65 @@ class ShoppingForCarts:
         path = []
         start = targets.pop(0)
         end = targets.pop()
+        prev_target = []
+        direc = None
+        i = 0;
 
         path.append(f"Start at position {start}!")
         current_position = start
+        prev_target = start
         total_steps = 0
-
+        
+        # Preprocessing
         for target in targets:
-            move, current_position, steps = self.move_to_target(current_position, target)
+            if (prev_target[0] == target[0] and direc == "U"):
+                targets.pop(i)
+                continue
+            elif (prev_target[0] == target[0] and direc == "D"):
+                targets.pop(i)
+                continue
+            elif (prev_target[1] == target[1] and direc == "L"):
+                targets.pop(i)
+                continue
+            elif (prev_target[1] == target[1] and direc == "R"):
+                targets.pop(i)
+                continue
+            else:
+                if ( (prev_target[0] - target[0]) > 0 and (prev_target[1] == target[1]) ):
+                    # Right
+                    direc = "R"
+                elif( (prev_target[0] - target[0]) < 0 and (prev_target[1] == target[1]) ):
+                    # Left
+                    direc = "L"
+                elif ( (prev_target[1] - target[1]) > 0 and (prev_target[0] == target[0]) ):
+                    # Down
+                    direc = "D"
+                elif ( (prev_target[1] - target[1]) < 0 and (prev_target[0] == target[0]) ):
+                    # Up
+                    direc = "U"
+                else:
+                    direc = None
+            prev_target = target
+            i += 1
+        print(targets)
+
+        current_position = start
+        for target in targets: 
+            prev_target = current_position
+            move, current_position, steps = self.move_to_target(current_position, target) 
             total_steps += steps
             path.append(move)
-            path.append("Pick up cart.")
-
         back_to_start, _, steps = self.move_to_target(current_position, end)
         total_steps += steps
         path.append(back_to_start)
+        path.append(f"Pick up item at {current_position}")
         path.append("Pickup completed.")
 
         if self.debug:
             print(f"Total Steps: {total_steps}")
 
         return path
+        
 
     def get_carts(self, option):
         """
@@ -1054,9 +1097,14 @@ class ShoppingForCarts:
 
                         # Set Product File Name
                         fname = input("Enter filename: ")
-                        self.load_product_file(fname)
-                        break
-
+                        fstatus = self.load_product_file(fname)
+                        if fstatus == 0:
+                            break
+                        else:
+                            print("File Does Not Exist!")
+                            self.product_file = None
+                            time.sleep(2)
+                            break
                 # Back
                 elif suboption == '9':
                     break
