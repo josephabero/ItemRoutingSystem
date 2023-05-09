@@ -297,6 +297,18 @@ class ItemRoutingSystem:
             menu.add_option(3, "Set Map Orientation")
             menu.add_option(4, "Back")
 
+            position_str = ' '.join(str(p) for p in self.items)
+            if len(self.items) > 10:
+                file = "positions.txt"
+
+                # Write positions to file if too many to print to screen
+                with open(file, "w+") as f:
+                    for position in self.items:
+                        x, y = position
+                        f.write(f"({x}, {y})\n")
+
+                position_str = f"See '{file}' for list of item positions."
+
             info = "Current Developer Settings:\n"                         \
             f"Map Size: {self.map_x}x{self.map_y}\n"                       \
             f"\n"                                                          \
@@ -304,7 +316,8 @@ class ItemRoutingSystem:
             f"  Mode: {self.worker_mode}\n"                                \
             f"Item Settings:\n"                                            \
             f"  Mode: {self.item_mode}\n"                                  \
-            f"  Positions: {' '.join(str(p) for p in self.items)}\n"       \
+            f"  Number of Items: {len(self.items)}\n"                      \
+            f"  Positions: {position_str}\n"                               \
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
@@ -368,7 +381,19 @@ class ItemRoutingSystem:
 
         # Insert item positions
         if positions is None:
-            self.log(self.items, print_type=PrintType.DEBUG)
+            if self.debug:
+                if len(self.items) > 10:
+                    file = "positions.txt"
+
+                    # Write positions to file if too many to print to screen
+                    with open(file, "w+") as f:
+                        for position in self.items:
+                            x, y = position
+                            f.write(f"({x}, {y})\n")
+
+                    self.log(f"See '{file}' for list of item positions.", print_type=PrintType.DEBUG)
+                else:
+                    self.log(self.items, print_type=PrintType.DEBUG)
 
             positions = self.items
 
@@ -989,7 +1014,6 @@ class ItemRoutingSystem:
                         self.item_mode = GenerateMode.LOADED_FILE
                         self.items = self.get_item_positions()
                         self.map, self.inserted_order = self.generate_map()
-                        print(self.items)
 
                     else:
                         self.log(f"File '{product_file}' was not found, please try entering full path to file!")
@@ -1148,10 +1172,8 @@ class ItemRoutingSystem:
 
                             self.map_x = max_x + 1
                             self.map_y = max_y + 1
-                            print(self.map_x, self.map_y)
 
                             self.map, self.inserted_order = self.generate_map()
-                            print(self.items)
 
                         else:
                             self.log(f"File '{product_file}' was not found, please try entering full path to file!")
