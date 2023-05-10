@@ -461,7 +461,7 @@ class ItemRoutingSystem:
             f"  Worker Position: {self.starting_position}\n"                 \
             f"  Ordered Item Maximum: {self.maximum_items}\n"                \
             f"  Gathering Algorithm: {self.gathering_algo}\n"                \
-            f"  Maximum Time To Process: {0}\n"                              \
+            f"  Maximum Time To Process: {self.maximum_routing_time}\n"                              \
             f"  Debug Mode: {self.debug}\n"
 
         self.log(settings_info)
