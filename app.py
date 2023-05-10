@@ -177,13 +177,13 @@ class ItemRoutingSystem:
 
         # Default item settings
         self.item_mode = GenerateMode.RANDOM
-        self.minimum_items = 3
+        self.minimum_items = 0
         self.maximum_items = 8
-        self.maximum_routing_time = 2 # justin
+        self.maximum_routing_time = 2
         self.items = self.get_item_positions()
 
         # Default algorithm
-        self.gathering_algo = AlgoMethod.BRUTE_FORCE
+        self.gathering_algo = AlgoMethod.DIJKSTRA
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
@@ -270,7 +270,7 @@ class ItemRoutingSystem:
             menu = Menu("Settings Menu")
             menu.add_option(1, "Load Product File")
             menu.add_option(2, "Set Worker Starting Position Mode")
-            menu.add_option(3, "Set Item Maximum")
+            menu.add_option(3, "Set Maximum Items Ordered")
             menu.add_option(4, "Set Routine Time Maximum")
             menu.add_option(5, "Set Algorithm")
             menu.add_option(6, "Toggle Debug Mode")
@@ -283,11 +283,11 @@ class ItemRoutingSystem:
                 menu.add_option(7, "Back")
 
             info = "Current Settings:\n"                                   \
-            f"Loaded Product File: {self.product_file}\n"                  \
-            f"Worker Settings:\n"                                          \
-            f"  Position: {self.starting_position}\n"                      \
-            f"Gathering Algorithm: {self.gathering_algo}\n"                \
-            f"Debug Mode: {self.debug}\n"
+            f"  Loaded Product File: {self.product_file}\n"                  \
+            f"  Worker Settings:\n"                                          \
+            f"    Position: {self.starting_position}\n"                      \
+            f"  Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"  Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
 
@@ -298,14 +298,27 @@ class ItemRoutingSystem:
             menu.add_option(3, "Set Map Orientation")
             menu.add_option(4, "Back")
 
-            info = "Current Advanced Settings:\n"                         \
+            position_str = ' '.join(str(p) for p in self.items)
+            if len(self.items) > 10:
+                file = "positions.txt"
+
+                # Write positions to file if too many to print to screen
+                with open(file, "w+") as f:
+                    for position in self.items:
+                        x, y = position
+                        f.write(f"({x}, {y})\n")
+
+                position_str = f"See '{file}' for list of item positions."
+
+            info = "Current Advanced Settings:\n"                          \
             f"Map Size: {self.map_x}x{self.map_y}\n"                       \
             f"\n"                                                          \
             f"Worker Settings:\n"                                          \
             f"  Mode: {self.worker_mode}\n"                                \
             f"Item Settings:\n"                                            \
             f"  Mode: {self.item_mode}\n"                                  \
-            f"  Positions: {' '.join(str(p) for p in self.items)}\n"       \
+            f"  Number of Items: {len(self.items)}\n"                      \
+            f"  Positions: {position_str}\n"                               \
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
@@ -369,7 +382,19 @@ class ItemRoutingSystem:
 
         # Insert item positions
         if positions is None:
-            self.log(self.items, print_type=PrintType.DEBUG)
+            if self.debug:
+                if len(self.items) > 10:
+                    file = "positions.txt"
+
+                    # Write positions to file if too many to print to screen
+                    with open(file, "w+") as f:
+                        for position in self.items:
+                            x, y = position
+                            f.write(f"({x}, {y})\n")
+
+                    self.log(f"See '{file}' for list of item positions.", print_type=PrintType.DEBUG)
+                else:
+                    self.log(self.items, print_type=PrintType.DEBUG)
 
             positions = self.items
 
@@ -431,6 +456,15 @@ class ItemRoutingSystem:
         self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
         self.log("")
+
+        settings_info = "Current Settings:\n"                              \
+            f"  Worker Position: {self.starting_position}\n"                 \
+            f"  Ordered Item Maximum: {self.maximum_items}\n"                \
+            f"  Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"  Maximum Time To Process: {0}\n"                              \
+            f"  Debug Mode: {self.debug}\n"
+
+        self.log(settings_info)
 
     def move_to_target(self, start, end):
         """
@@ -588,7 +622,6 @@ class ItemRoutingSystem:
         # Initialize the previous position dictionary
         prev = {}
         
-# justin
         t_temp = 0;
         t_start = time.time()
         while pq:
@@ -705,7 +738,7 @@ class ItemRoutingSystem:
 
         return path
 
-    def get_items(self, option):
+    def get_items(self, option, target):
         """
         Helper function to retrieve list of directions depending on the 
         gathering algorithm setting.
@@ -723,14 +756,37 @@ class ItemRoutingSystem:
         self.log(f"Inserted Item Order: {self.inserted_order}", print_type=PrintType.DEBUG)
 
         if option == AlgoMethod.ORDER_OF_INSERTION:
-            targets = self.get_targets()
+            # targets = self.get_targets()
+            targets = [self.starting_position, target, self.starting_position]
             result = self.get_descriptive_steps(targets)
             return result
 
         elif option == AlgoMethod.BRUTE_FORCE:
-            targets = self.get_targets()
+            # targets = self.get_targets()
+            targets = [self.starting_position, target, self.starting_position]
             path = self.gather_brute_force(targets)
             result = self.get_descriptive_steps(path)
+            return result
+
+        elif option == AlgoMethod.DIJKSTRA:
+            shortest_path = []
+
+            # Run Dijkstra's for every position next to the target item
+            for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                x, y = target[0] + dx, target[1] + dy
+
+                path = self.dijkstra(self.map, (x, y))
+
+                if path:
+                    if len(path) < len(shortest_path) or not shortest_path:
+                        shortest_path = path
+
+                self.log(f"Shortest Path for {(x, y)}: {shortest_path}", print_type=PrintType.DEBUG)
+
+            result = []
+            if shortest_path:
+                self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
+                result = self.get_descriptive_steps(shortest_path)
             return result
 
     def verify_settings_range(self, value, minimum, maximum):
@@ -889,7 +945,7 @@ class ItemRoutingSystem:
             banner = Menu("Set Item Starting Position")
             banner.display()
 
-            number_of_items = input(f"Set number of items (Range {self.minimum_items} to {self.maximum_items}): ")
+            number_of_items = input(f"Set number of items (Up to {self.maximum_items}): ")
 
             item_success = self.verify_settings_range(number_of_items, self.minimum_items, self.maximum_items)
 
@@ -930,14 +986,14 @@ class ItemRoutingSystem:
 
         return item_positions
 
-    def set_item_minimum_maximum(self):
+    def set_maximum_items_ordered(self):
         """
-        Changes the setting for minimum and maximum number of items.
+        Changes the setting for maximum number of items within a route.
 
         Returns:
             success (bool): Status whether settings were changed successfully.
         """
-        banner = Menu("Set Item Minimum and Maximum Amount")
+        banner = Menu("Set Maximum Items Ordered:")
         banner.display()
 
         success = False
@@ -945,27 +1001,23 @@ class ItemRoutingSystem:
         max_items = (self.map_x) * (self.map_y) - 1
 
         while not success:
-            user_max = input(f"Set Maximum Amount (Currently {self.maximum_items}, Maximum {max_items}): ")
-            user_min = input(f"Set Minimum Amount (Currently {self.minimum_items}): ")
+            user_max = input(f"Set Maximum Items (Currently {self.maximum_items}, Maximum {max_items}): ")
 
-            max_success = self.verify_settings_range(user_max, int(user_min), max_items)
-            min_success = self.verify_settings_range(user_min, 0, int(user_max) - 1)
+            max_success = self.verify_settings_range(user_max, self.minimum_items, max_items)
 
-            self.log(f"Item Min Success & Max Success: {max_success}, {min_success}", print_type=PrintType.DEBUG)
+            self.log(f"Item Max Success: {max_success}", print_type=PrintType.DEBUG)
 
-            if max_success and min_success:
-                self.minimum_items = int(user_min)
+            if max_success:
                 self.maximum_items = int(user_max)
                 success = True
 
             else:
                 self.log("Invalid values, please try again!")
 
-        self.log(f"Minimum Items: {self.minimum_items}")
         self.log(f"Maximum Items: {self.maximum_items}")
         
         return success
-# justin
+
     def set_routing_time_maximum(self):
         
         banner = Menu("Set Item Minimum and Maximum Amount")
@@ -1018,7 +1070,6 @@ class ItemRoutingSystem:
                         self.item_mode = GenerateMode.LOADED_FILE
                         self.items = self.get_item_positions()
                         self.map, self.inserted_order = self.generate_map()
-                        print(self.items)
 
                     else:
                         self.log(f"File '{product_file}' was not found, please try entering full path to file!")
@@ -1047,24 +1098,31 @@ class ItemRoutingSystem:
                 # Get Path to Product
                 if suboption == '1':
                     self.log("Get Path to Product")
-                    position = (4, 4)
 
-                    shortest_path = []
-                    for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-                        x, y = position[0] + dx, position[1] + dy
-# justin                       
-                        path = self.dijkstra(self.map, (x, y))
+                    # Request Product ID to find path for
+                    complete = False
+                    while not complete:
+                        try:
+                            if self.debug:
+                                self.log("Product IDs:")
+                                for i, product in enumerate(self.product_info, 1):
+                                    self.log(f"{i}. {product}")
 
-                        if path:
-                            if len(path) < len(shortest_path) or not shortest_path:
-                                shortest_path = path
+                            product_id = input("Enter Product ID: ")
+                            item_position = self.product_info[int(product_id)]
 
-                        self.log(f"Shortest Path for {(x, y)}: {shortest_path}", print_type=PrintType.DEBUG)
+                            complete = True
 
-                    if shortest_path:
-                        self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
-                        steps = self.get_descriptive_steps(shortest_path)
+                        except ValueError:
+                            self.log(f"Invalid Product ID '{product_id}', please try again!")
 
+                        except KeyError:
+                            self.log("Product was not found!")
+                            complete = False
+
+                    steps = self.get_items(self.gathering_algo, item_position)
+
+                    if steps:
                         self.log("Directions:")
                         self.log("-----------")
                         for step, action in enumerate(steps, 1):
@@ -1106,15 +1164,6 @@ class ItemRoutingSystem:
                         self.items = self.get_item_positions()
                         self.map, self.inserted_order = self.generate_map()
                         self.display_map()
-
-                        # Evaluate directions to gather items
-                        path = self.get_items(self.gathering_algo)
-
-                        # Display directions
-                        self.log("Directions:")
-                        self.log("-----------")
-                        for step, action in enumerate(path):
-                            self.log(f"{step}. {action}")
 
                         clear = False
 
@@ -1177,10 +1226,8 @@ class ItemRoutingSystem:
 
                             self.map_x = max_x + 1
                             self.map_y = max_y + 1
-                            print(self.map_x, self.map_y)
 
                             self.map, self.inserted_order = self.generate_map()
-                            print(self.items)
 
                         else:
                             self.log(f"File '{product_file}' was not found, please try entering full path to file!")
@@ -1239,13 +1286,12 @@ class ItemRoutingSystem:
                             # Go back to Settings menu
                             break
 
-                # Set Item Minimum and Maximum Amount
+                # Set Maximum Items Ordered Amount
                 elif suboption == '3':
-                    self.set_item_minimum_maximum()
+                    self.set_maximum_items_ordered()
                     self.items = self.get_item_positions()
 
                 elif suboption == '4':
-# justin
                     self.set_routing_time_maximum()
 
                 # Set Algorithm Method
@@ -1271,9 +1317,8 @@ class ItemRoutingSystem:
 
                         # Dijkstra
                         elif algo_option == '3':
-                            self.log("You chose an Unimplemented Dijkstra's Algorithm.")
-                            update = False
-                            clear = False
+                            self.gathering_algo = AlgoMethod.DIJKSTRA
+                            break
 
                         # Back
                         elif algo_option == '4':
@@ -1350,7 +1395,9 @@ class ItemRoutingSystem:
 
                             # Set Map Orientation
                             elif adv_option == '3':
-                                print("Set Map Orientation")
+                                print("Set Map Orientation is currently under development!")
+                                update = False
+                                clear = False
 
                             # Back
                             elif adv_option == '4':
