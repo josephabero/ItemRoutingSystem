@@ -10,7 +10,6 @@ directions to gather shopping items around a warehouse.
 from enum import Enum
 import heapq
 import itertools
-import json
 import os
 import random
 import sys
@@ -31,7 +30,7 @@ class MenuType(Enum):
 
 class AlgoMethod(Enum):
     """
-    Constants for algorithms used to gather items
+    Constants for algorithms used to gather items.
     """
     ORDER_OF_INSERTION = "Order of Insertion"
     BRUTE_FORCE = "Brute Force"
@@ -42,7 +41,7 @@ class AlgoMethod(Enum):
 
 class GenerateMode(Enum):
     """
-    Constants for modes of generating settings
+    Constants for modes of generating settings.
     """
     MANUAL = "Manual"
     RANDOM = "Random"
@@ -52,6 +51,9 @@ class GenerateMode(Enum):
         return cls.value
 
 class PrintType(Enum):
+    """
+    Constants to choose logging mode.
+    """
     NORMAL = 0
     DEBUG = 1
 
@@ -199,6 +201,14 @@ class ItemRoutingSystem:
         self.log(banner)
 
     def log(self, *args, print_type=PrintType.NORMAL):
+        """
+        Logs information to screen depending on application's debug mode.
+
+        Args:
+            *args: Arguments to be printed to screen.
+
+            print_type (PrintType): Type of log to determine when log should be printed to screen.
+        """
         if print_type == PrintType.NORMAL:
             print(*args)
 
@@ -206,16 +216,23 @@ class ItemRoutingSystem:
             if self.debug:
                 print(*args)
 
-    def load_product_file(self, fname):
+    def load_product_file(self, product_file_name):
         """
-        loads the product file into a dictionary called product_list where the key is productID and the value
-        is the pair (X, Y).
+        Opens product file, parses information from the file, and stores the information
+        as a dictionary of tuples within the product_file_info member variable.
+
+        Args:
+            product_file_name (str): Absolute or relative file path to text file with
+                                     warehouse product location details.
+
+        Returns:
+            success (bool): Status of whether opening and parsing of file was successful.
         """
         success = True
 
         try:
-            self.product_file = fname
-            f = open(fname, 'r')
+            self.product_file = product_file_name
+            f = open(product_file_name, 'r')
             next(f)
 
             for line in f:
@@ -358,9 +375,14 @@ class ItemRoutingSystem:
 
         The starting worker position will be placed as specified by the internal
         starting position.
-        Items will be randomly placed in other places on the map. A random
-        number of items will be placed between a minimum and maximum number of
-        items.
+        Items will be placed depending on positions passed in or previously determined positions.
+
+        For debugging purposes, instead of logging all item positions to screen, it
+        creates a `positions.txt` file in the directory where the application is running
+        if there are more than 10 items within the list.
+
+        Args:
+            positions (list of tuples): List of item positions to be placed within the grid.
 
         Returns:
             grid (list of lists): Map which contains worker starting position
@@ -431,6 +453,13 @@ class ItemRoutingSystem:
                              'S': Worker Starting Spot
                                  '▩': Item
                           Positions are labeled as (X, Y)
+
+            Current Settings:
+              Worker Position: (0, 0)
+              Ordered Item Maximum: 8
+              Gathering Algorithm: Dijkstra
+              Maximum Time To Process: 60
+              Debug Mode: False
         """
         banner_length = 60
         banner = Menu("Warehouse Map Layout")
@@ -763,7 +792,7 @@ class ItemRoutingSystem:
             path.append(move)
         back_to_start, _, steps = self.move_to_target(current_position, end)
         total_steps += steps
-        path.append(f"Pickup item at {target}")
+        path.append(f"Pickup item at {target}.")
         path.append(back_to_start)
         path.append("Pickup completed.")
 
@@ -1198,7 +1227,7 @@ class ItemRoutingSystem:
 
                             product_id = input("Enter Product ID: ")
 
-                            self.log(f"Product {product_id} located at {self.product_info[int(product_id)]}")
+                            self.log(f"Product `{product_id}` is located at position {self.product_info[int(product_id)]}.")
                             complete = True
 
                         except ValueError:
