@@ -622,13 +622,7 @@ class ItemRoutingSystem:
         # Initialize the previous position dictionary
         prev = {}
         
-        t_temp = 0;
-        t_start = time.time()
         while pq:
-            t_temp += time.time() - t_start
-            if (t_temp >= (self.maximum_routing_time * 3600) ):
-                return self.inserted_order
-
             # Get the position with the smallest distance from the priority queue
             (cost, position) = heapq.heappop(pq)
             
@@ -771,8 +765,20 @@ class ItemRoutingSystem:
         elif option == AlgoMethod.DIJKSTRA:
             shortest_path = []
 
+            # Maximum Routing Time Setup
+            t_temp = 0.0
+            t_start = time.time()
+
             # Run Dijkstra's for every position next to the target item
             for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                # Maximum Routing Time Check
+                t_temp += time.time() - t_start
+                print(t_start,t_temp)
+                if (t_temp >= (self.maximum_routing_time * 3600) ):
+                    shortest_path = path
+                    break
+
+
                 x, y = target[0] + dx, target[1] + dy
 
                 path = self.dijkstra(self.map, (x, y))
