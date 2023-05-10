@@ -708,7 +708,7 @@ class ItemRoutingSystem:
             path (list of str): List of directions worker should take to gather
                                 all items from starting position.
         """
-        print(positions)
+        print(positions, target)
         path = []
         start = positions.pop(0)
         end = positions.pop()
@@ -756,6 +756,7 @@ class ItemRoutingSystem:
             path.append(move)
         back_to_start, _, steps = self.move_to_target(current_position, end)
         total_steps += steps
+        path.append(f"Pickup item at {target}")
         path.append(back_to_start)
         path.append("Pickup completed.")
 
