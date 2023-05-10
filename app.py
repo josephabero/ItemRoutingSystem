@@ -510,12 +510,12 @@ class ItemRoutingSystem:
             # Move Up
             if y_diff < 0:
                 y_position = (current_position[0], current_position[1] - y_diff)
-                y_direction = "up"
+                y_direction = "down"
 
             # Move Down
             elif y_diff > 0:
                 y_position = (current_position[0], current_position[1] + y_diff)
-                y_direction = "down"
+                y_direction = "up"
 
         move = f"From {start}"
         if x_direction and y_direction:
@@ -695,7 +695,7 @@ class ItemRoutingSystem:
         return targets
 
 
-    def get_descriptive_steps(self, targets):
+    def get_descriptive_steps(self, positions, target):
         """
         Gets a list of directions to gather all items beginning from the
         internal starting position and returning to the starting position.
@@ -703,35 +703,74 @@ class ItemRoutingSystem:
         Algorithm gathers list of target items by prioritizing top rows and
         moves down to the last row.
 
-        Items are then gathered in order by list of targets. The worker may only
+        Items are then gathered in order by list of positions. The worker may only
         move in directions up, down, left, or right.
+
+        Args:
+            positions (list of tuples): List of item positions and in the order
+                                to be traveled through.
+
+            target (tuple): Target item to pick up
 
         Returns:
             path (list of str): List of directions worker should take to gather
                                 all items from starting position.
         """
         path = []
-        start = targets.pop(0)
-        end = targets.pop()
+        start = positions.pop(0)
+        end = positions.pop()
+        prev_target = []
+        direc = None
+        updated_positions = []
 
         path.append(f"Start at position {start}!")
         current_position = start
         total_steps = 0
 
-        for target in targets:
-            move, current_position, steps = self.move_to_target(current_position, target)
+        # Preprocessing
+        for position in positions:
+            # initial direction setup
+            if ( direc == None ):
+                if ( start[1] == position[1] ):
+                    direc = "LR"
+                else:
+                    direc = "DU"
+                prev_position = position
+                continue
+
+            # if moving in same direction, ignore and continue
+            if ( prev_position[0] == position[0] and direc == "DU"):
+                prev_position = position
+                continue
+            elif ( prev_position[1] == position[1] and direc == "LR"):
+                prev_position = position
+                continue
+            # change of direction means you add the position int othe list
+            else:
+                updated_positions.append(prev_position)
+                if (direc == "DU"):
+                    direc = "LR"
+                else:
+                    direc = "DU"
+            prev_position = position
+        # dds the last position
+        updated_positions.append(positions[-1])
+
+        for position in updated_positions:
+            prev_position = current_position
+            move, current_position, steps = self.move_to_target(current_position, position)
             total_steps += steps
             path.append(move)
-            path.append("Pick up item.")
-
         back_to_start, _, steps = self.move_to_target(current_position, end)
         total_steps += steps
+        path.append(f"Pickup item at {target}")
         path.append(back_to_start)
         path.append("Pickup completed.")
 
         self.log(f"Total Steps: {total_steps}", print_type=PrintType.DEBUG)
 
         return path
+
 
     def get_items(self, option, target):
         """
@@ -753,14 +792,14 @@ class ItemRoutingSystem:
         if option == AlgoMethod.ORDER_OF_INSERTION:
             # targets = self.get_targets()
             targets = [self.starting_position, target, self.starting_position]
-            result = self.get_descriptive_steps(targets)
+            result = self.get_descriptive_steps(targets, target)
             return result
 
         elif option == AlgoMethod.BRUTE_FORCE:
             # targets = self.get_targets()
             targets = [self.starting_position, target, self.starting_position]
             path = self.gather_brute_force(targets)
-            result = self.get_descriptive_steps(path)
+            result = self.get_descriptive_steps(path, target)
             return result
 
         elif option == AlgoMethod.DIJKSTRA:
@@ -793,7 +832,8 @@ class ItemRoutingSystem:
             result = []
             if shortest_path:
                 self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
-                result = self.get_descriptive_steps(shortest_path)
+                path = shortest_path + [self.starting_position]
+                result = self.get_descriptive_steps(path, target)
             return result
 
     def verify_settings_range(self, value, minimum, maximum):
@@ -1343,7 +1383,6 @@ class ItemRoutingSystem:
                 # Debug Mode:       Advanced Settings
                 # Non-Debug Mode:   Back
                 elif suboption == '7':
-
                     # Debug Mode: Advanced Settings
                     if self.debug:
                         while True:
