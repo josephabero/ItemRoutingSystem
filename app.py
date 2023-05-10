@@ -704,11 +704,16 @@ class ItemRoutingSystem:
         Items are then gathered in order by list of positions. The worker may only
         move in directions up, down, left, or right.
 
+        Args:
+            positions (list of tuples): List of item positions and in the order
+                                to be traveled through.
+
+            target (tuple): Target item to pick up
+
         Returns:
             path (list of str): List of directions worker should take to gather
                                 all items from starting position.
         """
-        print(positions, target)
         path = []
         start = positions.pop(0)
         end = positions.pop()
