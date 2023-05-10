@@ -287,6 +287,7 @@ class ItemRoutingSystem:
             f"  Worker Settings:\n"                                          \
             f"    Position: {self.starting_position}\n"                      \
             f"  Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"  Maximum Routing Time: {self.maximum_routing_time}\n"         \
             f"  Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
