@@ -179,6 +179,7 @@ class ItemRoutingSystem:
         self.item_mode = GenerateMode.RANDOM
         self.minimum_items = 3
         self.maximum_items = 8
+        self.maximum_routing_time = 2 # justin
         self.items = self.get_item_positions()
 
         # Default algorithm
@@ -587,7 +588,14 @@ class ItemRoutingSystem:
         # Initialize the previous position dictionary
         prev = {}
         
+# justin
+        t_temp = 0;
+        t_start = time.time()
         while pq:
+            t_temp += time.time() - t_start
+            if (t_temp >= (self.maximum_routing_time * 3600) ):
+                return self.inserted_order
+
             # Get the position with the smallest distance from the priority queue
             (cost, position) = heapq.heappop(pq)
             
@@ -957,6 +965,27 @@ class ItemRoutingSystem:
         self.log(f"Maximum Items: {self.maximum_items}")
         
         return success
+# justin
+    def set_routing_time_maximum(self):
+        
+        banner = Menu("Set Item Minimum and Maximum Amount")
+        banner.display()
+
+        success = False
+        
+        hrs = input(f"Set Maximum Routing Time in Hours (Currently {self.maximum_routing_time}): ")
+  
+        max_success = self.verify_settings_range(hrs, 0, 10)
+        if (max_success):
+            success = True
+            self.maximum_routing_time = int(hrs)
+        else:
+            self.log("Invalid value, please try again!")
+
+        self.log(f"Maximum Routing Timein Hours: {self.maximum_routing_time}")
+        
+        return success
+
 
     def handle_option(self, option):
         """
@@ -1023,7 +1052,7 @@ class ItemRoutingSystem:
                     shortest_path = []
                     for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                         x, y = position[0] + dx, position[1] + dy
-                        
+# justin                       
                         path = self.dijkstra(self.map, (x, y))
 
                         if path:
@@ -1216,7 +1245,8 @@ class ItemRoutingSystem:
                     self.items = self.get_item_positions()
 
                 elif suboption == '4':
-                    print("Set Routing Time Maximum")
+# justin
+                    self.set_routing_time_maximum()
 
                 # Set Algorithm Method
                 elif suboption == '5':
