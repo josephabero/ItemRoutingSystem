@@ -177,7 +177,7 @@ class ItemRoutingSystem:
 
         # Default item settings
         self.item_mode = GenerateMode.RANDOM
-        self.minimum_items = 3
+        self.minimum_items = 0
         self.maximum_items = 8
         self.items = self.get_item_positions()
 
@@ -269,7 +269,7 @@ class ItemRoutingSystem:
             menu = Menu("Settings Menu")
             menu.add_option(1, "Load Product File")
             menu.add_option(2, "Set Worker Starting Position Mode")
-            menu.add_option(3, "Set Item Maximum")
+            menu.add_option(3, "Set Maximum Items Ordered")
             menu.add_option(4, "Set Routine Time Maximum")
             menu.add_option(5, "Set Algorithm")
             menu.add_option(6, "Toggle Debug Mode")
@@ -906,7 +906,7 @@ class ItemRoutingSystem:
             banner = Menu("Set Item Starting Position")
             banner.display()
 
-            number_of_items = input(f"Set number of items (Range {self.minimum_items} to {self.maximum_items}): ")
+            number_of_items = input(f"Set number of items (Up to {self.maximum_items}): ")
 
             item_success = self.verify_settings_range(number_of_items, self.minimum_items, self.maximum_items)
 
@@ -947,14 +947,14 @@ class ItemRoutingSystem:
 
         return item_positions
 
-    def set_item_minimum_maximum(self):
+    def set_maximum_items_ordered(self):
         """
-        Changes the setting for minimum and maximum number of items.
+        Changes the setting for maximum number of items within a route.
 
         Returns:
             success (bool): Status whether settings were changed successfully.
         """
-        banner = Menu("Set Item Minimum and Maximum Amount")
+        banner = Menu("Set Maximum Items Ordered:")
         banner.display()
 
         success = False
@@ -962,23 +962,19 @@ class ItemRoutingSystem:
         max_items = (self.map_x) * (self.map_y) - 1
 
         while not success:
-            user_max = input(f"Set Maximum Amount (Currently {self.maximum_items}, Maximum {max_items}): ")
-            user_min = input(f"Set Minimum Amount (Currently {self.minimum_items}): ")
+            user_max = input(f"Set Maximum Items (Currently {self.maximum_items}, Maximum {max_items}): ")
 
-            max_success = self.verify_settings_range(user_max, int(user_min), max_items)
-            min_success = self.verify_settings_range(user_min, 0, int(user_max) - 1)
+            max_success = self.verify_settings_range(user_max, self.minimum_items, max_items)
 
-            self.log(f"Item Min Success & Max Success: {max_success}, {min_success}", print_type=PrintType.DEBUG)
+            self.log(f"Item Max Success: {max_success}", print_type=PrintType.DEBUG)
 
-            if max_success and min_success:
-                self.minimum_items = int(user_min)
+            if max_success:
                 self.maximum_items = int(user_max)
                 success = True
 
             else:
                 self.log("Invalid values, please try again!")
 
-        self.log(f"Minimum Items: {self.minimum_items}")
         self.log(f"Maximum Items: {self.maximum_items}")
         
         return success
@@ -1232,9 +1228,9 @@ class ItemRoutingSystem:
                             # Go back to Settings menu
                             break
 
-                # Set Item Minimum and Maximum Amount
+                # Set Maximum Items Ordered Amount
                 elif suboption == '3':
-                    self.set_item_minimum_maximum()
+                    self.set_maximum_items_ordered()
                     self.items = self.get_item_positions()
 
                 elif suboption == '4':
