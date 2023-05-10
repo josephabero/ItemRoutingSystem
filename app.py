@@ -708,6 +708,7 @@ class ItemRoutingSystem:
             path (list of str): List of directions worker should take to gather
                                 all items from starting position.
         """
+        print(targets)
         path = []
         start = targets.pop(0)
         end = targets.pop()
@@ -812,7 +813,7 @@ class ItemRoutingSystem:
             if shortest_path:
                 self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
                 path = shortest_path + [self.starting_position]
-                result = self.get_descriptive_steps(shortest_path)
+                result = self.get_descriptive_steps(path)
             return result
 
     def verify_settings_range(self, value, minimum, maximum):
