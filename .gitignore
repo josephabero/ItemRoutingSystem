@@ -5,3 +5,6 @@ dist/*
 
 # Ignore DS store
 .DS_store
+
+# Ignore output files
+positions.txt
