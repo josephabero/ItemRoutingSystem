@@ -806,6 +806,7 @@ class ItemRoutingSystem:
             shortest_path = []
 
             # Maximum Routing Time Setup
+            timeout = False
             t_temp = 0.0
             t_thresh = self.maximum_routing_time * 60 # minute to second conversion
             t_start = time.time()
@@ -815,7 +816,8 @@ class ItemRoutingSystem:
                 # Maximum Routing Time Check
                 t_temp += time.time() - t_start
                 if (t_temp >= t_thresh):
-                    shortest_path = path
+                    timeout = True
+                    shortest_path = path 
                     break
 
 
@@ -833,6 +835,9 @@ class ItemRoutingSystem:
             if shortest_path:
                 self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
                 path = shortest_path + [self.starting_position]
+                result = self.get_descriptive_steps(path, target)
+            elif timeout:
+                path = [ self.starting_position, target, self.starting_position ]
                 result = self.get_descriptive_steps(path, target)
             return result
 
