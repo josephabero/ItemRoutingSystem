@@ -179,6 +179,7 @@ class ItemRoutingSystem:
         self.item_mode = GenerateMode.RANDOM
         self.minimum_items = 0
         self.maximum_items = 8
+        self.maximum_routing_time = 60
         self.items = self.get_item_positions()
 
         # Default algorithm
@@ -286,6 +287,7 @@ class ItemRoutingSystem:
             f"  Worker Settings:\n"                                          \
             f"    Position: {self.starting_position}\n"                      \
             f"  Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"  Maximum Routing Time: {self.maximum_routing_time}\n"         \
             f"  Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
@@ -460,7 +462,7 @@ class ItemRoutingSystem:
             f"  Worker Position: {self.starting_position}\n"                 \
             f"  Ordered Item Maximum: {self.maximum_items}\n"                \
             f"  Gathering Algorithm: {self.gathering_algo}\n"                \
-            f"  Maximum Time To Process: {0}\n"                              \
+            f"  Maximum Time To Process: {self.maximum_routing_time}\n"                              \
             f"  Debug Mode: {self.debug}\n"
 
         self.log(settings_info)
@@ -803,8 +805,22 @@ class ItemRoutingSystem:
         elif option == AlgoMethod.DIJKSTRA:
             shortest_path = []
 
+            # Maximum Routing Time Setup
+            timeout = False
+            t_temp = 0.0
+            t_thresh = self.maximum_routing_time * 60 # minute to second conversion
+            t_start = time.time()
+
             # Run Dijkstra's for every position next to the target item
             for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                # Maximum Routing Time Check
+                t_temp += time.time() - t_start
+                if (t_temp >= t_thresh):
+                    timeout = True
+                    shortest_path = path 
+                    break
+
+
                 x, y = target[0] + dx, target[1] + dy
 
                 path = self.dijkstra(self.map, (x, y))
@@ -819,6 +835,9 @@ class ItemRoutingSystem:
             if shortest_path:
                 self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
                 path = shortest_path + [self.starting_position]
+                result = self.get_descriptive_steps(path, target)
+            elif timeout:
+                path = [ self.starting_position, target, self.starting_position ]
                 result = self.get_descriptive_steps(path, target)
             return result
 
@@ -1051,6 +1070,27 @@ class ItemRoutingSystem:
         
         return success
 
+    def set_routing_time_maximum(self):
+        
+        banner = Menu("Set Routing Time Maximum")
+        banner.display()
+
+        success = False
+        
+        minutes = input(f"Set Maximum Routing Time in Minutes (Currently {self.maximum_routing_time}): ")
+  
+        max_success = self.verify_settings_range(minutes, 0, 1440)
+        if (max_success):
+            success = True
+            self.maximum_routing_time = int(minutes)
+        else:
+            self.log("Invalid value, please try again!")
+
+        self.log(f"Maximum Routing Time in Minutes: {self.maximum_routing_time}")
+        
+        return success
+
+
     def handle_option(self, option):
         """
         Handles menu options for main application and corresponding submenus.
@@ -1140,7 +1180,7 @@ class ItemRoutingSystem:
                         for step, action in enumerate(steps, 1):
                             self.log(f"{step}. {action}")
                     else:
-                        self.log(f"Path to {position} was not found!")
+                        self.log(f"Path to {product_id} was not found!")
 
                     clear = False
 
@@ -1304,7 +1344,7 @@ class ItemRoutingSystem:
                     self.items = self.get_item_positions()
 
                 elif suboption == '4':
-                    print("Set Routing Time Maximum")
+                    self.set_routing_time_maximum()
 
                 # Set Algorithm Method
                 elif suboption == '5':
