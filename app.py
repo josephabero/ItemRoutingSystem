@@ -557,7 +557,7 @@ class ItemRoutingSystem:
 
         total_steps = abs(x_diff) + abs(y_diff)
 
-        return move, end, total_steps
+        return move, total_steps
 
     def gather_brute_force(self, targets):
         """
@@ -787,10 +787,11 @@ class ItemRoutingSystem:
 
         for position in updated_positions:
             prev_position = current_position
-            move, current_position, steps = self.move_to_target(current_position, position)
+            move, steps = self.move_to_target(current_position, position)
+            current_position = position
             total_steps += steps
             path.append(move)
-        back_to_start, _, steps = self.move_to_target(current_position, end)
+        back_to_start, steps = self.move_to_target(current_position, end)
         total_steps += steps
         path.append(f"Pickup item at {target}.")
         path.append(back_to_start)
