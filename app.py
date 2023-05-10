@@ -179,7 +179,7 @@ class ItemRoutingSystem:
         self.item_mode = GenerateMode.RANDOM
         self.minimum_items = 0
         self.maximum_items = 8
-        self.maximum_routing_time = 2
+        self.maximum_routing_time = 60
         self.items = self.get_item_positions()
 
         # Default algorithm
@@ -767,14 +767,14 @@ class ItemRoutingSystem:
 
             # Maximum Routing Time Setup
             t_temp = 0.0
+            t_thresh = self.maximum_routing_time * 60 # minute to second conversion
             t_start = time.time()
 
             # Run Dijkstra's for every position next to the target item
             for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 # Maximum Routing Time Check
                 t_temp += time.time() - t_start
-                print(t_start,t_temp)
-                if (t_temp >= (self.maximum_routing_time * 3600) ):
+                if (t_temp >= t_thresh):
                     shortest_path = path
                     break
 
@@ -1026,21 +1026,21 @@ class ItemRoutingSystem:
 
     def set_routing_time_maximum(self):
         
-        banner = Menu("Set Item Minimum and Maximum Amount")
+        banner = Menu("Set Routing Time Maximum")
         banner.display()
 
         success = False
         
-        hrs = input(f"Set Maximum Routing Time in Hours (Currently {self.maximum_routing_time}): ")
+        minutes = input(f"Set Maximum Routing Time in Minutes (Currently {self.maximum_routing_time}): ")
   
-        max_success = self.verify_settings_range(hrs, 0, 10)
+        max_success = self.verify_settings_range(minutes, 0, 10)
         if (max_success):
             success = True
-            self.maximum_routing_time = int(hrs)
+            self.maximum_routing_time = int(minutes)
         else:
             self.log("Invalid value, please try again!")
 
-        self.log(f"Maximum Routing Timein Hours: {self.maximum_routing_time}")
+        self.log(f"Maximum Routing Time in Minutes: {self.maximum_routing_time}")
         
         return success
 
