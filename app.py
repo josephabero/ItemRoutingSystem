@@ -1347,7 +1347,9 @@ class ItemRoutingSystem:
 
                             # Set Map Orientation
                             elif adv_option == '3':
-                                print("Set Map Orientation")
+                                print("Set Map Orientation is currently under development!")
+                                update = False
+                                clear = False
 
                             # Back
                             elif adv_option == '4':
