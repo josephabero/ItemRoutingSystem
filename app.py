@@ -640,48 +640,42 @@ class ItemRoutingSystem:
         end = targets.pop()
         prev_target = []
         direc = None
-        i = 0;
+        updated_targets = []
 
         path.append(f"Start at position {start}!")
         current_position = start
-        prev_target = start
         total_steps = 0
         
         # Preprocessing
         for target in targets:
-            if (prev_target[0] == target[0] and direc == "U"):
-                targets.pop(i)
-                continue
-            elif (prev_target[0] == target[0] and direc == "D"):
-                targets.pop(i)
-                continue
-            elif (prev_target[1] == target[1] and direc == "L"):
-                targets.pop(i)
-                continue
-            elif (prev_target[1] == target[1] and direc == "R"):
-                targets.pop(i)
-                continue
-            else:
-                if ( (prev_target[0] - target[0]) > 0 and (prev_target[1] == target[1]) ):
-                    # Right
-                    direc = "R"
-                elif( (prev_target[0] - target[0]) < 0 and (prev_target[1] == target[1]) ):
-                    # Left
-                    direc = "L"
-                elif ( (prev_target[1] - target[1]) > 0 and (prev_target[0] == target[0]) ):
-                    # Down
-                    direc = "D"
-                elif ( (prev_target[1] - target[1]) < 0 and (prev_target[0] == target[0]) ):
-                    # Up
-                    direc = "U"
+            # initial direction setup
+            if ( direc == None ):
+                if ( start[1] == target[1] ):
+                    direc = "LR"
                 else:
-                    direc = None
+                    direc = "DU"
+                prev_target = target
+                continue
+            
+            # if moving in same direction, ignore and continue
+            if ( prev_target[0] == target[0] and direc == "DU"):
+                prev_target = target
+                continue
+            elif ( prev_target[1] == target[1] and direc == "LR"):
+                prev_target = target
+                continue 
+            # change of direction means you add the target int othe list
+            else:
+                updated_targets.append(prev_target)
+                if (direc == "DU"):
+                    direc = "LR"
+                else:
+                    direc = "DU" 
             prev_target = target
-            i += 1
-        print(targets)
+        # dds the last target 
+        updated_targets.append(targets[-1])
 
-        current_position = start
-        for target in targets: 
+        for target in updated_targets: 
             prev_target = current_position
             move, current_position, steps = self.move_to_target(current_position, target) 
             total_steps += steps
