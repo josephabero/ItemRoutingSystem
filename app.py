@@ -282,11 +282,11 @@ class ItemRoutingSystem:
                 menu.add_option(7, "Back")
 
             info = "Current Settings:\n"                                   \
-            f"Loaded Product File: {self.product_file}\n"                  \
-            f"Worker Settings:\n"                                          \
-            f"  Position: {self.starting_position}\n"                      \
-            f"Gathering Algorithm: {self.gathering_algo}\n"                \
-            f"Debug Mode: {self.debug}\n"
+            f"  Loaded Product File: {self.product_file}\n"                  \
+            f"  Worker Settings:\n"                                          \
+            f"    Position: {self.starting_position}\n"                      \
+            f"  Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"  Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
 
@@ -455,6 +455,15 @@ class ItemRoutingSystem:
         self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
         self.log("")
+
+        settings_info = "Current Settings:\n"                              \
+            f"  Worker Position: {self.starting_position}\n"                 \
+            f"  Ordered Item Maximum: {self.maximum_items}\n"                \
+            f"  Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"  Maximum Time To Process: {0}\n"                              \
+            f"  Debug Mode: {self.debug}\n"
+
+        self.log(settings_info)
 
     def move_to_target(self, start, end):
         """
