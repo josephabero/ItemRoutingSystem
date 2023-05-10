@@ -811,6 +811,7 @@ class ItemRoutingSystem:
             result = []
             if shortest_path:
                 self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
+                path = shortest_path + [self.starting_position]
                 result = self.get_descriptive_steps(shortest_path)
             return result
 
