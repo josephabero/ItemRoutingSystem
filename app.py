@@ -10,6 +10,7 @@ directions to gather shopping items around a warehouse.
 from enum import Enum
 import heapq
 import itertools
+import json
 import os
 import random
 import sys
@@ -22,10 +23,11 @@ class MenuType(Enum):
     MAIN_MENU = 0
     VIEW_MAP = 1
     SETTINGS = 2
-    ALGO_METHOD = 3
-    WORKER_POSITION = 4
-    ITEM_POSITION = 5
-    LOAD_PRODUCT_FILE = 6
+    ADVANCED_SETTINGS = 3
+    ALGO_METHOD = 4
+    WORKER_POSITION = 5
+    ITEM_POSITION = 6
+    LOAD_PRODUCT_FILE = 7
 
 class AlgoMethod(Enum):
     """
@@ -44,6 +46,7 @@ class GenerateMode(Enum):
     """
     MANUAL = "Manual"
     RANDOM = "Random"
+    LOADED_FILE = "Loaded File"
 
     def __str__(cls):
         return cls.value
@@ -153,16 +156,20 @@ class ItemRoutingSystem:
 
     def __init__(self):
         """
-        Initializes Menu class.
+        Initializes ItemRoutingSystem application class.
 
-        Defaults a 5x5 map with a worker starting position of (0, 0).
+        Defaults a map with a worker starting position of (0, 0).
         """
         # Default debug mode
         self.debug = False
 
-        # Default 5x5 map size
-        self.map_x = 5
-        self.map_y = 5
+        # Default map size
+        self.map_x = 40
+        self.map_y = 21
+
+        # Default product info list
+        self.product_info = {}
+        self.product_file = None
 
         # Default worker settings
         self.worker_mode = GenerateMode.MANUAL
@@ -170,19 +177,15 @@ class ItemRoutingSystem:
 
         # Default item settings
         self.item_mode = GenerateMode.RANDOM
-        self.minimum_items = 3
+        self.minimum_items = 0
         self.maximum_items = 8
         self.items = self.get_item_positions()
 
         # Default algorithm
-        self.gathering_algo = AlgoMethod.BRUTE_FORCE
+        self.gathering_algo = AlgoMethod.DIJKSTRA
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
-
-        # Default product info list
-        self.product_info = {}
-        self.product_file = None
 
         # Display welcome banner
         banner = "------------------------------------------------------------"
@@ -207,14 +210,21 @@ class ItemRoutingSystem:
         loads the product file into a dictionary called product_list where the key is productID and the value
         is the pair (X, Y).
         """
-        self.product_file = fname
-        f = open(fname, 'r')
-        next(f)
+        success = True
 
-        for line in f:
-            fields = line.strip().split()
-            self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
-        f.close()
+        try:
+            self.product_file = fname
+            f = open(fname, 'r')
+            next(f)
+
+            for line in f:
+                fields = line.strip().split()
+                self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
+            f.close()
+        except FileNotFoundError:
+            success = False
+
+        return success
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -245,34 +255,69 @@ class ItemRoutingSystem:
 
         elif menu_type == MenuType.VIEW_MAP:
             menu = Menu("View Map Menu")
-            menu.add_option(1, "Generate New Map")
-            menu.add_option(2, "Get Path to Product")
-            menu.add_option(3, "Get Location to Product")
-            menu.add_option(4, "Back")
+            menu.add_option(1, "Get Path to Product")
+            menu.add_option(2, "Get Location of Product")
+
+            # Only expose advanced setting option in debug m1ode
+            if self.debug:
+                menu.add_option(3, "Generate New Map")
+                menu.add_option(4, "Back")
+            else:
+                menu.add_option(3, "Back")
 
         elif menu_type == MenuType.SETTINGS:
             menu = Menu("Settings Menu")
-            menu.add_option(1, "Set Map Size")
+            menu.add_option(1, "Load Product File")
             menu.add_option(2, "Set Worker Starting Position Mode")
-            menu.add_option(3, "Set Item Position Mode")
-            menu.add_option(4, "Set Obstacle Mode")
-            menu.add_option(5, "Set Item Minimum and Maximum Amount")
-            menu.add_option(6, "Set Gathering Algorithm")
-            menu.add_option(7, "Toggle Debug Mode")
-            menu.add_option(8, "Load Product File")
-            menu.add_option(9, "Back")
+            menu.add_option(3, "Set Maximum Items Ordered")
+            menu.add_option(4, "Set Routine Time Maximum")
+            menu.add_option(5, "Set Algorithm")
+            menu.add_option(6, "Toggle Debug Mode")
+
+            if self.debug:
+                menu.add_option(7, "Advanced Settings")
+                menu.add_option(8, "Back")
+
+            else:
+                menu.add_option(7, "Back")
 
             info = "Current Settings:\n"                                   \
+            f"  Loaded Product File: {self.product_file}\n"                  \
+            f"  Worker Settings:\n"                                          \
+            f"    Position: {self.starting_position}\n"                      \
+            f"  Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"  Debug Mode: {self.debug}\n"
+
+            menu.set_misc_info(info)
+
+        elif menu_type == MenuType.ADVANCED_SETTINGS:
+            menu = Menu("Advanced Settings Menu")
+            menu.add_option(1, "Set Map Size")
+            menu.add_option(2, "Set Item Position Mode")
+            menu.add_option(3, "Set Map Orientation")
+            menu.add_option(4, "Back")
+
+            position_str = ' '.join(str(p) for p in self.items)
+            if len(self.items) > 10:
+                file = "positions.txt"
+
+                # Write positions to file if too many to print to screen
+                with open(file, "w+") as f:
+                    for position in self.items:
+                        x, y = position
+                        f.write(f"({x}, {y})\n")
+
+                position_str = f"See '{file}' for list of item positions."
+
+            info = "Current Advanced Settings:\n"                          \
             f"Map Size: {self.map_x}x{self.map_y}\n"                       \
             f"\n"                                                          \
             f"Worker Settings:\n"                                          \
             f"  Mode: {self.worker_mode}\n"                                \
-            f"  Position: {self.starting_position}\n"                      \
             f"Item Settings:\n"                                            \
             f"  Mode: {self.item_mode}\n"                                  \
-            f"  Positions: {' '.join(str(p) for p in self.items)}\n"       \
-            f"Gathering Algorithm: {self.gathering_algo}\n"                \
-            f"Loaded Product File: {self.product_file}\n"                  \
+            f"  Number of Items: {len(self.items)}\n"                      \
+            f"  Positions: {position_str}\n"                               \
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
@@ -289,9 +334,11 @@ class ItemRoutingSystem:
 
         elif menu_type == MenuType.WORKER_POSITION:
             menu = Menu("Set Starting Worker Position Mode")
-            menu.add_option(1, "Randomly Set Position")
-            menu.add_option(2, "Manually Set Position")
-            menu.add_option(3, "Back")
+
+            if self.debug:
+                menu.add_option(1, "Randomly Set Position")
+                menu.add_option(2, "Manually Set Position")
+                menu.add_option(3, "Back")
 
         elif menu_type == MenuType.ITEM_POSITION:
             menu = Menu("Set Item Position Mode")
@@ -334,15 +381,30 @@ class ItemRoutingSystem:
 
         # Insert item positions
         if positions is None:
-            self.log(self.items, print_type=PrintType.DEBUG)
+            if self.debug:
+                if len(self.items) > 10:
+                    file = "positions.txt"
+
+                    # Write positions to file if too many to print to screen
+                    with open(file, "w+") as f:
+                        for position in self.items:
+                            x, y = position
+                            f.write(f"({x}, {y})\n")
+
+                    self.log(f"See '{file}' for list of item positions.", print_type=PrintType.DEBUG)
+                else:
+                    self.log(self.items, print_type=PrintType.DEBUG)
 
             positions = self.items
 
         for position in positions:
             # Set position in grid
             x, y = position
-            grid[x][y] = ItemRoutingSystem.ITEM_SYMBOL
-            inserted_order.append((x, y))
+
+            # Only set item if its position is within defined grid
+            if x < self.map_x and y < self.map_y:
+                grid[x][y] = ItemRoutingSystem.ITEM_SYMBOL
+                inserted_order.append((x, y))
 
         return grid, inserted_order
 
@@ -373,17 +435,19 @@ class ItemRoutingSystem:
         banner.display()
 
         grid = []
-        for y in range(len(self.map[0])):
+        for y in reversed(range(len(self.map[0]))):
             col = []
             for x in range(len(self.map)):
-                col.append(self.map[x][y])
+                # Only display item if its position is within defined grid
+                if x < self.map_x and y < self.map_y:
+                    col.append(self.map[x][y])
             grid.append(col)
 
-        for i, col in enumerate(grid):
+        for i, col in zip(reversed(range(len(grid))), grid):
             row_string = f"{i} " + " ".join(val for val in col)
             self.log(row_string.center(banner_length))
 
-        self.log(" " + " ".join(str(i) for i in range(len(self.map[0]))).center(banner_length))
+        self.log(" " + " ".join(str(i) for i in range(len(self.map))).center(banner_length))
 
         self.log("")
         self.log("LEGEND:".center(banner_length))
@@ -391,6 +455,15 @@ class ItemRoutingSystem:
         self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
         self.log("")
+
+        settings_info = "Current Settings:\n"                              \
+            f"  Worker Position: {self.starting_position}\n"                 \
+            f"  Ordered Item Maximum: {self.maximum_items}\n"                \
+            f"  Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"  Maximum Time To Process: {0}\n"                              \
+            f"  Debug Mode: {self.debug}\n"
+
+        self.log(settings_info)
 
     def move_to_target(self, start, end):
         """
@@ -645,7 +718,7 @@ class ItemRoutingSystem:
         path.append(f"Start at position {start}!")
         current_position = start
         total_steps = 0
-        
+
         # Preprocessing
         for target in targets:
             # initial direction setup
@@ -656,28 +729,28 @@ class ItemRoutingSystem:
                     direc = "DU"
                 prev_target = target
                 continue
-            
+
             # if moving in same direction, ignore and continue
             if ( prev_target[0] == target[0] and direc == "DU"):
                 prev_target = target
                 continue
             elif ( prev_target[1] == target[1] and direc == "LR"):
                 prev_target = target
-                continue 
+                continue
             # change of direction means you add the target int othe list
             else:
                 updated_targets.append(prev_target)
                 if (direc == "DU"):
                     direc = "LR"
                 else:
-                    direc = "DU" 
+                    direc = "DU"
             prev_target = target
-        # dds the last target 
+        # dds the last target
         updated_targets.append(targets[-1])
 
-        for target in updated_targets: 
+        for target in updated_targets:
             prev_target = current_position
-            move, current_position, steps = self.move_to_target(current_position, target) 
+            move, current_position, steps = self.move_to_target(current_position, target)
             total_steps += steps
             path.append(move)
         back_to_start, _, steps = self.move_to_target(current_position, end)
@@ -688,9 +761,9 @@ class ItemRoutingSystem:
         self.log(f"Total Steps: {total_steps}", print_type=PrintType.DEBUG)
 
         return path
-        
 
-    def get_items(self, option):
+
+    def get_items(self, option, target):
         """
         Helper function to retrieve list of directions depending on the 
         gathering algorithm setting.
@@ -708,14 +781,37 @@ class ItemRoutingSystem:
         self.log(f"Inserted Item Order: {self.inserted_order}", print_type=PrintType.DEBUG)
 
         if option == AlgoMethod.ORDER_OF_INSERTION:
-            targets = self.get_targets()
+            # targets = self.get_targets()
+            targets = [self.starting_position, target, self.starting_position]
             result = self.get_descriptive_steps(targets)
             return result
 
         elif option == AlgoMethod.BRUTE_FORCE:
-            targets = self.get_targets()
+            # targets = self.get_targets()
+            targets = [self.starting_position, target, self.starting_position]
             path = self.gather_brute_force(targets)
             result = self.get_descriptive_steps(path)
+            return result
+
+        elif option == AlgoMethod.DIJKSTRA:
+            shortest_path = []
+
+            # Run Dijkstra's for every position next to the target item
+            for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                x, y = target[0] + dx, target[1] + dy
+
+                path = self.dijkstra(self.map, (x, y))
+
+                if path:
+                    if len(path) < len(shortest_path) or not shortest_path:
+                        shortest_path = path
+
+                self.log(f"Shortest Path for {(x, y)}: {shortest_path}", print_type=PrintType.DEBUG)
+
+            result = []
+            if shortest_path:
+                self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
+                result = self.get_descriptive_steps(shortest_path)
             return result
 
     def verify_settings_range(self, value, minimum, maximum):
@@ -759,8 +855,8 @@ class ItemRoutingSystem:
 
         minimum_x = 5
         minimum_y = 5
-        maximum_x = 20
-        maximum_y = 20
+        maximum_x = 40
+        maximum_y = 40
 
         success = False
 
@@ -842,7 +938,12 @@ class ItemRoutingSystem:
         """
         item_positions = []
 
-        if self.item_mode == GenerateMode.RANDOM:
+        if self.item_mode == GenerateMode.LOADED_FILE:
+            if self.product_file:
+                for product, position in self.product_info.items():
+                    item_positions.append(position)
+
+        elif self.item_mode == GenerateMode.RANDOM:
             number_of_items = random.randint(self.minimum_items, self.maximum_items)
 
             for _ in range(number_of_items):
@@ -869,7 +970,7 @@ class ItemRoutingSystem:
             banner = Menu("Set Item Starting Position")
             banner.display()
 
-            number_of_items = input(f"Set number of items (Range {self.minimum_items} to {self.maximum_items}): ")
+            number_of_items = input(f"Set number of items (Up to {self.maximum_items}): ")
 
             item_success = self.verify_settings_range(number_of_items, self.minimum_items, self.maximum_items)
 
@@ -887,8 +988,8 @@ class ItemRoutingSystem:
                     x = input(f"Set X position (0 - {self.map_x - 1}): ")
                     y = input(f"Set Y position (0 - {self.map_y - 1}): ")
 
-                    x_success = self.verify_settings_range(x, 0, self.map_x)
-                    y_success = self.verify_settings_range(y, 0, self.map_y)
+                    x_success = self.verify_settings_range(x, 0, self.map_x - 1)
+                    y_success = self.verify_settings_range(y, 0, self.map_y - 1)
 
                     position = (int(x), int(y))
                     # Within Valid Range
@@ -910,14 +1011,14 @@ class ItemRoutingSystem:
 
         return item_positions
 
-    def set_item_minimum_maximum(self):
+    def set_maximum_items_ordered(self):
         """
-        Changes the setting for minimum and maximum number of items.
+        Changes the setting for maximum number of items within a route.
 
         Returns:
             success (bool): Status whether settings were changed successfully.
         """
-        banner = Menu("Set Item Minimum and Maximum Amount")
+        banner = Menu("Set Maximum Items Ordered:")
         banner.display()
 
         success = False
@@ -925,23 +1026,19 @@ class ItemRoutingSystem:
         max_items = (self.map_x) * (self.map_y) - 1
 
         while not success:
-            user_max = input(f"Set Maximum Amount (Currently {self.maximum_items}, Maximum {max_items}): ")
-            user_min = input(f"Set Minimum Amount (Currently {self.minimum_items}): ")
+            user_max = input(f"Set Maximum Items (Currently {self.maximum_items}, Maximum {max_items}): ")
 
-            max_success = self.verify_settings_range(user_max, int(user_min), max_items)
-            min_success = self.verify_settings_range(user_min, 0, int(user_max) - 1)
+            max_success = self.verify_settings_range(user_max, self.minimum_items, max_items)
 
-            self.log(f"Item Min Success & Max Success: {max_success}, {min_success}", print_type=PrintType.DEBUG)
+            self.log(f"Item Max Success: {max_success}", print_type=PrintType.DEBUG)
 
-            if max_success and min_success:
-                self.minimum_items = int(user_min)
+            if max_success:
                 self.maximum_items = int(user_max)
                 success = True
 
             else:
                 self.log("Invalid values, please try again!")
 
-        self.log(f"Minimum Items: {self.minimum_items}")
         self.log(f"Maximum Items: {self.maximum_items}")
         
         return success
@@ -958,19 +1055,33 @@ class ItemRoutingSystem:
         clear = True
 
         if option == '1':
-            # Display map at start of menu
+            # Load product file if one hasn't been loaded yet
+            if self.product_file is None:
+                if update:
+                    self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
+                else:
+                    update = True
+                    clear = True
+
+                # Set Product File Name
+                success = False
+                while not success:
+                    product_file = input("Enter product filename: ")
+
+                    success = self.load_product_file(product_file)
+
+                    if success:
+                        self.item_mode = GenerateMode.LOADED_FILE
+                        self.items = self.get_item_positions()
+                        self.map, self.inserted_order = self.generate_map()
+
+                    else:
+                        self.log(f"File '{product_file}' was not found, please try entering full path to file!")
+
+
+            # Display map after file is loaded
             if update:
                 self.display_map()
-
-                # Evaluate directions to gather items
-                path = self.get_items(self.gathering_algo)
-
-                # Display directions
-                self.log("Directions:")
-                self.log("-----------")
-                for step, action in enumerate(path):
-                    self.log(f"{step}. {action}")
-
             else:
                 update = True
 
@@ -978,7 +1089,7 @@ class ItemRoutingSystem:
             clear = False
 
             while True:
-                # Create items menu
+                # Create View Map menu
                 if update:
                     self.display_menu(MenuType.VIEW_MAP, clear=clear)
                 else:
@@ -988,47 +1099,34 @@ class ItemRoutingSystem:
                 # Handle menu options
                 suboption = input("> ")
 
-                # Generate New Map
+                # Get Path to Product
                 if suboption == '1':
-                    self.log("Generate New Map")
-                    self.items = self.get_item_positions()
-                    self.map, self.inserted_order = self.generate_map()
-                    self.display_map()
-
-                    # Evaluate directions to gather items
-                    path = self.get_items(self.gathering_algo)
-
-                    # Display directions
-                    self.log("Directions:")
-                    self.log("-----------")
-                    for step, action in enumerate(path):
-                        self.log(f"{step}. {action}")
-
-                    clear = False
-
-                elif suboption == '2':
-                    self.log("Get Location of Product")
-
-                elif suboption == '3':
                     self.log("Get Path to Product")
-                    position = (4, 4)
 
-                    shortest_path = []
-                    for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-                        x, y = position[0] + dx, position[1] + dy
-                        
-                        path = self.dijkstra(self.map, (x, y))
+                    # Request Product ID to find path for
+                    complete = False
+                    while not complete:
+                        try:
+                            if self.debug:
+                                self.log("Product IDs:")
+                                for i, product in enumerate(self.product_info, 1):
+                                    self.log(f"{i}. {product}")
 
-                        if path:
-                            if len(path) < len(shortest_path) or not shortest_path:
-                                shortest_path = path
+                            product_id = input("Enter Product ID: ")
+                            item_position = self.product_info[int(product_id)]
 
-                        self.log(f"Shortest Path for {(x, y)}: {shortest_path}", print_type=PrintType.DEBUG)
+                            complete = True
 
-                    if shortest_path:
-                        self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
-                        steps = self.get_descriptive_steps(shortest_path)
+                        except ValueError:
+                            self.log(f"Invalid Product ID '{product_id}', please try again!")
 
+                        except KeyError:
+                            self.log("Product was not found!")
+                            complete = False
+
+                    steps = self.get_items(self.gathering_algo, item_position)
+
+                    if steps:
                         self.log("Directions:")
                         self.log("-----------")
                         for step, action in enumerate(steps, 1):
@@ -1038,9 +1136,49 @@ class ItemRoutingSystem:
 
                     clear = False
 
+                # Get Location of Product
+                elif suboption == '2':
+                    self.log("Get Location of Product")
+
+                    complete = False
+                    while not complete:
+                        try:
+                            if self.debug:
+                                self.log("Product IDs:")
+                                for i, product in enumerate(self.product_info, 1):
+                                    self.log(f"{i}. {product}")
+
+                            product_id = input("Enter Product ID: ")
+
+                            self.log(f"Product {product_id} located at {self.product_info[int(product_id)]}")
+                            complete = True
+
+                        except ValueError:
+                            self.log(f"Invalid Product ID '{product_id}', please try again!")
+
+                        except KeyError:
+                            self.log("Product was not found!")
+                            complete = True
+
                 # Back
-                elif suboption == '4':
+                elif suboption == '3':
+                    # Debug Mode: Generate New Map
+                    if self.debug:
+                        self.log("Generate New Map")
+                        self.items = self.get_item_positions()
+                        self.map, self.inserted_order = self.generate_map()
+                        self.display_map()
+
+                        clear = False
+
+                    # Normal Mode: Back
+                    else:
+                        break
+
+                # Debug Mode: Back
+                elif suboption == '4' and self.debug:
                     break
+
                 else:
                     self.log("Invalid choice. Try again.")
                     update = False
@@ -1060,10 +1198,43 @@ class ItemRoutingSystem:
                 # Handle Settings Menu Options
                 suboption = input("> ")
 
-                # Set Map Size
+                # Load Product File
                 if suboption == '1':
-                    clear = self.set_map_size()
-                    self.map, self.inserted_order = self.generate_map()
+                    if update:
+                        self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
+                    else:
+                        update = True
+                        clear = True
+
+                    # Set Product File Name
+                    success = False
+                    while not success:
+                        product_file = input("Enter product filename: ")
+
+                        success = self.load_product_file(product_file)
+
+                        if success:
+                            self.item_mode = GenerateMode.LOADED_FILE
+                            self.items = self.get_item_positions()
+
+                            # Set new map parameters
+                            max_x = self.map_x
+                            max_y = self.map_y
+
+                            for item in self.items:
+                                x, y = item
+                                if x > max_x:
+                                    max_x = x
+                                if y > max_y:
+                                    max_y = y
+
+                            self.map_x = max_x + 1
+                            self.map_y = max_y + 1
+
+                            self.map, self.inserted_order = self.generate_map()
+
+                        else:
+                            self.log(f"File '{product_file}' was not found, please try entering full path to file!")
 
                 # Set Worker Starting Position
                 elif suboption == '2':
@@ -1074,90 +1245,61 @@ class ItemRoutingSystem:
                             update = True
                             clear = True
 
-                        mode_option = input(f"Set Worker Position Mode (Currently {self.worker_mode}): ")
+                        # Give Worker Mode options in debug mode
+                        if self.debug:
+                            mode_option = input(f"Set Worker Position Mode (Currently {self.worker_mode}): ")
 
-                        # Set random starting position
-                        if mode_option == '1':
-                            self.worker_mode = GenerateMode.RANDOM
+                            # Set random starting position
+                            if mode_option == '1':
+                                self.worker_mode = GenerateMode.RANDOM
 
-                            self.set_worker_starting_position()
+                                self.set_worker_starting_position()
 
-                            # Generate map with new starting position
-                            self.map, self.inserted_order = self.generate_map()
-                            break
-                        
-                        # Set manual starting position
-                        elif mode_option == '2':
+                                # Generate map with new starting position
+                                self.map, self.inserted_order = self.generate_map()
+                                break
+
+                            # Set manual starting position
+                            elif mode_option == '2':
+                                self.worker_mode = GenerateMode.MANUAL
+
+                                self.set_worker_starting_position()
+
+                                # Generate map with new starting position
+                                self.map, self.inserted_order = self.generate_map()
+                                break
+
+                            # Back
+                            elif mode_option == '3':
+                                break
+
+                            else:
+                                self.log("Invalid choice. Try again.")
+                                update = False
+                                clear = False
+
+                        # Normal case, always request user input
+                        else:
                             self.worker_mode = GenerateMode.MANUAL
 
                             self.set_worker_starting_position()
 
                             # Generate map with new starting position
                             self.map, self.inserted_order = self.generate_map()
+
+                            # Go back to Settings menu
                             break
 
-                        # Back
-                        elif mode_option == '3':
-                            break
-
-                        else:
-                            self.log("Invalid choice. Try again.")
-                            update = False
-                            clear = False
-
-                # Set Item Position Mode
+                # Set Maximum Items Ordered Amount
                 elif suboption == '3':
-                    while True:
-                        if update:
-                            self.display_menu(MenuType.ITEM_POSITION, clear=clear)
-                        else:
-                            update = True
-                            clear = True
-
-                        mode_option = input(f"Set Item Position Mode (Currently {self.item_mode}): ")
-
-                        # Set random starting position
-                        if mode_option == '1':
-                            self.item_mode = GenerateMode.RANDOM
-
-                            self.items = self.get_item_positions()
-
-                            # Generate map with new item positions
-                            self.map, self.inserted_order = self.generate_map()
-                            break
-                        
-                        # Set manual starting position
-                        elif mode_option == '2':
-                            self.item_mode = GenerateMode.MANUAL
-
-                            self.items = self.get_item_positions()
-
-                            # Generate map with new item positions
-                            self.map, self.inserted_order = self.generate_map()
-                            break
-
-                        # Back
-                        elif algo_option == '3':
-                            break
-
-                        else:
-                            self.log("Invalid choice. Try again.")
-                            update = False
-                            clear = False
-
-                # Set Obstacle Mode
-                elif suboption == '4':
-                    self.log("You chose an Unimplemented Obstacle Mode.")
-                    update = False
-                    clear = False
-
-                # Set Item Minimum and Maximum Amount
-                elif suboption == '5':
-                    self.set_item_minimum_maximum()
+                    self.set_maximum_items_ordered()
                     self.items = self.get_item_positions()
 
+                elif suboption == '4':
+                    print("Set Routing Time Maximum")
+
                 # Set Algorithm Method
-                elif suboption == '6':
+                elif suboption == '5':
                     while True:
                         if update:
                             self.display_menu(MenuType.ALGO_METHOD, clear=clear)
@@ -1179,9 +1321,8 @@ class ItemRoutingSystem:
 
                         # Dijkstra
                         elif algo_option == '3':
-                            self.log("You chose an Unimplemented Dijkstra's Algorithm.")
-                            update = False
-                            clear = False
+                            self.gathering_algo = AlgoMethod.DIJKSTRA
+                            break
 
                         # Back
                         elif algo_option == '4':
@@ -1193,31 +1334,91 @@ class ItemRoutingSystem:
                             clear = False
 
                 # Toggle Debug
-                elif suboption == '7':
+                elif suboption == '6':
                     self.debug = not self.debug
 
-                # Load Product File
-                elif suboption == '8':
-                    while True:
-                        if update:
-                            self.display_menu(MenuType.LOAD_PRODUCT_FILE, clear=clear)
-                        else:
-                            update = True
-                            clear = True
+                # Debug Mode:       Advanced Settings
+                # Non-Debug Mode:   Back
+                elif suboption == '7':
+                    # Debug Mode: Advanced Settings
+                    if self.debug:
+                        while True:
+                            if update:
+                                self.display_menu(MenuType.ADVANCED_SETTINGS, clear=clear)
+                            else:
+                                update = True
+                                clear = True
 
-                        # Set Product File Name
-                        fname = input("Enter filename: ")
-                        fstatus = self.load_product_file(fname)
-                        if fstatus == 0:
-                            break
-                        else:
-                            print("File Does Not Exist!")
-                            self.product_file = None
-                            time.sleep(2)
-                            break
-                # Back
-                elif suboption == '9':
+                            adv_option = input("> ")
+
+                            # Set Map Size
+                            if adv_option == '1':
+                                clear = self.set_map_size()
+                                self.map, self.inserted_order = self.generate_map()
+
+                            # Set Item Position Mode
+                            elif adv_option == '2':
+                                while True:
+                                    if update:
+                                        self.display_menu(MenuType.ITEM_POSITION, clear=clear)
+                                    else:
+                                        update = True
+                                        clear = True
+
+                                    mode_option = input(f"Set Item Position Mode (Currently {self.item_mode}): ")
+
+                                    # Set random starting position
+                                    if mode_option == '1':
+                                        self.item_mode = GenerateMode.RANDOM
+
+                                        self.items = self.get_item_positions()
+
+                                        # Generate map with new item positions
+                                        self.map, self.inserted_order = self.generate_map()
+                                        break
+
+                                    # Set manual starting position
+                                    elif mode_option == '2':
+                                        self.item_mode = GenerateMode.MANUAL
+
+                                        self.items = self.get_item_positions()
+
+                                        # Generate map with new item positions
+                                        self.map, self.inserted_order = self.generate_map()
+                                        break
+
+                                    # Back
+                                    elif mode_option == '3':
+                                        break
+
+                                    else:
+                                        self.log("Invalid choice. Try again.")
+                                        update = False
+                                        clear = False
+
+                            # Set Map Orientation
+                            elif adv_option == '3':
+                                print("Set Map Orientation is currently under development!")
+                                update = False
+                                clear = False
+
+                            # Back
+                            elif adv_option == '4':
+                                break
+
+                            else:
+                                self.log("Invalid choice. Try again.")
+                                update = False
+                                clear = False
+
+                    # Non-Debug Mode: Back
+                    else:
+                        break
+
+                # Debug Mode: Back
+                elif suboption == '8' and self.debug:
                     break
+
                 else:
                     self.log("Invalid choice. Try again.")
                     update = False
