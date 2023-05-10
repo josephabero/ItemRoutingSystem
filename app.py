@@ -182,7 +182,7 @@ class ItemRoutingSystem:
         self.items = self.get_item_positions()
 
         # Default algorithm
-        self.gathering_algo = AlgoMethod.BRUTE_FORCE
+        self.gathering_algo = AlgoMethod.DIJKSTRA
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
