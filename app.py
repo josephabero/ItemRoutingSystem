@@ -1033,7 +1033,7 @@ class ItemRoutingSystem:
         
         minutes = input(f"Set Maximum Routing Time in Minutes (Currently {self.maximum_routing_time}): ")
   
-        max_success = self.verify_settings_range(minutes, 0, 10)
+        max_success = self.verify_settings_range(minutes, 0, 1440)
         if (max_success):
             success = True
             self.maximum_routing_time = int(minutes)
