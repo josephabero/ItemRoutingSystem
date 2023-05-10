@@ -271,21 +271,19 @@ class ItemRoutingSystem:
             menu.add_option(2, "Set Worker Starting Position Mode")
             menu.add_option(3, "Set Maximum Items Ordered")
             menu.add_option(4, "Set Routine Time Maximum")
-            menu.add_option(5, "Set Algorithm")
-            menu.add_option(6, "Toggle Debug Mode")
+            menu.add_option(5, "Toggle Debug Mode")
 
             if self.debug:
-                menu.add_option(7, "Advanced Settings")
-                menu.add_option(8, "Back")
-
-            else:
+                menu.add_option(6, "Advanced Settings")
                 menu.add_option(7, "Back")
 
+            else:
+                menu.add_option(6, "Back")
+
             info = "Current Settings:\n"                                   \
-            f"  Loaded Product File: {self.product_file}\n"                  \
-            f"  Worker Settings:\n"                                          \
-            f"    Position: {self.starting_position}\n"                      \
-            f"  Gathering Algorithm: {self.gathering_algo}\n"                \
+            f"  Loaded Product File: {self.product_file}\n"                \
+            f"  Worker Settings:\n"                                        \
+            f"    Position: {self.starting_position}\n"                    \
             f"  Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
@@ -295,7 +293,8 @@ class ItemRoutingSystem:
             menu.add_option(1, "Set Map Size")
             menu.add_option(2, "Set Item Position Mode")
             menu.add_option(3, "Set Map Orientation")
-            menu.add_option(4, "Back")
+            menu.add_option(4, "Set Algorithm")
+            menu.add_option(5, "Back")
 
             position_str = ' '.join(str(p) for p in self.items)
             if len(self.items) > 10:
@@ -314,6 +313,7 @@ class ItemRoutingSystem:
             f"\n"                                                          \
             f"Worker Settings:\n"                                          \
             f"  Mode: {self.worker_mode}\n"                                \
+            f"  Gathering Algorithm: {self.gathering_algo}\n"              \
             f"Item Settings:\n"                                            \
             f"  Mode: {self.item_mode}\n"                                  \
             f"  Number of Items: {len(self.items)}\n"                      \
@@ -1306,48 +1306,13 @@ class ItemRoutingSystem:
                 elif suboption == '4':
                     print("Set Routing Time Maximum")
 
-                # Set Algorithm Method
-                elif suboption == '5':
-                    while True:
-                        if update:
-                            self.display_menu(MenuType.ALGO_METHOD, clear=clear)
-                        else:
-                            update = True
-                            clear = True
-
-                        algo_option = input("> ")
-
-                        # Order of Insertion
-                        if algo_option == '1':
-                            self.gathering_algo = AlgoMethod.ORDER_OF_INSERTION
-                            break
-
-                        # Brute Force
-                        elif algo_option == '2':
-                            self.gathering_algo = AlgoMethod.BRUTE_FORCE
-                            break
-
-                        # Dijkstra
-                        elif algo_option == '3':
-                            self.gathering_algo = AlgoMethod.DIJKSTRA
-                            break
-
-                        # Back
-                        elif algo_option == '4':
-                            break
-
-                        else:
-                            self.log("Invalid choice. Try again.")
-                            update = False
-                            clear = False
-
                 # Toggle Debug
-                elif suboption == '6':
+                elif suboption == '5':
                     self.debug = not self.debug
 
                 # Debug Mode:       Advanced Settings
                 # Non-Debug Mode:   Back
-                elif suboption == '7':
+                elif suboption == '6':
                     # Debug Mode: Advanced Settings
                     if self.debug:
                         while True:
@@ -1410,8 +1375,43 @@ class ItemRoutingSystem:
                                 update = False
                                 clear = False
 
-                            # Back
+                            # Set Algorithm Method
                             elif adv_option == '4':
+                                while True:
+                                    if update:
+                                        self.display_menu(MenuType.ALGO_METHOD, clear=clear)
+                                    else:
+                                        update = True
+                                        clear = True
+
+                                    algo_option = input("> ")
+
+                                    # Order of Insertion
+                                    if algo_option == '1':
+                                        self.gathering_algo = AlgoMethod.ORDER_OF_INSERTION
+                                        break
+
+                                    # Brute Force
+                                    elif algo_option == '2':
+                                        self.gathering_algo = AlgoMethod.BRUTE_FORCE
+                                        break
+
+                                    # Dijkstra
+                                    elif algo_option == '3':
+                                        self.gathering_algo = AlgoMethod.DIJKSTRA
+                                        break
+
+                                    # Back
+                                    elif algo_option == '4':
+                                        break
+
+                                    else:
+                                        self.log("Invalid choice. Try again.")
+                                        update = False
+                                        clear = False
+
+                            # Back
+                            elif adv_option == '5':
                                 break
 
                             else:
@@ -1424,7 +1424,7 @@ class ItemRoutingSystem:
                         break
 
                 # Debug Mode: Back
-                elif suboption == '8' and self.debug:
+                elif suboption == '7' and self.debug:
                     break
 
                 else:
