@@ -1135,7 +1135,7 @@ class ItemRoutingSystem:
                         for step, action in enumerate(steps, 1):
                             self.log(f"{step}. {action}")
                     else:
-                        self.log(f"Path to {position} was not found!")
+                        self.log(f"Path to {product_id} was not found!")
 
                     clear = False
 
