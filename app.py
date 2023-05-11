@@ -451,7 +451,7 @@ class ItemRoutingSystem:
 
                                       LEGEND:
                              'S': Worker Starting Spot
-                                 '▩': Shelf
+                                 '▩': Item
                           Positions are labeled as (X, Y)
 
             Current Settings:
@@ -488,7 +488,7 @@ class ItemRoutingSystem:
         self.log("")
         self.log("LEGEND:".center(banner_length))
         self.log(f"{ItemRoutingSystem.WORKER_SYMBOL}: Worker Starting Spot".center(banner_length))
-        self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Shelf".center(banner_length))
+        self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
         self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
         self.log("")
