@@ -10,7 +10,6 @@ directions to gather shopping items around a warehouse.
 from enum import Enum
 import heapq
 import itertools
-import json
 import os
 import random
 import sys
@@ -31,7 +30,7 @@ class MenuType(Enum):
 
 class AlgoMethod(Enum):
     """
-    Constants for algorithms used to gather items
+    Constants for algorithms used to gather items.
     """
     ORDER_OF_INSERTION = "Order of Insertion"
     BRUTE_FORCE = "Brute Force"
@@ -42,7 +41,7 @@ class AlgoMethod(Enum):
 
 class GenerateMode(Enum):
     """
-    Constants for modes of generating settings
+    Constants for modes of generating settings.
     """
     MANUAL = "Manual"
     RANDOM = "Random"
@@ -52,6 +51,9 @@ class GenerateMode(Enum):
         return cls.value
 
 class PrintType(Enum):
+    """
+    Constants to choose logging mode.
+    """
     NORMAL = 0
     DEBUG = 1
 
@@ -199,6 +201,14 @@ class ItemRoutingSystem:
         self.log(banner)
 
     def log(self, *args, print_type=PrintType.NORMAL):
+        """
+        Logs information to screen depending on application's debug mode.
+
+        Args:
+            *args: Arguments to be printed to screen.
+
+            print_type (PrintType): Type of log to determine when log should be printed to screen.
+        """
         if print_type == PrintType.NORMAL:
             print(*args)
 
@@ -206,16 +216,23 @@ class ItemRoutingSystem:
             if self.debug:
                 print(*args)
 
-    def load_product_file(self, fname):
+    def load_product_file(self, product_file_name):
         """
-        loads the product file into a dictionary called product_list where the key is productID and the value
-        is the pair (X, Y).
+        Opens product file, parses information from the file, and stores the information
+        as a dictionary of tuples within the product_file_info member variable.
+
+        Args:
+            product_file_name (str): Absolute or relative file path to text file with
+                                     warehouse product location details.
+
+        Returns:
+            success (bool): Status of whether opening and parsing of file was successful.
         """
         success = True
 
         try:
-            self.product_file = fname
-            f = open(fname, 'r')
+            self.product_file = product_file_name
+            f = open(product_file_name, 'r')
             next(f)
 
             for line in f:
@@ -272,22 +289,20 @@ class ItemRoutingSystem:
             menu.add_option(2, "Set Worker Starting Position Mode")
             menu.add_option(3, "Set Maximum Items Ordered")
             menu.add_option(4, "Set Routine Time Maximum")
-            menu.add_option(5, "Set Algorithm")
-            menu.add_option(6, "Toggle Debug Mode")
+            menu.add_option(5, "Toggle Debug Mode")
 
             if self.debug:
-                menu.add_option(7, "Advanced Settings")
-                menu.add_option(8, "Back")
-
-            else:
+                menu.add_option(6, "Advanced Settings")
                 menu.add_option(7, "Back")
 
+            else:
+                menu.add_option(6, "Back")
+
             info = "Current Settings:\n"                                   \
-            f"  Loaded Product File: {self.product_file}\n"                  \
-            f"  Worker Settings:\n"                                          \
-            f"    Position: {self.starting_position}\n"                      \
-            f"  Gathering Algorithm: {self.gathering_algo}\n"                \
-            f"  Maximum Routing Time: {self.maximum_routing_time}\n"         \
+            f"  Loaded Product File: {self.product_file}\n"                \
+            f"  Worker Settings:\n"                                        \
+            f"    Position: {self.starting_position}\n"                    \
+            f"  Maximum Routing Time: {self.maximum_routing_time}\n"       \
             f"  Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
@@ -297,7 +312,8 @@ class ItemRoutingSystem:
             menu.add_option(1, "Set Map Size")
             menu.add_option(2, "Set Item Position Mode")
             menu.add_option(3, "Set Map Orientation")
-            menu.add_option(4, "Back")
+            menu.add_option(4, "Set Algorithm")
+            menu.add_option(5, "Back")
 
             position_str = ' '.join(str(p) for p in self.items)
             if len(self.items) > 10:
@@ -316,6 +332,7 @@ class ItemRoutingSystem:
             f"\n"                                                          \
             f"Worker Settings:\n"                                          \
             f"  Mode: {self.worker_mode}\n"                                \
+            f"  Gathering Algorithm: {self.gathering_algo}\n"              \
             f"Item Settings:\n"                                            \
             f"  Mode: {self.item_mode}\n"                                  \
             f"  Number of Items: {len(self.items)}\n"                      \
@@ -358,9 +375,14 @@ class ItemRoutingSystem:
 
         The starting worker position will be placed as specified by the internal
         starting position.
-        Items will be randomly placed in other places on the map. A random
-        number of items will be placed between a minimum and maximum number of
-        items.
+        Items will be placed depending on positions passed in or previously determined positions.
+
+        For debugging purposes, instead of logging all item positions to screen, it
+        creates a `positions.txt` file in the directory where the application is running
+        if there are more than 10 items within the list.
+
+        Args:
+            positions (list of tuples): List of item positions to be placed within the grid.
 
         Returns:
             grid (list of lists): Map which contains worker starting position
@@ -431,6 +453,13 @@ class ItemRoutingSystem:
                              'S': Worker Starting Spot
                                  '▩': Item
                           Positions are labeled as (X, Y)
+
+            Current Settings:
+              Worker Position: (0, 0)
+              Ordered Item Maximum: 8
+              Gathering Algorithm: Dijkstra
+              Maximum Time To Process: 60
+              Debug Mode: False
         """
         banner_length = 60
         banner = Menu("Warehouse Map Layout")
@@ -446,23 +475,29 @@ class ItemRoutingSystem:
             grid.append(col)
 
         for i, col in zip(reversed(range(len(grid))), grid):
-            row_string = f"{i} " + " ".join(val for val in col)
+            row_string = f"{i:2} "
+
+            for j, val in enumerate(col):
+                row_string += val + " " * len(str(j))
+
             self.log(row_string.center(banner_length))
 
-        self.log(" " + " ".join(str(i) for i in range(len(self.map))).center(banner_length))
+        left_spacing = len(str(i)) + 2
+        self.log(f"{' ':{left_spacing}}" + " ".join(str(i) for i in range(len(self.map))).center(banner_length))
 
         self.log("")
         self.log("LEGEND:".center(banner_length))
         self.log(f"{ItemRoutingSystem.WORKER_SYMBOL}: Worker Starting Spot".center(banner_length))
         self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
+        self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
         self.log("")
 
-        settings_info = "Current Settings:\n"                              \
+        settings_info = "Current Settings:\n"                                \
             f"  Worker Position: {self.starting_position}\n"                 \
             f"  Ordered Item Maximum: {self.maximum_items}\n"                \
             f"  Gathering Algorithm: {self.gathering_algo}\n"                \
-            f"  Maximum Time To Process: {self.maximum_routing_time}\n"                              \
+            f"  Maximum Time To Process: {self.maximum_routing_time}\n"      \
             f"  Debug Mode: {self.debug}\n"
 
         self.log(settings_info)
@@ -478,7 +513,7 @@ class ItemRoutingSystem:
 
         Returns:
             move (str): String describing move to make to reach position.
-            total_steps (int): Total umber of steps taken.
+            total_steps (int): Total number of steps taken.
 
         Examples:
             >>> ItemRoutingSystem.move_to_target((0, 0), (2, 0))
@@ -528,7 +563,7 @@ class ItemRoutingSystem:
 
         total_steps = abs(x_diff) + abs(y_diff)
 
-        return move, end, total_steps
+        return move, total_steps
 
     def gather_brute_force(self, targets):
         """
@@ -590,7 +625,17 @@ class ItemRoutingSystem:
         return min_path
 
     def dijkstra(self, grid, target):
-        
+        """
+        Performs dijkstra’s algorithm to gather shortest path to a desired position within the given grid.
+
+        Args:
+            grid(list of lists): Positions of items within the grid.
+
+            target (tuples): Position of item to search for.
+
+        Returns:
+            path (list of tuples): List of item positions to traverse in order.
+        """
         def is_valid_position(x, y):
             return 0 <= x < self.map_x  and \
                    0 <= y < self.map_y
@@ -713,7 +758,7 @@ class ItemRoutingSystem:
             target (tuple): Target item to pick up
 
         Returns:
-            path (list of str): List of directions worker should take to gather
+            path (list of str): List of English directions worker should take to gather
                                 all items from starting position.
         """
         path = []
@@ -758,12 +803,13 @@ class ItemRoutingSystem:
 
         for position in updated_positions:
             prev_position = current_position
-            move, current_position, steps = self.move_to_target(current_position, position)
+            move, steps = self.move_to_target(current_position, position)
+            current_position = position
             total_steps += steps
             path.append(move)
-        back_to_start, _, steps = self.move_to_target(current_position, end)
+        back_to_start, steps = self.move_to_target(current_position, end)
         total_steps += steps
-        path.append(f"Pickup item at {target}")
+        path.append(f"Pickup item at {target}.")
         path.append(back_to_start)
         path.append("Pickup completed.")
 
@@ -817,7 +863,7 @@ class ItemRoutingSystem:
                 t_temp += time.time() - t_start
                 if (t_temp >= t_thresh):
                     timeout = True
-                    shortest_path = path 
+                    shortest_path = path
                     break
 
 
@@ -1071,14 +1117,14 @@ class ItemRoutingSystem:
         return success
 
     def set_routing_time_maximum(self):
-        
+
         banner = Menu("Set Routing Time Maximum")
         banner.display()
 
         success = False
-        
+
         minutes = input(f"Set Maximum Routing Time in Minutes (Currently {self.maximum_routing_time}): ")
-  
+
         max_success = self.verify_settings_range(minutes, 0, 1440)
         if (max_success):
             success = True
@@ -1087,7 +1133,7 @@ class ItemRoutingSystem:
             self.log("Invalid value, please try again!")
 
         self.log(f"Maximum Routing Time in Minutes: {self.maximum_routing_time}")
-        
+
         return success
 
 
@@ -1198,7 +1244,7 @@ class ItemRoutingSystem:
 
                             product_id = input("Enter Product ID: ")
 
-                            self.log(f"Product {product_id} located at {self.product_info[int(product_id)]}")
+                            self.log(f"Product `{product_id}` is located at position {self.product_info[int(product_id)]}.")
                             complete = True
 
                         except ValueError:
@@ -1346,48 +1392,13 @@ class ItemRoutingSystem:
                 elif suboption == '4':
                     self.set_routing_time_maximum()
 
-                # Set Algorithm Method
-                elif suboption == '5':
-                    while True:
-                        if update:
-                            self.display_menu(MenuType.ALGO_METHOD, clear=clear)
-                        else:
-                            update = True
-                            clear = True
-
-                        algo_option = input("> ")
-
-                        # Order of Insertion
-                        if algo_option == '1':
-                            self.gathering_algo = AlgoMethod.ORDER_OF_INSERTION
-                            break
-
-                        # Brute Force
-                        elif algo_option == '2':
-                            self.gathering_algo = AlgoMethod.BRUTE_FORCE
-                            break
-
-                        # Dijkstra
-                        elif algo_option == '3':
-                            self.gathering_algo = AlgoMethod.DIJKSTRA
-                            break
-
-                        # Back
-                        elif algo_option == '4':
-                            break
-
-                        else:
-                            self.log("Invalid choice. Try again.")
-                            update = False
-                            clear = False
-
                 # Toggle Debug
-                elif suboption == '6':
+                elif suboption == '5':
                     self.debug = not self.debug
 
                 # Debug Mode:       Advanced Settings
                 # Non-Debug Mode:   Back
-                elif suboption == '7':
+                elif suboption == '6':
                     # Debug Mode: Advanced Settings
                     if self.debug:
                         while True:
@@ -1450,8 +1461,43 @@ class ItemRoutingSystem:
                                 update = False
                                 clear = False
 
-                            # Back
+                            # Set Algorithm Method
                             elif adv_option == '4':
+                                while True:
+                                    if update:
+                                        self.display_menu(MenuType.ALGO_METHOD, clear=clear)
+                                    else:
+                                        update = True
+                                        clear = True
+
+                                    algo_option = input("> ")
+
+                                    # Order of Insertion
+                                    if algo_option == '1':
+                                        self.gathering_algo = AlgoMethod.ORDER_OF_INSERTION
+                                        break
+
+                                    # Brute Force
+                                    elif algo_option == '2':
+                                        self.gathering_algo = AlgoMethod.BRUTE_FORCE
+                                        break
+
+                                    # Dijkstra
+                                    elif algo_option == '3':
+                                        self.gathering_algo = AlgoMethod.DIJKSTRA
+                                        break
+
+                                    # Back
+                                    elif algo_option == '4':
+                                        break
+
+                                    else:
+                                        self.log("Invalid choice. Try again.")
+                                        update = False
+                                        clear = False
+
+                            # Back
+                            elif adv_option == '5':
                                 break
 
                             else:
@@ -1464,7 +1510,7 @@ class ItemRoutingSystem:
                         break
 
                 # Debug Mode: Back
-                elif suboption == '8' and self.debug:
+                elif suboption == '7' and self.debug:
                     break
 
                 else:
