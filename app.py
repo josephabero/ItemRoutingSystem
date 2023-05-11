@@ -475,23 +475,29 @@ class ItemRoutingSystem:
             grid.append(col)
 
         for i, col in zip(reversed(range(len(grid))), grid):
-            row_string = f"{i} " + " ".join(val for val in col)
+            row_string = f"{i:2} "
+
+            for j, val in enumerate(col):
+                row_string += val + " " * len(str(j))
+
             self.log(row_string.center(banner_length))
 
-        self.log(" " + " ".join(str(i) for i in range(len(self.map))).center(banner_length))
+        left_spacing = len(str(i)) + 2
+        self.log(f"{' ':{left_spacing}}" + " ".join(str(i) for i in range(len(self.map))).center(banner_length))
 
         self.log("")
         self.log("LEGEND:".center(banner_length))
         self.log(f"{ItemRoutingSystem.WORKER_SYMBOL}: Worker Starting Spot".center(banner_length))
         self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
+        self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
         self.log("")
 
-        settings_info = "Current Settings:\n"                              \
+        settings_info = "Current Settings:\n"                                \
             f"  Worker Position: {self.starting_position}\n"                 \
             f"  Ordered Item Maximum: {self.maximum_items}\n"                \
             f"  Gathering Algorithm: {self.gathering_algo}\n"                \
-            f"  Maximum Time To Process: {self.maximum_routing_time}\n"                              \
+            f"  Maximum Time To Process: {self.maximum_routing_time}\n"      \
             f"  Debug Mode: {self.debug}\n"
 
         self.log(settings_info)
@@ -507,7 +513,7 @@ class ItemRoutingSystem:
 
         Returns:
             move (str): String describing move to make to reach position.
-            total_steps (int): Total umber of steps taken.
+            total_steps (int): Total number of steps taken.
 
         Examples:
             >>> ItemRoutingSystem.move_to_target((0, 0), (2, 0))
@@ -619,7 +625,17 @@ class ItemRoutingSystem:
         return min_path
 
     def dijkstra(self, grid, target):
-        
+        """
+        Performs dijkstra’s algorithm to gather shortest path to a desired position within the given grid.
+
+        Args:
+            grid(list of lists): Positions of items within the grid.
+
+            target (tuples): Position of item to search for.
+
+        Returns:
+            path (list of tuples): List of item positions to traverse in order.
+        """
         def is_valid_position(x, y):
             return 0 <= x < self.map_x  and \
                    0 <= y < self.map_y
@@ -742,7 +758,7 @@ class ItemRoutingSystem:
             target (tuple): Target item to pick up
 
         Returns:
-            path (list of str): List of directions worker should take to gather
+            path (list of str): List of English directions worker should take to gather
                                 all items from starting position.
         """
         path = []
