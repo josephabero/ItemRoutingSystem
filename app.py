@@ -1162,7 +1162,7 @@ class ItemRoutingSystem:
                 while not success:
                     product_file = input("Enter product filename: ")
 
-                    success = self.load_product_file(product_file)
+                    success = self.load_product_file(product_file.rsplit())
 
                     if success:
                         self.item_mode = GenerateMode.LOADED_FILE
