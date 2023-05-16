@@ -1,7 +1,7 @@
 """
 Welcome to Item Routing System!
 
-Authors: Joseph Abero, ChatGPT
+Authors: Joseph Abero, Justin, Wanbing, ChatGPT
 
 ItemRoutingSystem is a text-based application used to provide store workers with
 directions to gather shopping items around a warehouse.
