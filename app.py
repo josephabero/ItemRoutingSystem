@@ -7,57 +7,15 @@ ItemRoutingSystem is a text-based application used to provide store workers with
 directions to gather shopping items around a warehouse.
 """
 
+from constants import *
 from menu import Menu
 
-from enum import Enum
 import heapq
 import itertools
 import os
 import random
 import sys
 import time
-
-class MenuType(Enum):
-    """
-    Constants for menu types.
-    """
-    MAIN_MENU = 0
-    VIEW_MAP = 1
-    SETTINGS = 2
-    ADVANCED_SETTINGS = 3
-    ALGO_METHOD = 4
-    WORKER_POSITION = 5
-    ITEM_POSITION = 6
-    LOAD_PRODUCT_FILE = 7
-
-class AlgoMethod(Enum):
-    """
-    Constants for algorithms used to gather items.
-    """
-    ORDER_OF_INSERTION = "Order of Insertion"
-    BRUTE_FORCE = "Brute Force"
-    DIJKSTRA = "Dijkstra"
-
-    def __str__(cls):
-        return cls.value
-
-class GenerateMode(Enum):
-    """
-    Constants for modes of generating settings.
-    """
-    MANUAL = "Manual"
-    RANDOM = "Random"
-    LOADED_FILE = "Loaded File"
-
-    def __str__(cls):
-        return cls.value
-
-class PrintType(Enum):
-    """
-    Constants to choose logging mode.
-    """
-    NORMAL = 0
-    DEBUG = 1
 
 class ItemRoutingSystem:
     """
