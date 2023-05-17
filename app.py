@@ -43,6 +43,10 @@ class ItemRoutingSystem:
         self.product_info = {}
         self.product_file = None
 
+        # Default test case filename
+        self.test_case_file = None
+        self.test_cases = []
+
         # Default worker settings
         self.worker_mode = GenerateMode.MANUAL
         self.starting_position = (0, 0)
@@ -114,6 +118,32 @@ class ItemRoutingSystem:
 
         return success
 
+    def load_test_case_file(self, test_case_filename):
+        cases = []
+        success = True
+
+        try:
+            with open(test_case_filename, "r") as f:
+
+                # Read in each line from the file
+                for line in f.readlines():
+
+                    # Parse the line info
+                    size, products = line.split(": ")
+
+                    # Strip newline & convert ids to list
+                    product_ids = products.rstrip().split(", ")
+
+                    # Convert each id to integer
+                    product_ids = [int(p_id) for p_id in product_ids]
+
+                    cases.append((size, product_ids))
+        except FileNotFoundError:
+            success = False
+
+        self.test_cases = cases
+        return success
+
     def display_menu(self, menu_type, clear=True):
         """
         Creates and displays the appropriate menu.
@@ -183,7 +213,8 @@ class ItemRoutingSystem:
             menu.add_option(2, "Set Item Position Mode")
             menu.add_option(3, "Set Map Orientation")
             menu.add_option(4, "Set Algorithm")
-            menu.add_option(5, "Back")
+            menu.add_option(5, "Load Test Case File")
+            menu.add_option(6, "Back")
 
             position_str = ' '.join(str(p) for p in self.items)
             if len(self.items) > 10:
@@ -207,12 +238,17 @@ class ItemRoutingSystem:
             f"  Mode: {self.item_mode}\n"                                  \
             f"  Number of Items: {len(self.items)}\n"                      \
             f"  Positions: {position_str}\n"                               \
+            f"\n"                                                          \
+            f"Loaded Test Case File: {self.test_case_file}\n"              \
             f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
 
         elif menu_type == MenuType.LOAD_PRODUCT_FILE:
             menu = Menu("Load Product File Menu")
+
+        elif menu_type == MenuType.LOAD_TEST_CASE_FILE:
+            menu = Menu("Load Test Case File Menu")
 
         elif menu_type == MenuType.ALGO_METHOD:
             menu = Menu("Set Gathering Algorithm")
@@ -1366,8 +1402,34 @@ class ItemRoutingSystem:
                                         update = False
                                         clear = False
 
-                            # Back
+                            # Load Test Case File
                             elif adv_option == '5':
+                                if update:
+                                    self.display_menu(MenuType.LOAD_TEST_CASE_FILE, clear=clear)
+                                else:
+                                    update = True
+                                    clear = True
+
+                                # Set Product File Name
+                                success = False
+                                while not success:
+                                    test_case_file = input("Enter product filename: ")
+
+                                    success = self.load_test_case_file(test_case_file)
+
+                                    if success:
+                                        self.test_case_file = test_case_file
+
+                                        if self.debug:
+                                            for test_case in self.test_cases:
+                                                size, ids = test_case
+                                                self.log(size, ids, print_type=PrintType.DEBUG)
+
+                                    else:
+                                        self.log(f"File '{test_case_file}' was not found, please try entering full path to file!")
+
+                            # Back
+                            elif adv_option == '6':
                                 break
 
                             else:
