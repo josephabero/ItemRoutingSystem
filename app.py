@@ -1,7 +1,7 @@
 """
 Welcome to Item Routing System!
 
-Authors: Joseph Abero, Justin, Wanbing, ChatGPT
+Authors: Joseph Abero, ChatGPT
 
 ItemRoutingSystem is a text-based application used to provide store workers with
 directions to gather shopping items around a warehouse.
@@ -14,6 +14,8 @@ import os
 import random
 import sys
 import time
+import numpy as np
+
 
 class MenuType(Enum):
     """
@@ -28,6 +30,7 @@ class MenuType(Enum):
     ITEM_POSITION = 6
     LOAD_PRODUCT_FILE = 7
 
+
 class AlgoMethod(Enum):
     """
     Constants for algorithms used to gather items.
@@ -35,9 +38,11 @@ class AlgoMethod(Enum):
     ORDER_OF_INSERTION = "Order of Insertion"
     BRUTE_FORCE = "Brute Force"
     DIJKSTRA = "Dijkstra"
+    BRANCH_AND_BOUND = "Branch and Bound"
 
     def __str__(cls):
         return cls.value
+
 
 class GenerateMode(Enum):
     """
@@ -50,12 +55,14 @@ class GenerateMode(Enum):
     def __str__(cls):
         return cls.value
 
+
 class PrintType(Enum):
     """
     Constants to choose logging mode.
     """
     NORMAL = 0
     DEBUG = 1
+
 
 class Menu:
     """
@@ -109,7 +116,7 @@ class Menu:
             # Windows
             if os.name == 'nt':
                 os.system('cls')
-         
+
             # Mac/Linus
             else:
                 os.system('clear')
@@ -122,7 +129,7 @@ class Menu:
         if self.options:
             print("")
             for i, option in enumerate(self.options):
-                print(f"{i+1}. {option}")
+                print(f"{i + 1}. {option}")
             print("")
 
     def add_option(self, index, option):
@@ -154,7 +161,7 @@ class ItemRoutingSystem:
     Handles user inputs, generation of the map, and settings.
     """
     WORKER_SYMBOL = 'S'
-    ITEM_SYMBOL = chr(9641) # ▩
+    ITEM_SYMBOL = chr(9641)  # ▩
 
     def __init__(self):
         """
@@ -237,7 +244,7 @@ class ItemRoutingSystem:
 
             for line in f:
                 fields = line.strip().split()
-                self.product_info[ int( fields[0] ) ] = int(float( fields[1] )) , int(float( fields[2] ))
+                self.product_info[int(fields[0])] = int(float(fields[1])), int(float(fields[2]))
             f.close()
         except FileNotFoundError:
             success = False
@@ -298,12 +305,12 @@ class ItemRoutingSystem:
             else:
                 menu.add_option(6, "Back")
 
-            info = "Current Settings:\n"                                   \
-            f"  Loaded Product File: {self.product_file}\n"                \
-            f"  Worker Settings:\n"                                        \
-            f"    Position: {self.starting_position}\n"                    \
-            f"  Maximum Routing Time: {self.maximum_routing_time}\n"       \
-            f"  Debug Mode: {self.debug}\n"
+            info = "Current Settings:\n" \
+                   f"  Loaded Product File: {self.product_file}\n" \
+                   f"  Worker Settings:\n" \
+                   f"    Position: {self.starting_position}\n" \
+                   f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
+                   f"  Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
 
@@ -327,17 +334,17 @@ class ItemRoutingSystem:
 
                 position_str = f"See '{file}' for list of item positions."
 
-            info = "Current Advanced Settings:\n"                          \
-            f"Map Size: {self.map_x}x{self.map_y}\n"                       \
-            f"\n"                                                          \
-            f"Worker Settings:\n"                                          \
-            f"  Mode: {self.worker_mode}\n"                                \
-            f"  Gathering Algorithm: {self.gathering_algo}\n"              \
-            f"Item Settings:\n"                                            \
-            f"  Mode: {self.item_mode}\n"                                  \
-            f"  Number of Items: {len(self.items)}\n"                      \
-            f"  Positions: {position_str}\n"                               \
-            f"Debug Mode: {self.debug}\n"
+            info = "Current Advanced Settings:\n" \
+                   f"Map Size: {self.map_x}x{self.map_y}\n" \
+                   f"\n" \
+                   f"Worker Settings:\n" \
+                   f"  Mode: {self.worker_mode}\n" \
+                   f"  Gathering Algorithm: {self.gathering_algo}\n" \
+                   f"Item Settings:\n" \
+                   f"  Mode: {self.item_mode}\n" \
+                   f"  Number of Items: {len(self.items)}\n" \
+                   f"  Positions: {position_str}\n" \
+                   f"Debug Mode: {self.debug}\n"
 
             menu.set_misc_info(info)
 
@@ -349,7 +356,8 @@ class ItemRoutingSystem:
             menu.add_option(1, "Use Order of Insertion")
             menu.add_option(2, "Brute Force")
             menu.add_option(3, "Dijkstra")
-            menu.add_option(4, "Back")
+            menu.add_option(4, "Branch and Bound")
+            menu.add_option(5, "Back")
 
         elif menu_type == MenuType.WORKER_POSITION:
             menu = Menu("Set Starting Worker Position Mode")
@@ -367,7 +375,6 @@ class ItemRoutingSystem:
 
         if menu:
             menu.display(clear=clear)
-
 
     def generate_map(self, positions=None):
         """
@@ -493,12 +500,12 @@ class ItemRoutingSystem:
         self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
         self.log("")
 
-        settings_info = "Current Settings:\n"                                \
-            f"  Worker Position: {self.starting_position}\n"                 \
-            f"  Ordered Item Maximum: {self.maximum_items}\n"                \
-            f"  Gathering Algorithm: {self.gathering_algo}\n"                \
-            f"  Maximum Time To Process: {self.maximum_routing_time}\n"      \
-            f"  Debug Mode: {self.debug}\n"
+        settings_info = "Current Settings:\n" \
+                        f"  Worker Position: {self.starting_position}\n" \
+                        f"  Ordered Item Maximum: {self.maximum_items}\n" \
+                        f"  Gathering Algorithm: {self.gathering_algo}\n" \
+                        f"  Maximum Time To Process: {self.maximum_routing_time}\n" \
+                        f"  Debug Mode: {self.debug}\n"
 
         self.log(settings_info)
 
@@ -567,7 +574,7 @@ class ItemRoutingSystem:
 
     def gather_brute_force(self, targets):
         """
-        Performs brute force algorithm to gather all valid permutations of desired path then 
+        Performs brute force algorithm to gather all valid permutations of desired path then
         finds shortest path.
 
         Args:
@@ -604,11 +611,11 @@ class ItemRoutingSystem:
                     distance += abs(path[i][1] - path[j][1])
 
                     self.log(f"Path[i]: {path[i]} " \
-                            f"Path[j]: {path[j]} " \
-                            f"X Diff: {abs(path[i][0] - path[j][0])} " \
-                            f"Y Diff: {abs(path[i][1] - path[j][1])} " \
-                            f"Distance: {distance}",
-                            print_type=PrintType.DEBUG)
+                             f"Path[j]: {path[j]} " \
+                             f"X Diff: {abs(path[i][0] - path[j][0])} " \
+                             f"Y Diff: {abs(path[i][1] - path[j][1])} " \
+                             f"Distance: {distance}",
+                             print_type=PrintType.DEBUG)
 
             self.log(path, distance, print_type=PrintType.DEBUG)
 
@@ -636,9 +643,10 @@ class ItemRoutingSystem:
         Returns:
             path (list of tuples): List of item positions to traverse in order.
         """
+
         def is_valid_position(x, y):
-            return 0 <= x < self.map_x  and \
-                   0 <= y < self.map_y
+            return 0 <= x < self.map_x and \
+                0 <= y < self.map_y
 
         start = None
 
@@ -646,7 +654,7 @@ class ItemRoutingSystem:
         if not is_valid_position(x, y):
             self.log(f"Invalid target position: {target}", print_type=PrintType.DEBUG)
             return []
-        
+
         # Find the starting position
         for i in range(self.map_x):
             for j in range(self.map_y):
@@ -654,29 +662,29 @@ class ItemRoutingSystem:
                     start = (i, j)
                     break
             if start: break
-        
+
         if not start:
             raise ValueError("Starting position ItemRoutingSystem.WORKER_SYMBOL not found in grid.")
-        
+
         # Initialize the distance to all positions to infinity and to the starting position to 0
         dist = {(i, j): float('inf') for i in range(self.map_x) for j in range(self.map_y)}
         dist[start] = 0
-        
+
         # Initialize the priority queue with the starting position
         pq = [(0, start)]
-        
+
         # Initialize the previous position dictionary
         prev = {}
-        
+
         while pq:
             # Get the position with the smallest distance from the priority queue
             (cost, position) = heapq.heappop(pq)
-            
+
             # If we've found the target, we're done
             if position == target:
                 self.log(f"Found path to target {target}!", print_type=PrintType.DEBUG)
                 break
-            
+
             # Check the neighbors of the current position
             for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 x, y = position[0] + dx, position[1] + dy
@@ -690,7 +698,7 @@ class ItemRoutingSystem:
                 if grid[x][y] == ItemRoutingSystem.ITEM_SYMBOL:
                     self.log(f"Skipping {(x, y)}: Item", print_type=PrintType.DEBUG)
                     continue
-                
+
                 # Compute the distance to the neighbor
                 neighbor_cost = cost + 1
 
@@ -699,7 +707,7 @@ class ItemRoutingSystem:
                     dist[(x, y)] = neighbor_cost
                     prev[(x, y)] = position
                     heapq.heappush(pq, (neighbor_cost, (x, y)))
-        
+
         # Reconstruct the path
         path = []
         while position != start:
@@ -707,13 +715,113 @@ class ItemRoutingSystem:
             position = prev[position]
         path.append(start)
         path.reverse()
-        
+
         if target in path:
             self.log(f"Path found: {path}", print_type=PrintType.DEBUG)
             return path
         else:
             self.log("Path not found", print_type=PrintType.DEBUG)
             return []
+
+    def gather_branch_and_bound(self, targets):
+        """
+        Performs branch and bound algorithm to find the shortest path among all valid permutations.
+
+        Args:
+            targets (list of tuples): Positions of items.
+
+        Returns:
+            min_path (list of tuples): List of item positions to traverse in order.
+        """
+        if self.debug:
+            start_time = time.time()
+
+        num_targets = len(targets)
+        distance_matrix = np.full((num_targets, num_targets), np.inf)
+
+        # Create distance matrix
+        for i in range(num_targets):
+            for j in range(num_targets):
+                if i != j:
+                    distance_matrix[i][j] = abs(targets[i][0] - targets[j][0]) + abs(targets[i][1] - targets[j][1])
+
+        smallest = None
+        min_path = None
+
+        # Matrix reduction
+        reduced_matrix = distance_matrix.copy()
+        cost = 0
+        # Reduce the matrix by deducting the minimum value in each row and column
+        for i in range(num_targets):
+            row_min = np.min(reduced_matrix[i])
+            if reduced_matrix[i][j] != np.inf and row_min != np.inf:
+                reduced_matrix[i] -= row_min
+            # reduced cost is the sum of there minimum values
+            cost += row_min if row_min != np.inf else 0
+
+        for j in range(num_targets):
+            col_min = np.min(reduced_matrix[:, j])
+            if reduced_matrix[i][j] != np.inf and col_min != np.inf:
+                reduced_matrix[:, j] -= col_min
+            cost += col_min if col_min != np.inf else 0
+
+
+        # Extend the tree and calculate costs
+        live_nodes = [(cost, None, reduced_matrix, [0])]
+
+        while live_nodes:
+            curr_cost, curr_path, curr_matrix, visited = live_nodes.pop(0)
+
+            if curr_path is None:
+                remaining_nodes = list(range(1, num_targets))
+                curr_path = [0]
+
+            if len(curr_path) == num_targets - 1:
+                distance = curr_cost + distance_matrix[curr_path[-1]][0]
+                if smallest is None or distance < smallest:
+                    smallest = distance
+                    min_path = curr_path + [0]
+                continue
+
+            for node in remaining_nodes:
+                next_cost = curr_cost + curr_matrix[curr_path[-1]][node]
+
+                next_matrix = curr_matrix.copy()
+                next_matrix[0, node] = np.inf
+                next_matrix[node, :] = np.inf
+                next_matrix[:, 0] = np.inf
+                next_matrix[:, node] = np.inf
+                next_matrix[node, node] = np.inf
+
+                next_path = curr_path + [node]
+                next_visited = visited + [node]
+
+                # Calculate the lower bound of the path starting at node
+                node_reduced_matrix = next_matrix.copy()
+                for i in range(num_targets):
+                    if i not in next_visited:
+                        node_row_min = np.min(node_reduced_matrix[i])
+                        node_reduced_matrix[i] -= node_row_min
+
+                for j in range(num_targets):
+                    if j not in next_visited:
+                        node_col_min = np.min(node_reduced_matrix[:, j])
+                        node_reduced_matrix[:, j] -= node_col_min
+
+                node_bound = np.sum(node_reduced_matrix)
+                next_cost += node_bound
+
+                live_nodes.append((next_cost, next_path, next_matrix, next_visited))
+
+            live_nodes = sorted(live_nodes, key=lambda x: x[0])
+
+        if self.debug:
+            end_time = time.time()
+            self.log(f"Total Time: {(end_time - start_time):.4f}")
+            self.log(f"Minimum Path: {min_path}")
+            self.log(f"Shortest Number of Steps: {smallest}")
+
+        return min_path
 
     def get_targets(self):
         """
@@ -738,7 +846,6 @@ class ItemRoutingSystem:
             self.log(f"Total Time: {(end_time - start_time):.4f}")
 
         return targets
-
 
     def get_descriptive_steps(self, positions, target):
         """
@@ -775,8 +882,8 @@ class ItemRoutingSystem:
         # Preprocessing
         for position in positions:
             # initial direction setup
-            if ( direc == None ):
-                if ( start[1] == position[1] ):
+            if (direc == None):
+                if (start[1] == position[1]):
                     direc = "LR"
                 else:
                     direc = "DU"
@@ -784,10 +891,10 @@ class ItemRoutingSystem:
                 continue
 
             # if moving in same direction, ignore and continue
-            if ( prev_position[0] == position[0] and direc == "DU"):
+            if (prev_position[0] == position[0] and direc == "DU"):
                 prev_position = position
                 continue
-            elif ( prev_position[1] == position[1] and direc == "LR"):
+            elif (prev_position[1] == position[1] and direc == "LR"):
                 prev_position = position
                 continue
             # change of direction means you add the position int othe list
@@ -817,10 +924,9 @@ class ItemRoutingSystem:
 
         return path
 
-
     def get_items(self, option, target):
         """
-        Helper function to retrieve list of directions depending on the 
+        Helper function to retrieve list of directions depending on the
         gathering algorithm setting.
 
         Args:
@@ -854,7 +960,7 @@ class ItemRoutingSystem:
             # Maximum Routing Time Setup
             timeout = False
             t_temp = 0.0
-            t_thresh = self.maximum_routing_time * 60 # minute to second conversion
+            t_thresh = self.maximum_routing_time * 60  # minute to second conversion
             t_start = time.time()
 
             # Run Dijkstra's for every position next to the target item
@@ -865,7 +971,6 @@ class ItemRoutingSystem:
                     timeout = True
                     shortest_path = path
                     break
-
 
                 x, y = target[0] + dx, target[1] + dy
 
@@ -883,9 +988,17 @@ class ItemRoutingSystem:
                 path = shortest_path + [self.starting_position]
                 result = self.get_descriptive_steps(path, target)
             elif timeout:
-                path = [ self.starting_position, target, self.starting_position ]
+                path = [self.starting_position, target, self.starting_position]
                 result = self.get_descriptive_steps(path, target)
             return result
+
+        elif option == AlgoMethod.BRANCH_AND_BOUND:
+            # targets = self.get_targets()
+            targets = [self.starting_position, target, self.starting_position]
+            path = self.gather_branch_and_bound(targets)
+            result = self.get_descriptive_steps(path, target)
+            return result
+
 
     def verify_settings_range(self, value, minimum, maximum):
         """
@@ -940,7 +1053,7 @@ class ItemRoutingSystem:
         y_success = self.verify_settings_range(y, minimum_y, maximum_y)
 
         if x_success and y_success:
-            self.map_x  = int(x)
+            self.map_x = int(x)
             self.map_y = int(y)
             success = True
 
@@ -954,7 +1067,7 @@ class ItemRoutingSystem:
         Requires user input to be within limits of map size.
 
         Returns:
-            success (bool): Status to indicate if worker position set successfully 
+            success (bool): Status to indicate if worker position set successfully
         """
         success = False
 
@@ -973,8 +1086,10 @@ class ItemRoutingSystem:
             banner.display()
 
             while not success:
-                x = input(f"Set starting X position (Currently {self.starting_position[0]}, Maximum {self.map_x - 1}): ")
-                y = input(f"Set starting Y position (Currently {self.starting_position[1]}, Maximum {self.map_y - 1}): ")
+                x = input(
+                    f"Set starting X position (Currently {self.starting_position[0]}, Maximum {self.map_x - 1}): ")
+                y = input(
+                    f"Set starting Y position (Currently {self.starting_position[1]}, Maximum {self.map_y - 1}): ")
 
                 x_success = self.verify_settings_range(x, 0, self.map_x - 1)
                 y_success = self.verify_settings_range(y, 0, self.map_y - 1)
@@ -1033,7 +1148,8 @@ class ItemRoutingSystem:
 
                     # Overlapping Item and Worker Positions
                     elif position == self.starting_position:
-                        self.log("Item position is the same as the worker position! Please Try Again.\n", print_type=PrintType.DEBUG)
+                        self.log("Item position is the same as the worker position! Please Try Again.\n",
+                                 print_type=PrintType.DEBUG)
 
                     else:
                         item_positions.append(position)
@@ -1078,7 +1194,7 @@ class ItemRoutingSystem:
 
                         else:
                             item_positions.append(position)
-                            
+
                     else:
                         self.log("Invalid position! Please Try Again!\n")
 
@@ -1113,7 +1229,7 @@ class ItemRoutingSystem:
                 self.log("Invalid values, please try again!")
 
         self.log(f"Maximum Items: {self.maximum_items}")
-        
+
         return success
 
     def set_routing_time_maximum(self):
@@ -1135,7 +1251,6 @@ class ItemRoutingSystem:
         self.log(f"Maximum Routing Time in Minutes: {self.maximum_routing_time}")
 
         return success
-
 
     def handle_option(self, option):
         """
@@ -1171,7 +1286,6 @@ class ItemRoutingSystem:
 
                     else:
                         self.log(f"File '{product_file}' was not found, please try entering full path to file!")
-
 
             # Display map after file is loaded
             if update:
@@ -1244,7 +1358,8 @@ class ItemRoutingSystem:
 
                             product_id = input("Enter Product ID: ")
 
-                            self.log(f"Product `{product_id}` is located at position {self.product_info[int(product_id)]}.")
+                            self.log(
+                                f"Product `{product_id}` is located at position {self.product_info[int(product_id)]}.")
                             complete = True
 
                         except ValueError:
@@ -1487,8 +1602,13 @@ class ItemRoutingSystem:
                                         self.gathering_algo = AlgoMethod.DIJKSTRA
                                         break
 
-                                    # Back
+                                    # Branch and Bound
                                     elif algo_option == '4':
+                                        self.gathering_algo = AlgoMethod.BRANCH_AND_BOUND
+                                        break
+
+                                    # Back
+                                    elif algo_option == '5':
                                         break
 
                                     else:
@@ -1536,12 +1656,14 @@ class ItemRoutingSystem:
             choice = input("> ")
             self.handle_option(choice)
 
+
 def main():
     """
     Main application code to run the ItemRoutingSystem application.
     """
     app = ItemRoutingSystem()
     app.run()
+
 
 if __name__ == "__main__":
     main()
