@@ -7,145 +7,15 @@ ItemRoutingSystem is a text-based application used to provide store workers with
 directions to gather shopping items around a warehouse.
 """
 
-from enum import Enum
+from constants import *
+from menu import Menu
+
 import heapq
 import itertools
 import os
 import random
 import sys
 import time
-
-class MenuType(Enum):
-    """
-    Constants for menu types.
-    """
-    MAIN_MENU = 0
-    VIEW_MAP = 1
-    SETTINGS = 2
-    ADVANCED_SETTINGS = 3
-    ALGO_METHOD = 4
-    WORKER_POSITION = 5
-    ITEM_POSITION = 6
-    LOAD_PRODUCT_FILE = 7
-
-class AlgoMethod(Enum):
-    """
-    Constants for algorithms used to gather items.
-    """
-    ORDER_OF_INSERTION = "Order of Insertion"
-    BRUTE_FORCE = "Brute Force"
-    DIJKSTRA = "Dijkstra"
-
-    def __str__(cls):
-        return cls.value
-
-class GenerateMode(Enum):
-    """
-    Constants for modes of generating settings.
-    """
-    MANUAL = "Manual"
-    RANDOM = "Random"
-    LOADED_FILE = "Loaded File"
-
-    def __str__(cls):
-        return cls.value
-
-class PrintType(Enum):
-    """
-    Constants to choose logging mode.
-    """
-    NORMAL = 0
-    DEBUG = 1
-
-class Menu:
-    """
-    Displays menu options to screen.
-    """
-
-    def __init__(self, menu_name):
-        """
-        Initializes menu with a name and defaults to no options.
-
-        Args:
-            menu_name (str): name of menu
-        """
-        self.menu_name = menu_name
-        self.options = []
-        self.misc_info = None
-
-    def print_banner(self):
-        """
-        Prints a menu header as a banner.
-
-        Examples:
-            >>> Menu.print_banner()
-            ------------------------------------------------------------
-                                        Menu
-            ------------------------------------------------------------
-        """
-        banner = "------------------------------------------------------------"
-        print(banner)
-        print(f"{self.menu_name.center(len(banner))}")
-        print(banner)
-
-    def display(self, clear=True):
-        """
-        Prints banner with menu name and menu options to choose from.
-
-        Args:
-            clear (bool): Option to clear screen
-
-        Examples:
-            >>> Menu.display()
-            ------------------------------------------------------------
-                                        Menu
-            ------------------------------------------------------------
-
-            1. Option 1
-            2. Option 2
-
-        """
-        if clear:
-            # Windows
-            if os.name == 'nt':
-                os.system('cls')
-         
-            # Mac/Linus
-            else:
-                os.system('clear')
-
-        self.print_banner()
-
-        if self.misc_info:
-            print(self.misc_info)
-
-        if self.options:
-            print("")
-            for i, option in enumerate(self.options):
-                print(f"{i+1}. {option}")
-            print("")
-
-    def add_option(self, index, option):
-        """
-        Inserts option to existing option list.
-
-        Args:
-            index  (int): Position of menu to insert option to.
-            option (str): Option name or description.
-
-        """
-        self.options.insert(index, option)
-
-    def set_misc_info(self, info):
-        """
-        Sets miscellaneous information for the menu.
-
-        Args:
-            info (str): Information relevant to the menu.
-        """
-        if isinstance(info, str):
-            self.misc_info = info
-
 
 class ItemRoutingSystem:
     """
@@ -276,7 +146,7 @@ class ItemRoutingSystem:
             menu.add_option(1, "Get Path to Product")
             menu.add_option(2, "Get Location of Product")
 
-            # Only expose advanced setting option in debug m1ode
+            # Only expose advanced setting option in debug mode
             if self.debug:
                 menu.add_option(3, "Generate New Map")
                 menu.add_option(4, "Back")
