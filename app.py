@@ -45,6 +45,7 @@ class ItemRoutingSystem:
 
         # Default test case filename
         self.test_case_file = None
+        self.test_product_file = None
         self.test_cases = []
 
         # Default worker settings
@@ -126,7 +127,12 @@ class ItemRoutingSystem:
             with open(test_case_filename, "r") as f:
 
                 # Read in each line from the file
-                for line in f.readlines():
+                for i, line in enumerate(f.readlines()):
+
+                    # First line of the file is the product filename
+                    if i == 0:
+                        filename = line.rstrip()
+                        continue
 
                     # Parse the line info
                     size, products = line.split(": ")
@@ -142,6 +148,7 @@ class ItemRoutingSystem:
             success = False
 
         self.test_cases = cases
+        self.test_product_file = filename
         return success
 
     def display_menu(self, menu_type, clear=True):
@@ -214,7 +221,8 @@ class ItemRoutingSystem:
             menu.add_option(3, "Set Map Orientation")
             menu.add_option(4, "Set Algorithm")
             menu.add_option(5, "Load Test Case File")
-            menu.add_option(6, "Back")
+            menu.add_option(6, "Run Test Cases")
+            menu.add_option(7, "Back")
 
             position_str = ' '.join(str(p) for p in self.items)
             if len(self.items) > 10:
@@ -1428,8 +1436,58 @@ class ItemRoutingSystem:
                                     else:
                                         self.log(f"File '{test_case_file}' was not found, please try entering full path to file!")
 
-                            # Back
+                            # Run Test Cases
                             elif adv_option == '6':
+                                if self.test_case_file and self.test_product_file:
+                                    success = self.load_product_file(self.test_product_file)
+
+                                    if not success:
+                                        self.log(f"Failed to load test case product file {self.test_product_file}!\n" \
+                                                 f"Check if product file exists in correct location.\n"               \
+                                                 f"Change path in loaded test case file as needed.\n")
+
+                                    else:
+                                        passed = 0
+                                        failed = 0
+                                        cases_failed = {}
+
+                                        for test_case in self.test_cases:
+                                            size, product_ids = test_case
+
+                                            # Get Locations
+                                            for product_id in product_ids:
+                                                location = self.product_info.get(product_id)
+
+                                                if location is None:
+                                                    if "Location" not in cases_failed:
+                                                        cases_failed["Location"] = []
+
+                                                    failed += 1
+                                                    cases_failed["Location"].append(product_id)
+
+                                                    self.log(f"Failed to get location for Product '{product_id}'.")
+
+                                                else:
+                                                    passed += 1
+
+                                            # TODO: Get Paths
+
+                                        self.log(f"Results\n"             \
+                                                 f"---------\n"           \
+                                                 f"Passed: {passed}\n"    \
+                                                 f"Failed: {failed}\n"    \
+                                                 f"Total:  {passed + failed}")
+
+                                        if cases_failed:
+                                            self.log(cases_failed)
+
+                                else:
+                                    self.log("No test cases to run! Must load test case file first!")
+
+                                update = False
+
+                            # Back
+                            elif adv_option == '7':
                                 break
 
                             else:
