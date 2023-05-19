@@ -528,14 +528,9 @@ class ItemRoutingSystem:
                 if start == end   or \
                    start == "End" or \
                    end == "Start" or \
-                   end == "End":
+                   start == "Start" and end == "End":
+                    self.log(f"Skipping pair: {start, end}", print_type=PrintType.DEBUG)
                     continue
-
-                # Get target end position
-                if isinstance(end, int):
-                    end_position = self.product_info[end]
-                elif end == "End":
-                    end_position = self.starting_position
 
                 for start_dir in directions:
                     # Set to None if 'Start' node
@@ -544,13 +539,20 @@ class ItemRoutingSystem:
                     # Calculate access point locations
                     valid_directions = {}
                     for end_dir, (dx, dy) in directions.items():
-                        x, y = end_position[0] + dx, end_position[1] + dy
+
+                        # Get target end position
+                        if end == "End":
+                            x, y = self.starting_position
+                        else:
+                            end_position = self.product_info[end]
+                            x, y = end_position[0] + dx, end_position[1] + dy
 
                         # Don't add invalid position
                         if not is_valid_position(x, y):
                             self.log(f"Invalid access point position: {x, y}", print_type=PrintType.DEBUG)
                             valid_directions[end_dir] = {
                                 "location": None,
+                                "cost": None,
                                 "path": []
                             }
 
@@ -571,21 +573,27 @@ class ItemRoutingSystem:
 
 
                             # Get path from starting position to target position
-                            path = self.dijkstra(self.map, start_position, (x, y))
+                            path, cost = self.dijkstra(self.map, start_position, (x, y))
+                            print(path)
+                            updated_path = self.collapse_directions(path)
+                            print(updated_path)
 
 
                             valid_directions[end_dir] = {
                                 "location": (x, y),
-                                "path": path
+                                "cost": cost,
+                                "path": updated_path
                             }
 
-                    graph[(start, end, start_dir)] = valid_directions
+                    if valid_directions:
+                        graph[(start, end, start_dir)] = valid_directions
 
         return graph
 
     def custom_algo(self, graph):
         for k, v in graph.items():
-            print(k, json.dumps(v, indent=4))
+            # print(k, json.dumps(v, indent=4))
+            print(k, v)
 
     def gather_brute_force(self, targets):
         """
@@ -676,6 +684,7 @@ class ItemRoutingSystem:
         
         # Initialize the previous position dictionary
         prev = {}
+        total_cost = 0
         
         while pq:
             # Get the position with the smallest distance from the priority queue
@@ -683,7 +692,8 @@ class ItemRoutingSystem:
             
             # If we've found the target, we're done
             if position == target:
-                self.log(f"Found path to target {target}!", print_type=PrintType.DEBUG)
+                self.log(f"Found path to target {target} with cost {cost}!", print_type=PrintType.DEBUG)
+                total_cost = cost
                 break
             
             # Check the neighbors of the current position
@@ -718,11 +728,11 @@ class ItemRoutingSystem:
         path.reverse()
         
         if target in path:
-            self.log(f"Path found: {path}", print_type=PrintType.DEBUG)
-            return path
+            self.log(f"Path found with cost {total_cost}: {path}", print_type=PrintType.DEBUG)
+            return path, total_cost
         else:
             self.log("Path not found", print_type=PrintType.DEBUG)
-            return []
+            return [], None
 
     def get_targets(self):
         """
@@ -748,40 +758,17 @@ class ItemRoutingSystem:
 
         return targets
 
+    def collapse_directions(self, positions):
+        # Empty list of positions
+        if not positions:
+            return []
 
-    def get_descriptive_steps(self, positions, target):
-        """
-        Gets a list of directions to gather all items beginning from the
-        internal starting position and returning to the starting position.
-
-        Algorithm gathers list of target items by prioritizing top rows and
-        moves down to the last row.
-
-        Items are then gathered in order by list of positions. The worker may only
-        move in directions up, down, left, or right.
-
-        Args:
-            positions (list of tuples): List of item positions and in the order
-                                to be traveled through.
-
-            target (tuple): Target item to pick up
-
-        Returns:
-            path (list of str): List of English directions worker should take to gather
-                                all items from starting position.
-        """
-        path = []
-        start = positions.pop(0)
-        end = positions.pop()
         prev_target = []
         direc = None
-        updated_positions = []
-
-        path.append(f"Start at position {start}!")
-        current_position = start
-        total_steps = 0
+        updated_positions = [positions[0]]
 
         # Preprocessing
+        start = positions[0]
         for position in positions:
             # initial direction setup
             if ( direc == None ):
@@ -807,9 +794,46 @@ class ItemRoutingSystem:
                 else:
                     direc = "DU"
             prev_position = position
-        # dds the last position
+        # Adds the last position
         updated_positions.append(positions[-1])
 
+        return updated_positions
+
+
+    def get_descriptive_steps(self, positions, target):
+        """
+        Gets a list of directions to gather all items beginning from the
+        internal starting position and returning to the starting position.
+
+        Algorithm gathers list of target items by prioritizing top rows and
+        moves down to the last row.
+
+        Items are then gathered in order by list of positions. The worker may only
+        move in directions up, down, left, or right.
+
+        Args:
+            positions (list of tuples): List of item positions and in the order
+                                to be traveled through.
+
+            target (tuple): Target item to pick up
+
+        Returns:
+            path (list of str): List of English directions worker should take to gather
+                                all items from starting position.
+        """
+        print(positions)
+        updated_positions = self.collapse_directions(positions)
+        print(updated_positions)
+
+        start = updated_positions.pop(0)
+        end = updated_positions.pop()
+
+        path = []
+        path.append(f"Start at position {start}!")
+        current_position = start
+        total_steps = 0
+
+        print(updated_positions)
         for position in updated_positions:
             prev_position = current_position
             move, steps = self.move_to_target(current_position, position)
@@ -854,6 +878,7 @@ class ItemRoutingSystem:
             # targets = self.get_targets()
             targets = [self.starting_position, target, self.starting_position]
             path = self.gather_brute_force(targets)
+            print(path)
             result = self.get_descriptive_steps(path, target)
             return result
 
@@ -878,7 +903,7 @@ class ItemRoutingSystem:
 
                 x, y = target[0] + dx, target[1] + dy
 
-                path = self.dijkstra(self.map, self.starting_position, (x, y))
+                path, _ = self.dijkstra(self.map, self.starting_position, (x, y))
 
                 if path:
                     if len(path) < len(shortest_path) or not shortest_path:
@@ -889,8 +914,8 @@ class ItemRoutingSystem:
             result = []
             if shortest_path:
                 self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
-                path = shortest_path + [self.starting_position]
-                result = self.get_descriptive_steps(path, target)
+                # path = shortest_path + [self.starting_position]
+                result = self.get_descriptive_steps(shortest_path, target)
             elif timeout:
                 path = [ self.starting_position, target, self.starting_position ]
                 result = self.get_descriptive_steps(path, target)
