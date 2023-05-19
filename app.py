@@ -12,6 +12,7 @@ from menu import Menu
 
 import heapq
 import itertools
+import json
 import os
 import random
 import sys
@@ -524,37 +525,67 @@ class ItemRoutingSystem:
             for end in product_ids:
 
                 # Skip for invalid pairs
-                if start == "End" or \
+                if start == end   or \
+                   start == "End" or \
                    end == "Start" or \
                    end == "End":
                     continue
 
                 # Get target end position
                 if isinstance(end, int):
-                    position = self.product_info[end]
+                    end_position = self.product_info[end]
                 elif end == "End":
-                    position = self.starting_position
+                    end_position = self.starting_position
 
                 for start_dir in directions:
+                    # Set to None if 'Start' node
+                    start_dir = None if start == 'Start' else start_dir
+
                     # Calculate access point locations
                     valid_directions = {}
                     for end_dir, (dx, dy) in directions.items():
-                        x, y = position[0] + dx, position[1] + dy
+                        x, y = end_position[0] + dx, end_position[1] + dy
 
-                        # Only add valid access point location
+                        # Don't add invalid position
                         if not is_valid_position(x, y):
                             self.log(f"Invalid access point position: {x, y}", print_type=PrintType.DEBUG)
-                            valid_directions[end_dir] = None
+                            valid_directions[end_dir] = {
+                                "location": None,
+                                "path": []
+                            }
 
+                        # Add valid positions & get path
                         else:
-                            valid_directions[end_dir] = (x, y)
+                            # Get starting position
+                            if start == "Start":
+                                start_position = self.starting_position
+                            else:
+                                start_x = self.product_info[start][0] + directions[start_dir][0]
+                                start_y = self.product_info[start][1] + directions[start_dir][1]
 
-                    # Set to None if not a product id
-                    start_dir = None if isinstance(start, str) else start_dir
+                                if not is_valid_position(start_x, start_y):
+                                    print(f"({start_x}, {start_y}) Not a VALID STARTING POSITION")
+                                    continue
+
+                                start_position = (start_x, start_y)
+
+
+                            # Get path from starting position to target position
+                            path = self.dijkstra(self.map, start_position, (x, y))
+
+
+                            valid_directions[end_dir] = {
+                                "location": (x, y),
+                                "path": path
+                            }
+
                     graph[(start, end, start_dir)] = valid_directions
 
+        return graph
+
+    def custom_algo(self, graph):
         for k, v in graph.items():
-            print(k, v)
+            print(k, json.dumps(v, indent=4))
 
     def gather_brute_force(self, targets):
         """
@@ -615,7 +646,7 @@ class ItemRoutingSystem:
 
         return min_path
 
-    def dijkstra(self, grid, target):
+    def dijkstra(self, grid, start, target):
         """
         Performs dijkstra’s algorithm to gather shortest path to a desired position within the given grid.
 
@@ -631,23 +662,10 @@ class ItemRoutingSystem:
             return 0 <= x < self.map_x  and \
                    0 <= y < self.map_y
 
-        start = None
-
         x, y = target
         if not is_valid_position(x, y):
             self.log(f"Invalid target position: {target}", print_type=PrintType.DEBUG)
             return []
-        
-        # Find the starting position
-        for i in range(self.map_x):
-            for j in range(self.map_y):
-                if grid[j][i] == ItemRoutingSystem.WORKER_SYMBOL:
-                    start = (i, j)
-                    break
-            if start: break
-        
-        if not start:
-            raise ValueError("Starting position ItemRoutingSystem.WORKER_SYMBOL not found in grid.")
         
         # Initialize the distance to all positions to infinity and to the starting position to 0
         dist = {(i, j): float('inf') for i in range(self.map_x) for j in range(self.map_y)}
@@ -860,7 +878,7 @@ class ItemRoutingSystem:
 
                 x, y = target[0] + dx, target[1] + dy
 
-                path = self.dijkstra(self.map, (x, y))
+                path = self.dijkstra(self.map, self.starting_position, (x, y))
 
                 if path:
                     if len(path) < len(shortest_path) or not shortest_path:
@@ -1572,8 +1590,8 @@ class ItemRoutingSystem:
                                             print(size)
                                             print("-----")
                                             grouped_items = self.process_order(product_ids)
-                                            print(grouped_items)
-                                            self.build_graph_for_order(grouped_items)
+                                            graph = self.build_graph_for_order(grouped_items)
+                                            self.custom_algo(graph)
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \
