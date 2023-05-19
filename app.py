@@ -735,106 +735,40 @@ class ItemRoutingSystem:
             self.log("Path not found", print_type=PrintType.DEBUG)
             return []
 
-    def gather_branch_and_bound(self, targets):
-        """
-        Performs branch and bound algorithm to find the shortest path among all valid permutations.
+    def dijkstra_path(self, start, destination):
+        return shortest_path, cost
 
-        Args:
-            targets (list of tuples): Positions of items.
+    def build_graph_for_node(self, products):
+        return graph
 
-        Returns:
-            min_path (list of tuples): List of item positions to traverse in order.
-        """
+    def branch_and_bound(self, graph):
+        return lowest_cost_path
+
+    def customized_algorithm(self, order_list, graph):
         if self.debug:
             start_time = time.time()
 
-        num_targets = len(targets)
-        distance_matrix = np.full((num_targets, num_targets), np.inf)
+        total_cost = 0
+        lowest_cost_path = []
+        start_position = self.starting_position
 
-        # Create distance matrix
-        for i in range(num_targets):
-            for j in range(num_targets):
-                if i != j:
-                    distance_matrix[i][j] = abs(targets[i][0] - targets[j][0]) + abs(targets[i][1] - targets[j][1])
-                    #distance_matrix[i][j] = dijkstra(start,destination)
+        for product in order_list:
+            shortest_path, cost = graph.dijkstra_path(self, start_position, product)
+            total_cost += cost
+            lowest_cost_path += shortest_path
+            start_position = product
 
-        smallest = None
-        min_path = None
-
-        # Matrix reduction
-        reduced_matrix = distance_matrix.copy()
-        cost = 0
-        # Reduce the matrix by deducting the minimum value in each row and column
-        for i in range(num_targets):
-            row_min = np.min(reduced_matrix[i])
-            if reduced_matrix[i][j] != np.inf and row_min != np.inf:
-                reduced_matrix[i] -= row_min
-            # reduced cost is the sum of there minimum values
-            cost += row_min if row_min != np.inf else 0
-
-        for j in range(num_targets):
-            col_min = np.min(reduced_matrix[:, j])
-            if reduced_matrix[i][j] != np.inf and col_min != np.inf:
-                reduced_matrix[:, j] -= col_min
-            cost += col_min if col_min != np.inf else 0
-
-
-        # Extend the tree and calculate costs
-        live_nodes = [(cost, None, reduced_matrix, [0])]
-
-        while live_nodes:
-            curr_cost, curr_path, curr_matrix, visited = live_nodes.pop(0)
-
-            if curr_path is None:
-                remaining_nodes = list(range(1, num_targets))
-                curr_path = [0]
-
-            if len(curr_path) == num_targets - 1:
-                distance = curr_cost + distance_matrix[curr_path[-1]][0]
-                if smallest is None or distance < smallest:
-                    smallest = distance
-                    min_path = curr_path + [0]
-                continue
-
-            for node in remaining_nodes:
-                next_cost = curr_cost + curr_matrix[curr_path[-1]][node]
-
-                next_matrix = curr_matrix.copy()
-                next_matrix[0, node] = np.inf
-                next_matrix[node, :] = np.inf
-                next_matrix[:, 0] = np.inf
-                next_matrix[:, node] = np.inf
-                next_matrix[node, node] = np.inf
-
-                next_path = curr_path + [node]
-                next_visited = visited + [node]
-
-                # Calculate the lower bound of the path starting at node
-                node_reduced_matrix = next_matrix.copy()
-                for i in range(num_targets):
-                    if i not in next_visited:
-                        node_row_min = np.min(node_reduced_matrix[i])
-                        node_reduced_matrix[i] -= node_row_min
-
-                for j in range(num_targets):
-                    if j not in next_visited:
-                        node_col_min = np.min(node_reduced_matrix[:, j])
-                        node_reduced_matrix[:, j] -= node_col_min
-
-                node_bound = np.sum(node_reduced_matrix)
-                next_cost += node_bound
-
-                live_nodes.append((next_cost, next_path, next_matrix, next_visited))
-
-            live_nodes = sorted(live_nodes, key=lambda x: x[0])
+        shortest_path_back, cost_back = graph.dijkstra_path(self, start_position, lowest_cost_path[0])
+        lowest_cost_path += shortest_path_back
+        total_cost += cost_back
 
         if self.debug:
             end_time = time.time()
             self.log(f"Total Time: {(end_time - start_time):.4f}")
-            self.log(f"Minimum Path: {min_path}")
-            self.log(f"Shortest Number of Steps: {smallest}")
+            self.log(f"Minimum Path: {lowest_cost_path}")
+            # self.log(f"Shortest Number of Steps: {smallest}")
 
-        return min_path
+        return lowest_cost_path
 
     def get_targets(self):
         """
@@ -965,14 +899,6 @@ class ItemRoutingSystem:
             targets = [self.starting_position, target, self.starting_position]
             path = self.gather_brute_force(targets)
             result = self.get_descriptive_steps(path, target)
-
-            # # Add path to the map
-            # for position in path:
-            #     x, y = position
-            #     self.map[x][y] = "P"  # "P" represents the path in the map
-            #
-            # self.display_map()
-
             return result
 
         elif option == AlgoMethod.DIJKSTRA:
@@ -1011,31 +937,14 @@ class ItemRoutingSystem:
             elif timeout:
                 path = [self.starting_position, target, self.starting_position]
                 result = self.get_descriptive_steps(path, target)
-
-            # # Add path to the map
-            # for position in path:
-            #     x, y = position
-            #     self.map[x][y] = "P"  # "P" represents the path in the map
-
-            self.display_map()
-
             return result
 
         elif option == AlgoMethod.BRANCH_AND_BOUND:
             # targets = self.get_targets()
             targets = [self.starting_position, target, self.starting_position]
-            path = self.gather_branch_and_bound(targets)
+            path = self.branch_and_bound(targets)
             result = self.get_descriptive_steps(path, target)
-
-            # # Add path to the map
-            # for position in path:
-            #     x, y = position
-            #     self.map[x][y] = "P"  # "P" represents the path in the map
-            #
-            # self.display_map()
-
             return result
-
 
     def verify_settings_range(self, value, minimum, maximum):
         """
