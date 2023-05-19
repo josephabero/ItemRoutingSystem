@@ -26,9 +26,10 @@ class MenuType(Enum):
     SETTINGS = 2
     ADVANCED_SETTINGS = 3
     ALGO_METHOD = 4
-    WORKER_POSITION = 5
-    ITEM_POSITION = 6
-    LOAD_PRODUCT_FILE = 7
+    WORKER_START_POSITION = 5
+    WORKER_ENDING_POSITION = 6
+    ITEM_POSITION = 7
+    LOAD_PRODUCT_FILE = 8
 
 
 class AlgoMethod(Enum):
@@ -183,6 +184,7 @@ class ItemRoutingSystem:
         # Default worker settings
         self.worker_mode = GenerateMode.MANUAL
         self.starting_position = (0, 0)
+        self.ending_position = (0, 0)
 
         # Default item settings
         self.item_mode = GenerateMode.RANDOM
@@ -294,9 +296,10 @@ class ItemRoutingSystem:
             menu = Menu("Settings Menu")
             menu.add_option(1, "Load Product File")
             menu.add_option(2, "Set Worker Starting Position Mode")
-            menu.add_option(3, "Set Maximum Items Ordered")
-            menu.add_option(4, "Set Routine Time Maximum")
-            menu.add_option(5, "Toggle Debug Mode")
+            menu.add_option(3, "Set Worker Ending Position Mode")
+            menu.add_option(4, "Set Maximum Items Ordered")
+            menu.add_option(5, "Set Routine Time Maximum")
+            menu.add_option(6, "Toggle Debug Mode")
 
             if self.debug:
                 menu.add_option(6, "Advanced Settings")
@@ -308,7 +311,8 @@ class ItemRoutingSystem:
             info = "Current Settings:\n" \
                    f"  Loaded Product File: {self.product_file}\n" \
                    f"  Worker Settings:\n" \
-                   f"    Position: {self.starting_position}\n" \
+                   f"  Starting Position: {self.starting_position}\n" \
+                   f"  Ending Position: {self.ending_position}\n" \
                    f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
                    f"  Debug Mode: {self.debug}\n"
 
@@ -359,8 +363,16 @@ class ItemRoutingSystem:
             menu.add_option(4, "Branch and Bound")
             menu.add_option(5, "Back")
 
-        elif menu_type == MenuType.WORKER_POSITION:
+        elif menu_type == MenuType.WORKER_START_POSITION:
             menu = Menu("Set Starting Worker Position Mode")
+
+            if self.debug:
+                menu.add_option(1, "Randomly Set Position")
+                menu.add_option(2, "Manually Set Position")
+                menu.add_option(3, "Back")
+
+        elif menu_type == MenuType.WORKER_ENDING_POSITION:
+            menu = Menu("Set Ending Worker Position Mode")
 
             if self.debug:
                 menu.add_option(1, "Randomly Set Position")
@@ -744,6 +756,7 @@ class ItemRoutingSystem:
             for j in range(num_targets):
                 if i != j:
                     distance_matrix[i][j] = abs(targets[i][0] - targets[j][0]) + abs(targets[i][1] - targets[j][1])
+                    #distance_matrix[i][j] = dijkstra(start,destination)
 
         smallest = None
         min_path = None
@@ -952,6 +965,14 @@ class ItemRoutingSystem:
             targets = [self.starting_position, target, self.starting_position]
             path = self.gather_brute_force(targets)
             result = self.get_descriptive_steps(path, target)
+
+            # # Add path to the map
+            # for position in path:
+            #     x, y = position
+            #     self.map[x][y] = "P"  # "P" represents the path in the map
+            #
+            # self.display_map()
+
             return result
 
         elif option == AlgoMethod.DIJKSTRA:
@@ -990,6 +1011,14 @@ class ItemRoutingSystem:
             elif timeout:
                 path = [self.starting_position, target, self.starting_position]
                 result = self.get_descriptive_steps(path, target)
+
+            # # Add path to the map
+            # for position in path:
+            #     x, y = position
+            #     self.map[x][y] = "P"  # "P" represents the path in the map
+
+            self.display_map()
+
             return result
 
         elif option == AlgoMethod.BRANCH_AND_BOUND:
@@ -997,6 +1026,14 @@ class ItemRoutingSystem:
             targets = [self.starting_position, target, self.starting_position]
             path = self.gather_branch_and_bound(targets)
             result = self.get_descriptive_steps(path, target)
+
+            # # Add path to the map
+            # for position in path:
+            #     x, y = position
+            #     self.map[x][y] = "P"  # "P" represents the path in the map
+            #
+            # self.display_map()
+
             return result
 
 
@@ -1106,6 +1143,55 @@ class ItemRoutingSystem:
 
                 self.log(f"Current Worker Starting Position: {self.starting_position}")
         return success
+
+
+    def set_worker_ending_position(self):
+        """
+        Sets an internal starting position for the worker.
+
+        Requires user input to be within limits of map size.
+
+        Returns:
+            success (bool): Status to indicate if worker position set successfully
+        """
+        success = False
+
+        if self.worker_mode == GenerateMode.RANDOM:
+            while not success:
+                x = random.randint(0, self.map_x - 1)
+                y = random.randint(0, self.map_y - 1)
+
+                # Verify Item and Worker Positions do not overlap
+                if (x, y) not in self.items:
+                    self.ending_position = (x, y)
+                    success = True
+
+        elif self.worker_mode == GenerateMode.MANUAL:
+            banner = Menu("Set Worker Ending Position")
+            banner.display()
+
+            while not success:
+                x = input(
+                    f"Set ending X position (Currently {self.ending_position[0]}, Maximum {self.map_x - 1}): ")
+                y = input(
+                    f"Set ending Y position (Currently {self.ending_position[1]}, Maximum {self.map_y - 1}): ")
+
+                x_success = self.verify_settings_range(x, 0, self.map_x - 1)
+                y_success = self.verify_settings_range(y, 0, self.map_y - 1)
+
+                if x_success and y_success:
+
+                    # Overlapping Item and Worker Positions
+                    if (int(x), int(y)) in self.items:
+                        self.log("Worker position is the same as a item position! Please Try Again.\n")
+
+                    else:
+                        self.ending_position = (int(x), int(y))
+                        success = True
+
+                self.log(f"Current Worker Ending Position: {self.ending_position}")
+        return success
+
 
     def get_item_positions(self):
         """
@@ -1449,7 +1535,7 @@ class ItemRoutingSystem:
                 elif suboption == '2':
                     while True:
                         if update:
-                            self.display_menu(MenuType.WORKER_POSITION, clear=clear)
+                            self.display_menu(MenuType.WORKER_START_POSITION, clear=clear)
                         else:
                             update = True
                             clear = True
@@ -1499,21 +1585,76 @@ class ItemRoutingSystem:
                             # Go back to Settings menu
                             break
 
-                # Set Maximum Items Ordered Amount
+                # Set Worker Starting Position
                 elif suboption == '3':
+                    while True:
+                        if update:
+                            self.display_menu(MenuType.WORKER_START_POSITION, clear=clear)
+                        else:
+                            update = True
+                            clear = True
+
+                        # Give Worker Mode options in debug mode
+                        if self.debug:
+                            mode_option = input(f"Set Worker Position Mode (Currently {self.worker_mode}): ")
+
+                            # Set random starting position
+                            if mode_option == '1':
+                                self.worker_mode = GenerateMode.RANDOM
+
+                                self.set_worker_ending_position()
+
+                                # Generate map with new starting position
+                                self.map, self.inserted_order = self.generate_map()
+                                break
+
+                            # Set manual starting position
+                            elif mode_option == '2':
+                                self.worker_mode = GenerateMode.MANUAL
+
+                                self.set_worker_ending_position()
+
+                                # Generate map with new starting position
+                                self.map, self.inserted_order = self.generate_map()
+                                break
+
+                            # Back
+                            elif mode_option == '3':
+                                break
+
+                            else:
+                                self.log("Invalid choice. Try again.")
+                                update = False
+                                clear = False
+
+                        # Normal case, always request user input
+                        else:
+                            self.worker_mode = GenerateMode.MANUAL
+
+                            self.set_worker_ending_position()
+
+                            # Generate map with new starting position
+                            self.map, self.inserted_order = self.generate_map()
+
+                            # Go back to Settings menu
+                            break
+
+
+                # Set Maximum Items Ordered Amount
+                elif suboption == '4':
                     self.set_maximum_items_ordered()
                     self.items = self.get_item_positions()
 
-                elif suboption == '4':
+                elif suboption == '5':
                     self.set_routing_time_maximum()
 
                 # Toggle Debug
-                elif suboption == '5':
+                elif suboption == '6':
                     self.debug = not self.debug
 
                 # Debug Mode:       Advanced Settings
                 # Non-Debug Mode:   Back
-                elif suboption == '6':
+                elif suboption == '7':
                     # Debug Mode: Advanced Settings
                     if self.debug:
                         while True:
