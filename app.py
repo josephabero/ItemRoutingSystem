@@ -147,8 +147,10 @@ class ItemRoutingSystem:
         except FileNotFoundError:
             success = False
 
-        self.test_cases = cases
-        self.test_product_file = filename
+        if success:
+            self.test_cases = cases
+            self.test_product_file = filename
+
         return success
 
     def display_menu(self, menu_type, clear=True):
@@ -478,6 +480,81 @@ class ItemRoutingSystem:
         total_steps = abs(x_diff) + abs(y_diff)
 
         return move, total_steps
+
+    def process_order(self, product_ids):
+        shelves = {}
+
+        for product_id in product_ids:
+            if product_id in self.product_info:
+                # Get Location
+                location = self.product_info[product_id]
+
+                # Group Product ID in Shelf location
+                if location not in shelves:
+                    shelves[location] = []
+                shelves[location].append(product_id)
+
+        grouped_items = []
+        for shelf in shelves:
+            grouped_items += shelves[shelf]
+
+        # Add starting and ending nodes
+        return ['Start'] + grouped_items + ['End']
+
+    def build_graph_for_order(self, product_ids):
+
+        def is_valid_position(x, y):
+            is_in_bounds = 0 <= x < self.map_x and \
+                           0 <= y < self.map_y
+
+            is_open_position = self.map[x][y] != ItemRoutingSystem.ITEM_SYMBOL
+
+            return is_in_bounds and is_open_position
+
+        graph = {}
+
+        directions = {
+            "N": (0, 1),
+            "S": (0, -1),
+            "E": (1, 0),
+            "W": (-1, 0)
+        }
+
+        for start in product_ids:
+            for end in product_ids:
+
+                # Skip for invalid pairs
+                if start == "End" or \
+                   end == "Start" or \
+                   end == "End":
+                    continue
+
+                # Get target end position
+                if isinstance(end, int):
+                    position = self.product_info[end]
+                elif end == "End":
+                    position = self.starting_position
+
+                for start_dir in directions:
+                    # Calculate access point locations
+                    valid_directions = {}
+                    for end_dir, (dx, dy) in directions.items():
+                        x, y = position[0] + dx, position[1] + dy
+
+                        # Only add valid access point location
+                        if not is_valid_position(x, y):
+                            self.log(f"Invalid access point position: {x, y}", print_type=PrintType.DEBUG)
+                            valid_directions[end_dir] = None
+
+                        else:
+                            valid_directions[end_dir] = (x, y)
+
+                    # Set to None if not a product id
+                    start_dir = None if isinstance(start, str) else start_dir
+                    graph[(start, end, start_dir)] = valid_directions
+
+        for k, v in graph.items():
+            print(k, v)
 
     def gather_brute_force(self, targets):
         """
@@ -1447,6 +1524,27 @@ class ItemRoutingSystem:
                                                  f"Change path in loaded test case file as needed.\n")
 
                                     else:
+                                        # Generate Test Map
+                                        self.item_mode = GenerateMode.LOADED_FILE
+                                        self.items = self.get_item_positions()
+
+                                        # Set new map parameters
+                                        max_x = self.map_x
+                                        max_y = self.map_y
+
+                                        for item in self.items:
+                                            x, y = item
+                                            if x > max_x:
+                                                max_x = x
+                                            if y > max_y:
+                                                max_y = y
+
+                                        self.map_x = max_x + 1
+                                        self.map_y = max_y + 1
+
+                                        self.map, self.inserted_order = self.generate_map()
+
+                                        # Setup Test Case
                                         passed = 0
                                         failed = 0
                                         cases_failed = {}
@@ -1471,6 +1569,11 @@ class ItemRoutingSystem:
                                                     passed += 1
 
                                             # TODO: Get Paths
+                                            print(size)
+                                            print("-----")
+                                            grouped_items = self.process_order(product_ids)
+                                            print(grouped_items)
+                                            self.build_graph_for_order(grouped_items)
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \
