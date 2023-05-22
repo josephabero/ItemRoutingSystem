@@ -1054,15 +1054,15 @@ class ItemRoutingSystem:
        return reduction_cost, matrix
     
 
-    def bnb_take_path(self, matrix, source_key, dest_direc):
+    def bnb_take_path(self, matrix, source, dest):
         """
         Performs the row and column reduction when deciding to take a path
         
         INPUTS-----
-            source_key:
-                Contains the source PID, destination PID and source direction
-            dest_direc:
-                Contains the destination direction
+            source:
+                Contains the source PID
+            dest:
+                Contains the destination PID
         OUTPUTS-----
             reduction_cost:
                 returns the additional reduction cost that results in the path being taken
@@ -1071,7 +1071,6 @@ class ItemRoutingSystem:
         """
         row_cost, col_cost = INFINITY
         reduction_cost = 0;
-
         # Row Reduction
         for k,v in matrix.items():
             if (source == k[0]):
@@ -1096,7 +1095,7 @@ class ItemRoutingSystem:
                     col_cost = min(col_cost, direc_cost)
         
         for k,v in matrix.items():
-            if (key[0] == k[1]):
+            if (dest == k[1]):
                 for direc in v:
          
                     v[direc]['cost'] = None if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - col_cost)
@@ -1106,9 +1105,9 @@ class ItemRoutingSystem:
 
 """
     def dfs(self, item_list):
-        """
+        
         Performs DFS on a list to produce all permutations, use for brute force to find all paths in the tree.
-        """
+        
         if (len(item_list) == 0):
             return []
         if (len(item_list) == 1):
@@ -1136,34 +1135,38 @@ class ItemRoutingSystem:
         Applies the branch and bound algorithm to generate a path
         """
         path = []
-        next_node = None
-        next_cost = INFINITY
         # upper_bound = 
         # path_complete = len( graph.keys() )   # number of products in the order
-        curr_key, curr_value = random.choice( list(graph.items()) )
-        path.append(curr_key)
+        rand_start = random.choice( graph.keys() )
+        path.append( (rand_start[0], rand_start[2]) ) # (source, source access direction)
 
         # Creates the reduced matrix
         reduced_cost, parent_matrix = matrix_reduction(graph)
         child_matrix = parent_matrix.copy()
+        total_cost = reduced_cost
 
-        # pop the start nodes other access points
+        # pop the start node's other access points
         for k,v in child_matrix.items():
-            if (curr_key[0] == k[0] and curr_key[2] != k[2]):
+            if (rand_start[0] == k[0] and rand_start[1] != k[2]):
                 child_matrix.pop()
         
         # Create a list of all locations 
         item_list = child_matrix.keys()
         
-        # 
-#       for k,v in child_matrix.keys():
-#           if (curr_key[0] == k[0]):
-
-            
-
-
-
-
+        # while():
+        for k,v in child_matrix.items():
+            if (path[-1][0] == k[0]):
+                for direc in v:
+                    cost_of_path = v.get(direc).get('cost')
+                    path.append( (k[1], direc) )
+                    reduction, temp_matrix = bnb_take_path(child_matrix, path[-1][0], k[1])
+                     
+                    if (reduction + cost_of_path == 0):
+                        child_matrix = temp_matrix.copy()
+                        break
+                    else:
+                        temp_total_cost = cost_of_path + reduced_cost + reduction
+                        total_cost = min(total_cost, temp_total_cost)
 
 
 
