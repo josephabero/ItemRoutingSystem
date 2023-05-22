@@ -1007,6 +1007,167 @@ class ItemRoutingSystem:
         return success
 
 
+
+# justin
+    def matrix_reduction(self, matrix):
+        """
+        Performs the matrix reduction for branch-and-bound
+        Returns a reduced matrix
+        """
+        reduction_cost = 0
+        # Finds the minimum value to make a row have a zero
+        for key in matrix.keys():
+            row_cost = INFINITY
+            
+            for k,v in matrix.items():
+                if (key[0] == k[0]):
+          
+                    for direc in v:
+                        direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
+                        row_cost = min(row_cost, direc_cost)
+            # reduces the values in the matrix
+            for k,v in matrix.items():
+                if (key[0] == k[0]):
+            
+                    for direc in v:
+                        v[direc]['cost'] = None if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - row_cost)
+            reduction_cost += row_cost
+        
+        # Finds the minimum value to make the column have a zero
+        for key in matrix.keys():
+            col_cost = INFINITY
+            
+            for k,v in matrix.items():
+                if (key[0] == k[1]):
+            
+                    for direc in v:
+                        direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
+                        col_cost = min(col_cost, direc_cost)
+            # reduces the values in the matrix
+            for k,v in matrix.items():
+                if (key[0] == k[1]):
+                
+                    for direc in v:
+                        v[direc]['cost'] = None if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - col_cost)
+            reduction_cost += col_cost
+       
+       return reduction_cost, matrix
+    
+
+    def bnb_take_path(self, matrix, source_key, dest_direc):
+        """
+        Performs the row and column reduction when deciding to take a path
+        
+        INPUTS-----
+            source_key:
+                Contains the source PID, destination PID and source direction
+            dest_direc:
+                Contains the destination direction
+        OUTPUTS-----
+            reduction_cost:
+                returns the additional reduction cost that results in the path being taken
+            matrix:
+                Returns a reduced matrix with the specificed row and columns reduced
+        """
+        row_cost, col_cost = INFINITY
+        reduction_cost = 0;
+
+        # Row Reduction
+        for k,v in matrix.items():
+            if (source == k[0]):
+        
+                for direc in v:
+                    direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
+                    row_cost = min(row_cost, direc_cost)
+    
+        for k,v in matrix.items():
+            if (source == k[0]):
+                
+                for direc in v:
+                    v[direc]['cost'] = None if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - row_cost)
+        reduction_cost += row_cost
+
+        # Column Reduction
+        for k,v in matrix.items():
+            if (dest == k[1]):
+
+                for direc in v:
+                    direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
+                    col_cost = min(col_cost, direc_cost)
+        
+        for k,v in matrix.items():
+            if (key[0] == k[1]):
+                for direc in v:
+         
+                    v[direc]['cost'] = None if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - col_cost)
+        reduction_cost += col_cost
+
+        return reduction_cost, matrix
+
+"""
+    def dfs(self, item_list):
+        """
+        Performs DFS on a list to produce all permutations, use for brute force to find all paths in the tree.
+        """
+        if (len(item_list) == 0):
+            return []
+        if (len(item_list) == 1):
+            return []
+
+        result = []
+        for i in range(len(item_list)):
+            node = item_list[i]
+            
+            # Pops the other access point of the chosen item so there are no repeat vists for the same item
+            for k,v in item_list.items():
+                if (node[0] == k[0] and node[2] != k[2]):
+                    item_list.pop()
+
+            remaining_item_list = item_list[:i] + item_list[i+1:]
+
+            for path in defs(remaining_item_list):
+                result.append([node] + path)
+
+        return result
+"""
+
+    def branch_n_bound(self, graph):
+        """
+        Applies the branch and bound algorithm to generate a path
+        """
+        path = []
+        next_node = None
+        next_cost = INFINITY
+        # upper_bound = 
+        # path_complete = len( graph.keys() )   # number of products in the order
+        curr_key, curr_value = random.choice( list(graph.items()) )
+        path.append(curr_key)
+
+        # Creates the reduced matrix
+        reduced_cost, parent_matrix = matrix_reduction(graph)
+        child_matrix = parent_matrix.copy()
+
+        # pop the start nodes other access points
+        for k,v in child_matrix.items():
+            if (curr_key[0] == k[0] and curr_key[2] != k[2]):
+                child_matrix.pop()
+        
+        # Create a list of all locations 
+        item_list = child_matrix.keys()
+        
+        # 
+#       for k,v in child_matrix.keys():
+#           if (curr_key[0] == k[0]):
+
+            
+
+
+
+
+
+
+
+        
     def handle_option(self, option):
         """
         Handles menu options for main application and corresponding submenus.

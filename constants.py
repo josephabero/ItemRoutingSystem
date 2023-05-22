@@ -1,5 +1,7 @@
 from enum import Enum
 
+INFINITY = 1000;
+
 class MenuType(Enum):
     """
     Constants for menu types.
