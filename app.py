@@ -566,7 +566,7 @@ class ItemRoutingSystem:
                                 start_y = self.product_info[start][1] + directions[start_dir][1]
 
                                 if not is_valid_position(start_x, start_y):
-                                    print(f"({start_x}, {start_y}) Not a VALID STARTING POSITION")
+                                    self.log(f"({start_x}, {start_y}) Not a VALID STARTING POSITION", print_type=PrintType.DEBUG)
                                     continue
 
                                 start_position = (start_x, start_y)
@@ -574,10 +574,7 @@ class ItemRoutingSystem:
 
                             # Get path from starting position to target position
                             path, cost = self.dijkstra(self.map, start_position, (x, y))
-                            print(path)
                             updated_path = self.collapse_directions(path)
-                            print(updated_path)
-
 
                             valid_directions[end_dir] = {
                                 "location": (x, y),
@@ -593,7 +590,8 @@ class ItemRoutingSystem:
     def custom_algo(self, graph):
         for k, v in graph.items():
             # print(k, json.dumps(v, indent=4))
-            print(k, v)
+            # print(k, v)
+            continue
 
     def gather_brute_force(self, targets):
         """
@@ -667,13 +665,13 @@ class ItemRoutingSystem:
             path (list of tuples): List of item positions to traverse in order.
         """
         def is_valid_position(x, y):
-            return 0 <= x < self.map_x  and \
+            return 0 <= x < self.map_x and \
                    0 <= y < self.map_y
 
         x, y = target
         if not is_valid_position(x, y):
             self.log(f"Invalid target position: {target}", print_type=PrintType.DEBUG)
-            return []
+            return [], None
         
         # Initialize the distance to all positions to infinity and to the starting position to 0
         dist = {(i, j): float('inf') for i in range(self.map_x) for j in range(self.map_y)}
@@ -771,13 +769,18 @@ class ItemRoutingSystem:
         start = positions[0]
         for position in positions:
             # initial direction setup
-            if ( direc == None ):
-                if ( start[1] == position[1] ):
+            if ( direc is None ):
+                if start == position:
+                    direc = "Start"
+                prev_position = position
+                continue
+
+            # If second node, determine direction
+            if direc == "Start":
+                if ( prev_position[1] == position[1] ):
                     direc = "LR"
                 else:
                     direc = "DU"
-                prev_position = position
-                continue
 
             # if moving in same direction, ignore and continue
             if ( prev_position[0] == position[0] and direc == "DU"):
@@ -786,7 +789,7 @@ class ItemRoutingSystem:
             elif ( prev_position[1] == position[1] and direc == "LR"):
                 prev_position = position
                 continue
-            # change of direction means you add the position int othe list
+            # change of direction means you add the position into the list
             else:
                 updated_positions.append(prev_position)
                 if (direc == "DU"):
@@ -794,6 +797,7 @@ class ItemRoutingSystem:
                 else:
                     direc = "DU"
             prev_position = position
+
         # Adds the last position
         updated_positions.append(positions[-1])
 
@@ -821,9 +825,7 @@ class ItemRoutingSystem:
             path (list of str): List of English directions worker should take to gather
                                 all items from starting position.
         """
-        print(positions)
         updated_positions = self.collapse_directions(positions)
-        print(updated_positions)
 
         start = updated_positions.pop(0)
         end = updated_positions.pop()
@@ -833,7 +835,6 @@ class ItemRoutingSystem:
         current_position = start
         total_steps = 0
 
-        print(updated_positions)
         for position in updated_positions:
             prev_position = current_position
             move, steps = self.move_to_target(current_position, position)
@@ -878,7 +879,6 @@ class ItemRoutingSystem:
             # targets = self.get_targets()
             targets = [self.starting_position, target, self.starting_position]
             path = self.gather_brute_force(targets)
-            print(path)
             result = self.get_descriptive_steps(path, target)
             return result
 
