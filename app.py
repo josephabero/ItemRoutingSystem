@@ -629,7 +629,7 @@ class ItemRoutingSystem:
                    start == "End" or \
                    end == "Start" or \
                    start == "Start" and end == "End":
-                    # self.log(f"Skipping pair: {start, end}", print_type=PrintType.DEBUG)
+                    self.log(f"Skipping pair: {start, end}", print_type=PrintType.MINOR)
                     continue
 
                 for start_dir in directions:
@@ -649,7 +649,7 @@ class ItemRoutingSystem:
 
                         # Don't add invalid position
                         if not is_valid_position(x, y):
-                            # self.log(f"Invalid access point position: {x, y}", print_type=PrintType.DEBUG)
+                            self.log(f"Invalid access point position: {x, y}", print_type=PrintType.MINOR)
                             valid_directions[end_dir] = {
                                 "location": None,
                                 "cost": None,
@@ -666,7 +666,7 @@ class ItemRoutingSystem:
                                 start_y = self.product_info[start][1] + directions[start_dir][1]
 
                                 if not is_valid_position(start_x, start_y):
-                                    # self.log(f"({start_x}, {start_y}) Not a VALID STARTING POSITION", print_type=PrintType.DEBUG)
+                                    self.log(f"({start_x}, {start_y}) Not a VALID STARTING POSITION", print_type=PrintType.MINOR)
                                     continue
 
                                 start_position = (start_x, start_y)
@@ -688,8 +688,6 @@ class ItemRoutingSystem:
         return graph
 
     def branch_and_bound(self, graph):
-        return
-
         while True:
             for k, v in graph.items():
                 # print(k, v)
@@ -778,7 +776,7 @@ class ItemRoutingSystem:
 
         x, y = target
         if not is_valid_position(x, y):
-            # self.log(f"Invalid target position: {target}", print_type=PrintType.DEBUG)
+            self.log(f"Invalid target position: {target}", print_type=PrintType.MINOR)
             return [], None
         
         # Initialize the distance to all positions to infinity and to the starting position to 0
@@ -798,7 +796,7 @@ class ItemRoutingSystem:
             
             # If we've found the target, we're done
             if position == target:
-                # self.log(f"Found path to target {target} with cost {cost}!", print_type=PrintType.DEBUG)
+                self.log(f"Found path to target {target} with cost {cost}!", print_type=PrintType.MINOR)
                 total_cost = cost
                 break
             
@@ -806,14 +804,14 @@ class ItemRoutingSystem:
             for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 x, y = position[0] + dx, position[1] + dy
 
-                # self.log(position, (x, y), print_type=PrintType.DEBUG)
+                self.log(position, (x, y), print_type=PrintType.MINOR)
 
                 if not is_valid_position(x, y):
-                    # self.log(f"Skipping {(x, y)}: Invalid Position", print_type=PrintType.DEBUG)
+                    self.log(f"Skipping {(x, y)}: Invalid Position", print_type=PrintType.MINOR)
                     continue
 
                 if grid[x][y] == ItemRoutingSystem.ITEM_SYMBOL:
-                    # self.log(f"Skipping {(x, y)}: Item", print_type=PrintType.DEBUG)
+                    self.log(f"Skipping {(x, y)}: Item", print_type=PrintType.MINOR)
                     continue
                 
                 # Compute the distance to the neighbor
@@ -834,7 +832,7 @@ class ItemRoutingSystem:
         path.reverse()
         
         if target in path:
-            # self.log(f"Path found with cost {total_cost}: {path}", print_type=PrintType.DEBUG)
+            self.log(f"Path found with cost {total_cost}: {path}", print_type=PrintType.MINOR)
             return path, total_cost
         else:
             self.log("Path not found", print_type=PrintType.DEBUG)
@@ -1830,7 +1828,8 @@ class ItemRoutingSystem:
                                 else:
                                     self.log("No test cases to run! Must load test case file first!")
 
-                                update = False
+                                update = True
+                                clear = False
 
                             # Back
                             elif adv_option == '7':
