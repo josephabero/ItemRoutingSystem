@@ -1073,7 +1073,7 @@ class ItemRoutingSystem:
                             v[direc]['cost'] = (v.get(direc).get('cost') - col_cost)
             reduction_cost += col_cost
        
-       return reduction_cost, temp_matrix
+        return reduction_cost, temp_matrix
     
 
     def branch_and_bound(self, graph, order):
