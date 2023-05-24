@@ -42,3 +42,4 @@ class PrintType(Enum):
     """
     NORMAL = 0
     DEBUG = 1
+    MINOR = 2
