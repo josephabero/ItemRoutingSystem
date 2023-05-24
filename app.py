@@ -1111,8 +1111,9 @@ class ItemRoutingSystem:
             for (start, dest, src_dir), values in matrix.items():
                 if (source == start and source_direction == src_dir):
                     for direc in values:
-                        if values.get(direc).get('cost') is not None:
-                            
+                        if ( (values.get(direc).get('cost') is None) or ( values.get(direc).get('cost') is INFINITY) ):
+                            continue
+                        else:
                             reduction, temp_matrix = matrix_reduction( matrix, (start, dest, src_dir), direc )
                             pq.put( (start, direc, level + 1, cost + reduction, temp_matrix, path.append(values.get(direc).get('path'))) )
                     
