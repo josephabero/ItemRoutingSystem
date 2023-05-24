@@ -14,7 +14,6 @@ import os
 import random
 import sys
 import time
-import numpy as np
 
 
 class MenuType(Enum):
@@ -40,6 +39,7 @@ class AlgoMethod(Enum):
     BRUTE_FORCE = "Brute Force"
     DIJKSTRA = "Dijkstra"
     BRANCH_AND_BOUND = "Branch and Bound"
+    CUSTOM_ALGORITHM = "Custom Algorithm"
 
     def __str__(cls):
         return cls.value
@@ -311,8 +311,8 @@ class ItemRoutingSystem:
             info = "Current Settings:\n" \
                    f"  Loaded Product File: {self.product_file}\n" \
                    f"  Worker Settings:\n" \
-                   f"  Starting Position: {self.starting_position}\n" \
-                   f"  Ending Position: {self.ending_position}\n" \
+                   f"   Starting Position: {self.starting_position}\n" \
+                   f"   Ending Position: {self.ending_position}\n" \
                    f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
                    f"  Debug Mode: {self.debug}\n"
 
@@ -361,7 +361,8 @@ class ItemRoutingSystem:
             menu.add_option(2, "Brute Force")
             menu.add_option(3, "Dijkstra")
             menu.add_option(4, "Branch and Bound")
-            menu.add_option(5, "Back")
+            menu.add_option(5, "Custom Algorithm")
+            menu.add_option(6, "Back")
 
         elif menu_type == MenuType.WORKER_START_POSITION:
             menu = Menu("Set Starting Worker Position Mode")
@@ -735,40 +736,96 @@ class ItemRoutingSystem:
             self.log("Path not found", print_type=PrintType.DEBUG)
             return []
 
-    def dijkstra_path(self, start, destination):
-        return shortest_path, cost
+    def ordered_list(self, grid, product_ID_list):
+        """
+        Organize the product ID list, for example, two items near each other will be put together in the ordered ilst
 
-    def build_graph_for_node(self, products):
-        return graph
+        Args:
+            grid(list of lists): Positions of items within the grid.
 
-    def branch_and_bound(self, graph):
-        return lowest_cost_path
+            product_ID_list: a list of unordered product IDs
 
-    def customized_algorithm(self, order_list, graph):
+        Returns:
+            ordered_list: a list of ordered product IDs
+        """
+
+        # Create a dictionary to store the positions of each product ID
+        position_dict = {}
+
+        # Iterate through the grid and populate the position dictionary
+        for i in range(self.map_x):
+            for j in range(self.map_y):
+                position = grid[i][j]
+                if position in product_ID_list:
+                    if position not in position_dict:
+                        position_dict[position] = []
+                    position_dict[position].append((i, j))
+
+        # Sort the positions based on their Manhattan distances
+        sorted_positions = sorted(position_dict.values(), key=lambda x: (x[0][0], x[0][1]))
+
+        # Create the ordered list of product IDs
+        ordered_list = []
+        for positions in sorted_positions:
+            ordered_list.extend([position for position in positions])
+
+        return ordered_list
+
+
+    def customized_algorithm(self, ordered_list, graph):
+        """
+        find the optimal path with multiple access points
+
+        Args:
+            ordered_list: an organized list of product ID
+
+            graph: the distance graph using All-Pair-Shortest-Path
+
+        Returns:
+            path: a list of the locations
+        """
         if self.debug:
             start_time = time.time()
+        
+        pre_node = None
+        access_direction = None
 
-        total_cost = 0
-        lowest_cost_path = []
-        start_position = self.starting_position
+        path = []
 
-        for product in order_list:
-            shortest_path, cost = graph.dijkstra_path(self, start_position, product)
-            total_cost += cost
-            lowest_cost_path += shortest_path
-            start_position = product
+        for product_id in ordered_list:
+            min_cost = None
+            shortest_path = []
 
-        shortest_path_back, cost_back = graph.dijkstra_path(self, start_position, lowest_cost_path[0])
-        lowest_cost_path += shortest_path_back
-        total_cost += cost_back
+            # Choose one of the access points, and get the shortest path
+            for access_point, val in graph[(pre_node, product_id, access_direction)].items():
+                if min_cost is None or val['cost'] < min_cost:
+                    min_cost = val['cost']
+                    access_direction = access_point
+                    shortest_path = val['path']
+
+            path.append(shortest_path)
+            pre_node = product_id
+
+        # Calculate the path from the last element in ordered_list to 'End'
+        last_product_id = ordered_list[-1]
+        min_cost_back = None
+        shortest_path_back = []
+
+        # get the shortest path to the ending position
+        for access_point, val in graph[(last_product_id, 'End', access_direction)].items():
+            if min_cost_back is None or val['cost'] < min_cost_back:
+                min_cost_back = val['cost']
+                shortest_path_back = val['path']
+
+        path.append(shortest_path_back)
 
         if self.debug:
             end_time = time.time()
             self.log(f"Total Time: {(end_time - start_time):.4f}")
-            self.log(f"Minimum Path: {lowest_cost_path}")
+            self.log(f"Minimum Path: {path}")
             # self.log(f"Shortest Number of Steps: {smallest}")
 
-        return lowest_cost_path
+        return path
 
     def get_targets(self):
         """
@@ -1494,11 +1551,11 @@ class ItemRoutingSystem:
                             # Go back to Settings menu
                             break
 
-                # Set Worker Starting Position
+                # Set Worker Ending Position
                 elif suboption == '3':
                     while True:
                         if update:
-                            self.display_menu(MenuType.WORKER_START_POSITION, clear=clear)
+                            self.display_menu(MenuType.WORKER_ENDING_POSITION_POSITION, clear=clear)
                         else:
                             update = True
                             clear = True
