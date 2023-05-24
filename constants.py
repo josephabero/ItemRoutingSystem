@@ -1,6 +1,6 @@
 from enum import Enum
 
-INFINITY = 1000;
+INFINITY = float('inf');
 
 class MenuType(Enum):
     """

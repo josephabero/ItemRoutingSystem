@@ -1010,29 +1010,41 @@ class ItemRoutingSystem:
 
 
 # justin
-    def matrix_reduction(self, matrix):
+    def matrix_reduction(self, matrix, source=None, dest=None):
         """
         Performs the matrix reduction for branch-and-bound
         Returns a reduced matrix
         """
         temp_matrix = matrix.copy()
         reduction_cost = 0
+
+        # when taking a path, set the corresponding row nad column to inf
+        if source:
+            reduction_cost += temp_matrix[ (source[0], source[1], source[2]) ][dest].get('cost')
+
+            for k,v in temp_matrix.items():
+                if (source[0] == k[0]):
+                    for direc in v:
+                        v[direct]['cost'] = INFINITY
+                if (source[1] == k[1]):
+                    for direc in v:
+                        v[direc]['cost'] = INFINITY
+
+
         # Finds the minimum value to make a row have a zero
         for key in temp_matrix.keys():
             row_cost = INFINITY
             
             for k,v in temp_matrix.items():
                 if (key[0] == k[0]):
-          
                     for direc in v:
                         direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
                         row_cost = min(row_cost, direc_cost)
             # reduces the values in the matrix
             for k,v in temp_matrix.items():
                 if (key[0] == k[0]):
-            
                     for direc in v:
-                        v[direc]['cost'] = None if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - row_cost)
+                        v[direc]['cost'] = INFINITY if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - row_cost)
             reduction_cost += row_cost
         
         # Finds the minimum value to make the column have a zero
@@ -1041,71 +1053,18 @@ class ItemRoutingSystem:
             
             for k,v in temp_matrix.items():
                 if (key[0] == k[1]):
-            
                     for direc in v:
                         direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
                         col_cost = min(col_cost, direc_cost)
             # reduces the values in the matrix
             for k,v in temp_matrix.items():
                 if (key[0] == k[1]):
-                
                     for direc in v:
-                        v[direc]['cost'] = None if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - col_cost)
+                        v[direc]['cost'] = INFINITY if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - col_cost)
             reduction_cost += col_cost
        
        return reduction_cost, temp_matrix
     
-
-    def bnb_take_path(self, matrix, source, dest):
-        """
-        Performs the row and column reduction when deciding to take a path
-        
-        INPUTS-----
-            source:
-                Contains the source PID
-            dest:
-                Contains the destination PID
-        OUTPUTS-----
-            reduction_cost:
-                returns the additional reduction cost that results in the path being taken
-            matrix:
-                Returns a reduced matrix with the specificed row and columns reduced
-        """
-        row_cost, col_cost = INFINITY
-        reduction_cost = 0;
-        temp_matrix = matrix.copy()
-        # Row Reduction
-        for k,v in temp_matrix.items():
-            if (source == k[0]):
-        
-                for direc in v:
-                    direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
-                    row_cost = min(row_cost, direc_cost)
-    
-        for k,v in temp_matrix.items():
-            if (source == k[0]):
-                
-                for direc in v:
-                    v[direc]['cost'] = None if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - row_cost)
-        reduction_cost += row_cost
-
-        # Column Reduction
-        for k,v in temp_matrix.items():
-            if (dest == k[1]):
-
-                for direc in v:
-                    direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
-                    col_cost = min(col_cost, direc_cost)
-        
-        for k,v in temp_matrix.items():
-            if (dest == k[1]):
-                for direc in v:
-         
-                    v[direc]['cost'] = None if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - col_cost)
-        reduction_cost += col_cost
-
-        return reduction_cost, temp_matrix
-
 
     def branch_and_bound(self, graph, order):
         """
@@ -1113,57 +1072,41 @@ class ItemRoutingSystem:
         """
         pq = PriorityQueue()
         path = []
-        # upper_bound = 
-        # path_complete = len( graph.keys() )   # number of products in the order
-        starting_node = random.choice( graph.keys() )
-        # path.append( (rand_start[0], rand_start[2]) ) # (source, source access direction)
+        
+        # 1. Create Matrix
 
-        # Creates the reduced matrix
+        # 2. Reduction
         reduced_cost, parent_matrix = matrix_reduction(graph)
         child_matrix = parent_matrix.copy()
-        
-        # pop the start node's other access points
-        for k,v in child_matrix.items():
-            if (starting_node[0] == k[0] and start_node[1] != k[2]):
-                child_matrix.pop()
 
+        # 3. Choose Random Start
+        starting_node = random.choice( list(graph) )
 
-        # (source, source_direction, level, cost, matrix)
-        pq.push( (starting_node[0], starting_node[2], 0, reduced_cost, child_matrix.copy(), path.append(starting_node[0], starting_node[2])) )
+        # 4. Set Upper Bound
+        upper_bound = order
 
-        while( !pq.empty() ):
+        # 5. Traversal 
+        # (source, source_direction, level, cost, matrix, path)
+        # path_entry = (starting_node[0], starting_node[2])
+        pq.put( (starting_node[0], starting_node[2], 0, reduced_cost, child_matrix, path) )
+
+        while( not pq.empty() ):
             
-            temp_min = pq.queue[0]
-            pq.get()
+            source, source_direction, level, cost, matrix, path = pq.get()
             
             # If all items have been picked up
-            if ( temp_min[2] ==  len(order) ):
-                temp_min[]
+            if ( level == len(order) ):
+                # write something here
 
-            for k,v in temp_min[4].items():
-                if (temp_min[0] == k[0] and temp_min[1] == k[2]):
-                    for direc in v:
-                        if not ( v.get(direc).get('cost') is None )
-                            reduction, temp_matrix = bnb_take_path( temp_min[4], k[0], k[1] )
-                            pq.put( (k[0], k[2], temp_min[2]+1, temp_min[3]+reduction, temp_matrix) )
+            for (start, dest, src_dir), values in matrix.items():
+                if (source == start and source_direction == src_dir):
+                    for direc in values:
+                        if values.get(direc).get('cost') is not None:
+                            
+                            reduction, temp_matrix = matrix_reduction( matrix, (start, dest, src_dir), direc )
+                            pq.put( (start, direc, level + 1, cost + reduction, temp_matrix, path.append(values.get(direc).get('path'))) )
                     
-
-
-            """
-            for k,v in child_matrix.items():
-                if (path[-1][0] == k[0]):
-                    for direc in v:
-                        cost_of_path = v.get(direc).get('cost')
-                        path.append( (k[1], direc) )
-                        reduction, temp_matrix = bnb_take_path(child_matrix, path[-1][0], k[1])
-                     
-                        if (reduction + cost_of_path == 0):
-                            child_matrix = temp_matrix.copy()
-                            break
-                        else:
-                            temp_total_cost = cost_of_path + reduced_cost + reduction
-                            total_cost = min(total_cost, temp_total_cost)
-            """         
+            
 
 
         
