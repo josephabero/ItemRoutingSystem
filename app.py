@@ -24,8 +24,9 @@ class ItemRoutingSystem:
 
     Handles user inputs, generation of the map, and settings.
     """
-    WORKER_SYMBOL = 'S'
-    ITEM_SYMBOL = chr(9641) # ▩
+    WORKER_SYMBOL       = 'S'
+    ITEM_SYMBOL         = chr(ord("▣"))
+    ORDERED_ITEM_SYMBOL = '‼'
 
     def __init__(self):
         """
@@ -411,6 +412,7 @@ class ItemRoutingSystem:
         self.log("LEGEND:".center(banner_length))
         self.log(f"{ItemRoutingSystem.WORKER_SYMBOL}: Worker Starting Spot".center(banner_length))
         self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
+        self.log(f"{ItemRoutingSystem.ORDERED_ITEM_SYMBOL}: Ordered Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
         self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
         self.log("")
@@ -1236,6 +1238,7 @@ class ItemRoutingSystem:
                 if suboption == '1':
                     product_id = None
                     order = []
+                    item_positions = []
 
                     if self.debug:
                         self.log("Product IDs:")
@@ -1248,7 +1251,7 @@ class ItemRoutingSystem:
                         if product_id == "f":
                             break
 
-                        elif int(product_id) in self.product_info:
+                        elif product_id and int(product_id) in self.product_info:
                             order.append(int(product_id))
 
                         else:
@@ -1262,8 +1265,16 @@ class ItemRoutingSystem:
 
                         for i, product in enumerate(order, 1):
                             self.log(f"  {i}. {product}")
+                            item_positions.append(self.product_info[product])
 
-                    self.order = order
+                    # Label ordered items
+                    for position in item_positions:
+                        x, y = position
+                        self.map[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
+
+                    self.display_map()
+
+                    self.order = self.process_order(order)
 
 
                 # Get Path for Order
