@@ -9,6 +9,7 @@ directions to gather shopping items around a warehouse.
 
 from constants import *
 from menu import Menu
+from queue import PriorityQueue
 
 import heapq
 import itertools
@@ -1171,6 +1172,119 @@ class ItemRoutingSystem:
         return success
 
 
+
+# justin
+    def matrix_reduction(self, matrix, source=None, dest=None):
+        """
+        Performs the matrix reduction for branch-and-bound
+        Returns a reduced matrix
+        """
+        temp_matrix = matrix.copy()
+        reduction_cost = 0
+
+        # when taking a path, set the corresponding row nad column to inf
+        if source:
+            reduction_cost += temp_matrix[ (source[0], source[1], source[2]) ][dest].get('cost')
+
+            for k,v in temp_matrix.items():
+                if (source[0] == k[0]):
+                    for direc in v:
+                        v[direc]['cost'] = INFINITY
+                if (source[1] == k[1]):
+                    for direc in v:
+                        v[direc]['cost'] = INFINITY
+
+
+        # Finds the minimum value to make a row have a zero
+        for key in temp_matrix.keys():
+            row_cost = INFINITY
+            
+            for k,v in temp_matrix.items():
+                if (key[0] == k[0]):
+                    for direc in v:
+                        direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
+                        row_cost = min(row_cost, direc_cost)
+            if (row_cost == INFINITY):
+                row_cost = 0;
+            # reduces the values in the matrix
+            for k,v in temp_matrix.items():
+                if (key[0] == k[0]):
+                    for direc in v:
+                        if (v.get(direc).get('cost') is None or v.get(direc).get('cost') == INFINITY):
+                            v[direc]['cost'] = INFINITY
+                        else:
+                            v[direc]['cost'] = (v.get(direc).get('cost') - row_cost)
+            reduction_cost += row_cost
+        
+        # Finds the minimum value to make the column have a zero
+        for key in temp_matrix.keys():
+            col_cost = INFINITY
+            
+            for k,v in temp_matrix.items():
+                if (key[0] == k[1]):
+                    for direc in v:
+                        direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
+                        col_cost = min(col_cost, direc_cost)
+            if (col_cost == INFINITY):
+                col_cost = 0;
+            # reduces the values in the matrix
+            for k,v in temp_matrix.items():
+                if (key[0] == k[1]):
+                    for direc in v:
+                        if (v.get(direc).get('cost') is None or v.get(direc).get('cost') == INFINITY):
+                            v[direc]['cost'] = INFINITY
+                        else:
+                            v[direc]['cost'] = (v.get(direc).get('cost') - col_cost)
+            reduction_cost += col_cost
+       
+        return reduction_cost, temp_matrix
+    
+
+    def branch_and_bound(self, graph, order):
+        """
+        Applies the branch and bound algorithm to generate a path
+        """
+        pq = PriorityQueue()
+        path = []
+        
+        # 1. Create Matrix
+
+        # 2. Reduction
+        reduced_cost, parent_matrix = matrix_reduction(graph)
+        child_matrix = parent_matrix.copy()
+
+        # 3. Choose Random Start
+        starting_node = random.choice( list(graph) )
+
+        # 4. Set Upper Bound
+        upper_bound = order
+
+        # 5. Traversal 
+        # (source, source_direction, level, cost, matrix, path)
+        # path_entry = (starting_node[0], starting_node[2])
+        pq.put( (starting_node[0], starting_node[2], 0, reduced_cost, child_matrix, path) )
+
+        while( not pq.empty() ):
+            
+            source, source_direction, level, cost, matrix, path = pq.get()
+            
+            # If all items have been picked up
+            if ( level == len(order) ):
+                return path
+
+            for (start, dest, src_dir), values in matrix.items():
+                if (source == start and source_direction == src_dir):
+                    for direc in values:
+                        if ( (values.get(direc).get('cost') is None) or ( values.get(direc).get('cost') is INFINITY) ):
+                            continue
+                        else:
+                            reduction, temp_matrix = matrix_reduction( matrix, (start, dest, src_dir), direc )
+                            pq.put( (start, direc, level + 1, cost + reduction, temp_matrix, path.append(values.get(direc).get('path'))) )
+                    
+            
+
+
+        
     def handle_option(self, option):
         """
         Handles menu options for main application and corresponding submenus.
