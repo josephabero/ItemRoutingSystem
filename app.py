@@ -13,9 +13,9 @@ from menu import Menu
 from copy import deepcopy
 import heapq
 import itertools
-import json
 import os
 import random
+import signal
 import sys
 import time
 
@@ -498,7 +498,6 @@ class ItemRoutingSystem:
                     elif step["direction"] == "right":
                         x += i
 
-                    print((x, y), self.map[x][y])
                     if self.map[x][y] == ItemRoutingSystem.WORKER_SYMBOL:
                         continue
 
@@ -512,7 +511,6 @@ class ItemRoutingSystem:
                         self.map[x][y] = arrows["left_right"]
 
             elif step["type"] == "pickup":
-                print("pickup")
                 x, y = step["end"]
                 self.map[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
 
@@ -631,7 +629,7 @@ class ItemRoutingSystem:
                    start == "End" or \
                    end == "Start" or \
                    start == "Start" and end == "End":
-                    self.log(f"Skipping pair: {start, end}", print_type=PrintType.DEBUG)
+                    # self.log(f"Skipping pair: {start, end}", print_type=PrintType.DEBUG)
                     continue
 
                 for start_dir in directions:
@@ -651,7 +649,7 @@ class ItemRoutingSystem:
 
                         # Don't add invalid position
                         if not is_valid_position(x, y):
-                            self.log(f"Invalid access point position: {x, y}", print_type=PrintType.DEBUG)
+                            # self.log(f"Invalid access point position: {x, y}", print_type=PrintType.DEBUG)
                             valid_directions[end_dir] = {
                                 "location": None,
                                 "cost": None,
@@ -668,7 +666,7 @@ class ItemRoutingSystem:
                                 start_y = self.product_info[start][1] + directions[start_dir][1]
 
                                 if not is_valid_position(start_x, start_y):
-                                    self.log(f"({start_x}, {start_y}) Not a VALID STARTING POSITION", print_type=PrintType.DEBUG)
+                                    # self.log(f"({start_x}, {start_y}) Not a VALID STARTING POSITION", print_type=PrintType.DEBUG)
                                     continue
 
                                 start_position = (start_x, start_y)
@@ -689,9 +687,17 @@ class ItemRoutingSystem:
 
         return graph
 
+    def branch_and_bound(self, graph):
+        return
+
+        while True:
+            for k, v in graph.items():
+                # print(k, v)
+                continue
+            time.sleep(1)
+
     def custom_algo(self, graph):
         for k, v in graph.items():
-            # print(k, json.dumps(v, indent=4))
             # print(k, v)
             continue
 
@@ -772,7 +778,7 @@ class ItemRoutingSystem:
 
         x, y = target
         if not is_valid_position(x, y):
-            self.log(f"Invalid target position: {target}", print_type=PrintType.DEBUG)
+            # self.log(f"Invalid target position: {target}", print_type=PrintType.DEBUG)
             return [], None
         
         # Initialize the distance to all positions to infinity and to the starting position to 0
@@ -792,7 +798,7 @@ class ItemRoutingSystem:
             
             # If we've found the target, we're done
             if position == target:
-                self.log(f"Found path to target {target} with cost {cost}!", print_type=PrintType.DEBUG)
+                # self.log(f"Found path to target {target} with cost {cost}!", print_type=PrintType.DEBUG)
                 total_cost = cost
                 break
             
@@ -800,14 +806,14 @@ class ItemRoutingSystem:
             for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 x, y = position[0] + dx, position[1] + dy
 
-                self.log(position, (x, y), print_type=PrintType.DEBUG)
+                # self.log(position, (x, y), print_type=PrintType.DEBUG)
 
                 if not is_valid_position(x, y):
-                    self.log(f"Skipping {(x, y)}: Invalid Position", print_type=PrintType.DEBUG)
+                    # self.log(f"Skipping {(x, y)}: Invalid Position", print_type=PrintType.DEBUG)
                     continue
 
                 if grid[x][y] == ItemRoutingSystem.ITEM_SYMBOL:
-                    self.log(f"Skipping {(x, y)}: Item", print_type=PrintType.DEBUG)
+                    # self.log(f"Skipping {(x, y)}: Item", print_type=PrintType.DEBUG)
                     continue
                 
                 # Compute the distance to the neighbor
@@ -828,7 +834,7 @@ class ItemRoutingSystem:
         path.reverse()
         
         if target in path:
-            self.log(f"Path found with cost {total_cost}: {path}", print_type=PrintType.DEBUG)
+            # self.log(f"Path found with cost {total_cost}: {path}", print_type=PrintType.DEBUG)
             return path, total_cost
         else:
             self.log("Path not found", print_type=PrintType.DEBUG)
@@ -1724,6 +1730,10 @@ class ItemRoutingSystem:
 
                             # Run Test Cases
                             elif adv_option == '6':
+                                def timeout_handler(signum, frame):
+                                    print("Function timed out!")
+                                    raise Exception("Function Timeout")
+
                                 if self.test_case_file and self.test_product_file:
                                     success = self.load_product_file(self.test_product_file)
 
@@ -1760,6 +1770,7 @@ class ItemRoutingSystem:
 
                                         for test_case in self.test_cases:
                                             size, product_ids = test_case
+                                            cases_failed[size] = {}
 
                                             # Get Locations
                                             for product_id in product_ids:
@@ -1770,7 +1781,7 @@ class ItemRoutingSystem:
                                                         cases_failed["Location"] = []
 
                                                     failed += 1
-                                                    cases_failed["Location"].append(product_id)
+                                                    cases_failed[size]["Location"].append(product_id)
 
                                                     self.log(f"Failed to get location for Product '{product_id}'.")
 
@@ -1782,7 +1793,30 @@ class ItemRoutingSystem:
                                             print("-----")
                                             grouped_items = self.process_order(product_ids)
                                             graph = self.build_graph_for_order(grouped_items)
-                                            self.custom_algo(graph)
+
+                                            # Setup 15 second timeout
+                                            signal.signal(signal.SIGALRM, timeout_handler)
+                                            signal.alarm(5)
+
+                                            # Run Branch and Bound
+                                            try:
+                                                self.branch_and_bound(graph)
+                                            except Exception as exc:
+                                                # Return path
+                                                failed += 1
+                                                cases_failed[size]["Branch and Bound"] = "Timeout"
+                                                print("Failed Branch and Bound")
+                                                print(exc)
+
+                                            # Run Custom Algorithm
+                                            try:
+                                                self.custom_algo(graph)
+                                            except Exception as exc:
+                                                # Return path
+                                                failed += 1
+                                                cases_failed[size]["Custom Algorithm"] = "Timeout"
+                                                print("Failed Custom")
+                                                print(exc)
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \
@@ -1790,7 +1824,7 @@ class ItemRoutingSystem:
                                                  f"Failed: {failed}\n"    \
                                                  f"Total:  {passed + failed}")
 
-                                        if cases_failed:
+                                        if failed:
                                             self.log(cases_failed)
 
                                 else:
