@@ -10,6 +10,7 @@ directions to gather shopping items around a warehouse.
 from constants import *
 from menu import Menu
 
+from copy import deepcopy
 import heapq
 import itertools
 import json
@@ -425,6 +426,100 @@ class ItemRoutingSystem:
             f"  Debug Mode: {self.debug}\n"
 
         self.log(settings_info)
+
+    def display_path_in_map(self, steps):
+        path = []
+        original_map = deepcopy(self.map)
+
+        for step in steps:
+            # From (0, 5), move right 10 to (10, 5).
+            if step.startswith("From"):
+                for direction in ["right", "left", "up", "down"]:
+                    if direction in step:
+                        parsed = step.split(" ")
+
+                        start_x = int(parsed[1][1:-1])  # Parse '(0,'
+                        start_y = int(parsed[2][:-2])   # Parse ' 5)'
+
+                        dir_index = parsed.index(direction)
+                        step_magnitude = int(parsed[dir_index + 1])  # Parse 'right 10'
+
+
+                        end_x = int(parsed[dir_index + 3][1:-1])  # Parse '(10,'
+                        end_y = int(parsed[dir_index + 4][:-2])   # Parse '5).'
+
+                        step_values = {
+                            "type": "move",
+                            "start": (start_x, start_y),
+                            "direction": direction,
+                            "step_magnitude": step_magnitude,
+                            "end": (end_x, end_y)
+                        }
+
+                        path.append(step_values)
+
+            elif step.startswith("Pickup item"):
+                parsed = step.split(" ")
+
+                end_x = int(parsed[3][1:-1])
+                end_y = int(parsed[4][:-2])
+
+                step_values = {
+                    "type": "pickup",
+                    "end": (end_x, end_y)
+                }
+
+                path.append(step_values)
+
+        arrows = {
+            "left": chr(ord('←')),
+            "right": chr(ord('→')),
+            "up": chr(ord('↑')),
+            "down": chr(ord('↓')),
+            "up_down": chr(ord('⇅')),
+            "left_right": chr(ord('⇄'))
+        }
+
+        for step in path:
+
+            if step["type"] == "move":
+                start = step["start"]
+                for i in range(step["step_magnitude"]):
+                    x, y = start
+                    if step["direction"] == "up":
+                        y += i
+
+                    elif step["direction"] == "down":
+                        y -= i
+
+                    elif step["direction"] == "left":
+                        x -= i
+
+                    elif step["direction"] == "right":
+                        x += i
+
+                    print((x, y), self.map[x][y])
+                    if self.map[x][y] == ItemRoutingSystem.WORKER_SYMBOL:
+                        continue
+
+                    elif self.map[x][y] == '_':
+                        self.map[x][y] = arrows[step["direction"]]
+
+                    elif self.map[x][y] in [arrows["up"], arrows["down"]]:
+                        self.map[x][y] = arrows["up_down"]
+
+                    elif self.map[x][y] in [arrows["left"], arrows["right"]]:
+                        self.map[x][y] = arrows["left_right"]
+
+            elif step["type"] == "pickup":
+                print("pickup")
+                x, y = step["end"]
+                self.map[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
+
+        self.display_map()
+
+        # Restore Original Map
+        self.map = deepcopy(original_map)
 
     def move_to_target(self, start, end):
         """
@@ -1277,12 +1372,17 @@ class ItemRoutingSystem:
                             self.log(f"  {i}. {product}")
                             item_positions.append(self.product_info[product])
 
+                    original_map = deepcopy(self.map)
+
                     # Label ordered items
                     for position in item_positions:
                         x, y = position
                         self.map[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
 
                     self.display_map()
+
+                    # Restore Original Map
+                    self.map = deepcopy(original_map)
 
                     self.order = self.process_order(order)
 
@@ -1319,6 +1419,8 @@ class ItemRoutingSystem:
                     steps = self.get_items(self.gathering_algo, item_position)
 
                     if steps:
+                        self.display_path_in_map(steps)
+
                         self.log("Directions:")
                         self.log("-----------")
                         for step, action in enumerate(steps, 1):
