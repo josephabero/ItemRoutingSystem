@@ -687,14 +687,158 @@ class ItemRoutingSystem:
 
         return graph
 
-    def branch_and_bound(self, graph):
-        while True:
-            for k, v in graph.items():
-                # print(k, v)
-                continue
-            time.sleep(1)
+    def print_matrix(self, matrix):
+        print_matrix = {}
 
-    def custom_algo(self, graph):
+        for key, val in matrix.items():
+            temp_val = deepcopy(val)
+            for k, v in temp_val.items():
+                # print(v)
+                if "path" in v:
+                    v.pop("location")
+                    v.pop("path")
+                # v.pop()
+            print_matrix[str(key)] = temp_val
+        print(json.dumps(print_matrix, indent=4))
+
+    def matrix_reduction(self, matrix, source=None, dest=None):
+        """
+        Performs the matrix reduction for branch-and-bound
+        Returns a reduced matrix
+        """
+        temp_matrix = deepcopy(matrix)
+        reduction_cost = 0
+
+        # when taking a path, set the corresponding row nad column to inf
+        if source:
+            reduction_cost += temp_matrix[ (source[0], source[1], source[2]) ][dest].get('cost')
+
+            if (reduction_cost == INFINITY):
+                return 0, temp_matrix
+
+            for k,v in temp_matrix.items():
+                if (source[0] == k[0]):
+                    for direc in v:
+                        v[direc]['cost'] = INFINITY
+                if (source[1] == k[1]):
+                    for direc in v:
+                        v[direc]['cost'] = INFINITY
+
+                # print("Source set to Infinity")
+                # print_matrix(temp_matrix)
+
+
+        # Finds the minimum value to make a row have a zero
+        for key in temp_matrix.keys():
+            row_cost = INFINITY
+
+            for k,v in temp_matrix.items():
+                if (key[0] == k[0]):
+                    for direc in v:
+                        direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
+                        row_cost = min(row_cost, direc_cost)
+
+            if (row_cost == INFINITY):
+                row_cost = 0;
+
+            # reduces the values in the matrix
+            for k,v in temp_matrix.items():
+                if (key[0] == k[0]):
+                    for direc in v:
+                        if (v.get(direc).get('cost') is None or v.get(direc).get('cost') == INFINITY):
+                            v[direc]['cost'] = INFINITY
+                        else:
+                            v[direc]['cost'] = (v.get(direc).get('cost') - row_cost)
+            # if (row_cost != 0):
+                # print(f"Row: {row_cost}")
+            reduction_cost += row_cost
+
+        # print("Final Child")
+        # print_matrix(temp_matrix)
+        # print(f"Reduction Cost: {reduction_cost}")
+        return reduction_cost, temp_matrix
+
+    def branch_and_bound(self, graph, order):
+        """
+        Applies the branch and bound algorithm to generate a path
+        """
+        queue = []
+        path = []
+
+        # 1. Create Matrix
+
+        # 2. Reduction
+        # print("Parent Matrix")
+        reduced_cost, parent_matrix = self.matrix_reduction(graph)
+        child_matrix = deepcopy(parent_matrix)
+
+        # 3. Choose Random Start
+        # start_node, dest_node, start_dir = random.choice( list(graph) )
+        # print(start_node, dest_node, start_dir)
+        start_node, dest_node, start_dir = ('Start', 108335, None)
+
+        # 4. Set Upper Bound
+        upper_bound = order
+
+        # 5. Traversal
+        # (source, source_direction, level, cost, matrix, path)
+        queue.append( (start_node, start_dir, 0, reduced_cost, child_matrix, path) )
+
+        while queue:
+
+            # Get minimum cost node
+            index = 0
+            if len(queue) > 1:
+                minimum_cost = INFINITY
+                for i, (source, source_direction, level, cost, matrix, src_path) in enumerate(queue):
+                    if cost < minimum_cost:
+                        index = i
+
+            source, source_direction, level, cost, matrix, src_path = queue.pop(index)
+            # print(f"New Source: {source}")
+            # print(f"New Source Path: {cost} {src_path}")
+            # print(source, source_direction, level, cost, src_path)
+            # print("")
+
+            # If all items have been picked up
+            # print(level)
+            if ( level == len(order)):
+                path = src_path + matrix[(source, "End", source_direction)]["N"]["path"]
+                cost += matrix[(source, "End", source_direction)]["N"]["cost"]
+                # print(f"Reached Level: {path}")
+                return cost, path
+
+            for (start, dest, src_dir), values in matrix.items():
+
+                # Ignore "End" destination and other irrelevant entries
+                if (source == start and source_direction == src_dir and dest != "End"):
+                    highest_reduction = 0
+                    chosen_start = chosen_direc = None
+                    chosen_matrix = None
+                    child_path = []
+
+                    for direc in values:
+                        if values.get(direc).get('cost') is None and (values.get(direc).get('cost') == INFINITY):
+                            # print("Cost is None or Infinity")
+                            continue
+
+                        reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
+
+                        # Filter for minimum Single Access Point
+                        if chosen_start is None or reduction > highest_reduction:
+                            chosen_start = dest
+                            chosen_direc = direc
+                            highest_reduction = reduction
+                            chosen_matrix = deepcopy(temp_matrix)
+                            # print(f"Before Child Path: {child_path}")
+                            child_path = src_path + values[chosen_direc].get('path')
+                            # print(f"After Child Path: {child_path}")
+
+                    if child_path:
+                        # print(f"Will Visit: {start}, {chosen_start}, {chosen_direc}")
+                        queue.append( (chosen_start, chosen_direc, level + 1, cost + reduction, chosen_matrix, child_path) )
+
+    def custom_algo(self, graph, order):
         for k, v in graph.items():
             # print(k, v)
             continue
@@ -1794,11 +1938,11 @@ class ItemRoutingSystem:
 
                                             # Setup 15 second timeout
                                             signal.signal(signal.SIGALRM, timeout_handler)
-                                            signal.alarm(5)
+                                            signal.alarm(15)
 
                                             # Run Branch and Bound
                                             try:
-                                                self.branch_and_bound(graph)
+                                                self.branch_and_bound(graph, grouped_items)
                                             except Exception as exc:
                                                 # Return path
                                                 failed += 1
@@ -1808,7 +1952,7 @@ class ItemRoutingSystem:
 
                                             # Run Custom Algorithm
                                             try:
-                                                self.custom_algo(graph)
+                                                self.custom_algo(graph, grouped_items)
                                             except Exception as exc:
                                                 # Return path
                                                 failed += 1
