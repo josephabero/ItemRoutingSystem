@@ -764,51 +764,48 @@ class ItemRoutingSystem:
         return targets
 
     def collapse_directions(self, positions):
-        # Empty list of positions
-        if not positions:
-            return []
+        result = []
+        prev_x = prev_y = None
+        prev_dir = direction = None
 
-        prev_target = []
-        direc = None
-        updated_positions = [positions[0]]
-
-        # Preprocessing
-        start = positions[0]
         for position in positions:
-            # initial direction setup
-            if ( direc is None ):
-                if start == position:
-                    direc = "Start"
-                prev_position = position
+            x, y = position
+
+            # Skip first position
+            if prev_x is None:
+                result.append(position)
+                prev_x, prev_y = position
                 continue
 
-            # If second node, determine direction
-            if direc == "Start":
-                if ( prev_position[1] == position[1] ):
-                    direc = "LR"
+            # Determine Direction
+            if prev_x != x:
+                if prev_x > x:
+                    direction = 'x+'
                 else:
-                    direc = "DU"
+                    direction = 'x-'
 
-            # if moving in same direction, ignore and continue
-            if ( prev_position[0] == position[0] and direc == "DU"):
-                prev_position = position
-                continue
-            elif ( prev_position[1] == position[1] and direc == "LR"):
-                prev_position = position
-                continue
-            # change of direction means you add the position into the list
-            else:
-                updated_positions.append(prev_position)
-                if (direc == "DU"):
-                    direc = "LR"
+            elif prev_y != y:
+                if prev_y > y:
+                    direction = 'y+'
                 else:
-                    direc = "DU"
-            prev_position = position
+                    direction = 'y-'
 
-        # Adds the last position
-        updated_positions.append(positions[-1])
+            #  Skip second position
+            if prev_dir is None:
+                prev_dir = direction
+                prev_x, prev_y = position
+                continue
 
-        return updated_positions
+            # Evaluate if direction changed
+            if prev_dir != direction:
+                prev_dir = direction
+                result.append((prev_x, prev_y))
+
+            prev_x, prev_y = position
+
+        result.append(positions[-1])
+
+        return result
 
 
     def get_descriptive_steps(self, positions, target):
@@ -832,6 +829,14 @@ class ItemRoutingSystem:
             path (list of str): List of English directions worker should take to gather
                                 all items from starting position.
         """
+        def is_at_access_point_to_target(position, target):
+            is_right = (position[0] + 1) == target[0] and (position[1] == target[1])
+            is_left  = (position[0] - 1) == target[0] and (position[1] == target[1])
+            is_above = (position[0]) == target[0] and (position[1] + 1 == target[1])
+            is_below = (position[0]) == target[0] and (position[1] - 1 == target[1])
+
+            return is_right or is_left or is_above or is_below
+
         updated_positions = self.collapse_directions(positions)
 
         start = updated_positions.pop(0)
@@ -848,9 +853,13 @@ class ItemRoutingSystem:
             current_position = position
             total_steps += steps
             path.append(move)
+
+            # At Access Point for target position
+            if is_at_access_point_to_target(position, target):
+                path.append(f"Pickup item at {target}.")
+
         back_to_start, steps = self.move_to_target(current_position, end)
         total_steps += steps
-        path.append(f"Pickup item at {target}.")
         path.append(back_to_start)
         path.append("Pickup completed.")
 
@@ -921,7 +930,8 @@ class ItemRoutingSystem:
             result = []
             if shortest_path:
                 self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
-                # path = shortest_path + [self.starting_position]
+                path, _ = self.dijkstra(self.map, shortest_path[-1], self.starting_position)
+                shortest_path = shortest_path + path[1:]
                 result = self.get_descriptive_steps(shortest_path, target)
             elif timeout:
                 path = [ self.starting_position, target, self.starting_position ]
