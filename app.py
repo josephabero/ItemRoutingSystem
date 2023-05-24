@@ -1025,7 +1025,7 @@ class ItemRoutingSystem:
             for k,v in temp_matrix.items():
                 if (source[0] == k[0]):
                     for direc in v:
-                        v[direct]['cost'] = INFINITY
+                        v[direc]['cost'] = INFINITY
                 if (source[1] == k[1]):
                     for direc in v:
                         v[direc]['cost'] = INFINITY
@@ -1040,11 +1040,16 @@ class ItemRoutingSystem:
                     for direc in v:
                         direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
                         row_cost = min(row_cost, direc_cost)
+            if (row_cost == INFINITY):
+                row_cost = 0;
             # reduces the values in the matrix
             for k,v in temp_matrix.items():
                 if (key[0] == k[0]):
                     for direc in v:
-                        v[direc]['cost'] = INFINITY if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - row_cost)
+                        if (v.get(direc).get('cost') is None or v.get(direc).get('cost') == INFINITY):
+                            v[direc]['cost'] = INFINITY
+                        else:
+                            v[direc]['cost'] = (v.get(direc).get('cost') - row_cost)
             reduction_cost += row_cost
         
         # Finds the minimum value to make the column have a zero
@@ -1056,11 +1061,16 @@ class ItemRoutingSystem:
                     for direc in v:
                         direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
                         col_cost = min(col_cost, direc_cost)
+            if (col_cost == INFINITY):
+                col_cost = 0;
             # reduces the values in the matrix
             for k,v in temp_matrix.items():
                 if (key[0] == k[1]):
                     for direc in v:
-                        v[direc]['cost'] = INFINITY if (v.get(direc).get('cost') is None) else (v.get(direc).get('cost') - col_cost)
+                        if (v.get(direc).get('cost') is None or v.get(direc).get('cost') == INFINITY):
+                            v[direc]['cost'] = INFINITY
+                        else:
+                            v[direc]['cost'] = (v.get(direc).get('cost') - col_cost)
             reduction_cost += col_cost
        
        return reduction_cost, temp_matrix
@@ -1096,7 +1106,7 @@ class ItemRoutingSystem:
             
             # If all items have been picked up
             if ( level == len(order) ):
-                # write something here
+                return path
 
             for (start, dest, src_dir), values in matrix.items():
                 if (source == start and source_direction == src_dir):
