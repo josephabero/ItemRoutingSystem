@@ -12,6 +12,7 @@ class MenuType(Enum):
     WORKER_POSITION = 5
     ITEM_POSITION = 6
     LOAD_PRODUCT_FILE = 7
+    LOAD_TEST_CASE_FILE = 8
 
 class AlgoMethod(Enum):
     """
