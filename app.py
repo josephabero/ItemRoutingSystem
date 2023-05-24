@@ -44,6 +44,9 @@ class ItemRoutingSystem:
         self.product_info = {}
         self.product_file = None
 
+        # Default order list
+        self.order = []
+
         # Default test case filename
         self.test_case_file = None
         self.test_product_file = None
@@ -183,15 +186,17 @@ class ItemRoutingSystem:
 
         elif menu_type == MenuType.VIEW_MAP:
             menu = Menu("View Map Menu")
-            menu.add_option(1, "Get Path to Product")
-            menu.add_option(2, "Get Location of Product")
+            menu.add_option(1, "Create Order")
+            menu.add_option(2, "Get Path for Order")
+            menu.add_option(3, "Get Path to Product")
+            menu.add_option(4, "Get Location of Product")
 
             # Only expose advanced setting option in debug mode
             if self.debug:
-                menu.add_option(3, "Generate New Map")
-                menu.add_option(4, "Back")
+                menu.add_option(5, "Generate New Map")
+                menu.add_option(6, "Back")
             else:
-                menu.add_option(3, "Back")
+                menu.add_option(5, "Back")
 
         elif menu_type == MenuType.SETTINGS:
             menu = Menu("Settings Menu")
@@ -1227,8 +1232,46 @@ class ItemRoutingSystem:
                 # Handle menu options
                 suboption = input("> ")
 
-                # Get Path to Product
+                # Create Order
                 if suboption == '1':
+                    product_id = None
+                    order = []
+
+                    if self.debug:
+                        self.log("Product IDs:")
+                        for i, product in enumerate(self.product_info, 1):
+                            self.log(f"{i}. {product}")
+
+                    while product_id != "f":
+                        product_id = input("Enter Product ID ('f' to finish order): ").rstrip()
+
+                        if product_id == "f":
+                            break
+
+                        elif int(product_id) in self.product_info:
+                            order.append(int(product_id))
+
+                        else:
+                            self.log(f"Product ID '{product_id}' was not found, please try again!")
+
+                    if order:
+                        items = "items" if len(order) > 1 else "item"
+                        self.log(f"\n",
+                                 f"You completed your order of {len(order)} {items}!\n",
+                                 f"You ordered:")
+
+                        for i, product in enumerate(order, 1):
+                            self.log(f"  {i}. {product}")
+
+                    self.order = order
+
+
+                # Get Path for Order
+                elif suboption == '2':
+                    continue
+
+                # Get Path to Product
+                elif suboption == '3':
                     self.log("Get Path to Product")
 
                     # Request Product ID to find path for
@@ -1265,7 +1308,7 @@ class ItemRoutingSystem:
                     clear = False
 
                 # Get Location of Product
-                elif suboption == '2':
+                elif suboption == '4':
                     self.log("Get Location of Product")
 
                     complete = False
@@ -1289,7 +1332,7 @@ class ItemRoutingSystem:
                             complete = True
 
                 # Back
-                elif suboption == '3':
+                elif suboption == '5':
                     # Debug Mode: Generate New Map
                     if self.debug:
                         self.log("Generate New Map")
@@ -1304,7 +1347,7 @@ class ItemRoutingSystem:
                         break
 
                 # Debug Mode: Back
-                elif suboption == '4' and self.debug:
+                elif suboption == '6' and self.debug:
                     break
 
                 else:
