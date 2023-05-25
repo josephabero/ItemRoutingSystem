@@ -69,6 +69,7 @@ class ItemRoutingSystem:
 
         # Default algorithm
         self.gathering_algo = AlgoMethod.DIJKSTRA
+        self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
@@ -233,10 +234,11 @@ class ItemRoutingSystem:
             menu.add_option(1, "Set Map Size")
             menu.add_option(2, "Set Item Position Mode")
             menu.add_option(3, "Set Map Orientation")
-            menu.add_option(4, "Set Algorithm")
-            menu.add_option(5, "Load Test Case File")
-            menu.add_option(6, "Run Test Cases")
-            menu.add_option(7, "Back")
+            menu.add_option(4, "Set Gathering Algorithm")
+            menu.add_option(5, "Set TSP Algorithm")
+            menu.add_option(6, "Load Test Case File")
+            menu.add_option(7, "Run Test Cases")
+            menu.add_option(8, "Back")
 
             position_str = ' '.join(str(p) for p in self.items)
             if len(self.items) > 10:
@@ -256,6 +258,7 @@ class ItemRoutingSystem:
                    f"Worker Settings:\n" \
                    f"  Mode: {self.worker_mode}\n" \
                    f"  Gathering Algorithm: {self.gathering_algo}\n" \
+                   f"  TSP Algorithm: {self.tsp_algorithm}\n" \
                    f"Item Settings:\n" \
                    f"  Mode: {self.item_mode}\n" \
                    f"  Number of Items: {len(self.items)}\n" \
@@ -270,14 +273,18 @@ class ItemRoutingSystem:
         elif menu_type == MenuType.LOAD_TEST_CASE_FILE:
             menu = Menu("Load Test Case File Menu")
 
-        elif menu_type == MenuType.ALGO_METHOD:
+        elif menu_type == MenuType.GATHER_ALGO_METHOD:
             menu = Menu("Set Gathering Algorithm")
             menu.add_option(1, "Use Order of Insertion")
             menu.add_option(2, "Brute Force")
             menu.add_option(3, "Dijkstra")
-            menu.add_option(4, "Branch and Bound")
-            menu.add_option(5, "Custom Algorithm")
-            menu.add_option(6, "Back")
+            menu.add_option(4, "Back")
+
+        elif menu_type == MenuType.TSP_ALGO_METHOD:
+            menu = Menu("Set TSP Algorithm")
+            menu.add_option(1, "Branch and Bound")
+            menu.add_option(2, "Localized Minimum Path")
+            menu.add_option(3, "Back")
 
         elif menu_type == MenuType.WORKER_START_POSITION:
             menu = Menu("Set Starting Worker Position Mode")
@@ -438,7 +445,7 @@ class ItemRoutingSystem:
         settings_info = "Current Settings:\n" \
                         f"  Worker Position: {self.starting_position}\n" \
                         f"  Ordered Item Maximum: {self.maximum_items}\n" \
-                        f"  Gathering Algorithm: {self.gathering_algo}\n" \
+                        f"  Algorithm: {self.tsp_algorithm}\n" \
                         f"  Maximum Time To Process: {self.maximum_routing_time}\n" \
                         f"  Debug Mode: {self.debug}\n"
 
@@ -1981,11 +1988,11 @@ class ItemRoutingSystem:
                                 update = False
                                 clear = False
 
-                            # Set Algorithm Method
+                            # Set Gather Algorithm Method
                             elif adv_option == '4':
                                 while True:
                                     if update:
-                                        self.display_menu(MenuType.ALGO_METHOD, clear=clear)
+                                        self.display_menu(MenuType.GATHER_ALGO_METHOD, clear=clear)
                                     else:
                                         update = True
                                         clear = True
@@ -2007,13 +2014,38 @@ class ItemRoutingSystem:
                                         self.gathering_algo = AlgoMethod.DIJKSTRA
                                         break
 
-                                    # Branch and Bound
+                                    # Back
                                     elif algo_option == '4':
-                                        self.gathering_algo = AlgoMethod.BRANCH_AND_BOUND
+                                        break
+
+                                    else:
+                                        self.log("Invalid choice. Try again.")
+                                        update = False
+                                        clear = False
+
+                            # Set TSP Algorithm Method
+                            elif adv_option == '5':
+                                while True:
+                                    if update:
+                                        self.display_menu(MenuType.TSP_ALGO_METHOD, clear=clear)
+                                    else:
+                                        update = True
+                                        clear = True
+
+                                    algo_option = input("> ")
+
+                                    # Branch and Bound
+                                    if algo_option == '1':
+                                        self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+                                        break
+
+                                    # Custom Algorithm
+                                    elif algo_option == '2':
+                                        self.tsp_algorithm = AlgoMethod.LOCALIZED_MIN_PATH
                                         break
 
                                     # Back
-                                    elif algo_option == '5':
+                                    elif algo_option == '3':
                                         break
 
                                     else:
@@ -2022,7 +2054,7 @@ class ItemRoutingSystem:
                                         clear = False
 
                             # Load Test Case File
-                            elif adv_option == '5':
+                            elif adv_option == '6':
                                 if update:
                                     self.display_menu(MenuType.LOAD_TEST_CASE_FILE, clear=clear)
                                 else:
@@ -2048,7 +2080,7 @@ class ItemRoutingSystem:
                                         self.log(f"File '{test_case_file}' was not found, please try entering full path to file!")
 
                             # Run Test Cases
-                            elif adv_option == '6':
+                            elif adv_option == '7':
                                 def timeout_handler(signum, frame):
                                     print("Function timed out!")
                                     raise Exception("Function Timeout")
@@ -2153,7 +2185,7 @@ class ItemRoutingSystem:
                                 clear = False
 
                             # Back
-                            elif adv_option == '7':
+                            elif adv_option == '8':
                                 break
 
                             else:
