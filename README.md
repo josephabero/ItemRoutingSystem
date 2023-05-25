@@ -33,6 +33,16 @@ make clean
 
 # Completed Tasks (For Beta Release 1: 1.2.0)
 
+Justin Sung
+
+	Matrix Reduction
+
+
+Wanbing Hua
+
+	Localized Minimum Path Algorithm
+	Dynamic Ending Position
+
 Joseph Abero
 
 	Branch and Bound Traversal
@@ -44,11 +54,3 @@ Joseph Abero
 		Maximum Run Time
 	 	Advanced Settings
 	 		Test Cases
-
-Justin Sung
-	Matrix Reduction
-
-Wanbing Hua
-	Localized Minimum Path Algorithm
-	Dynamic Ending Position
-
