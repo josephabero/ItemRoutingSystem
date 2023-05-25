@@ -25,7 +25,8 @@ class ItemRoutingSystem:
 
     Handles user inputs, generation of the map, and settings.
     """
-    WORKER_SYMBOL       = 'S'
+    WORKER_START_SYMBOL = 'S'
+    WORKER_END_SYMBOL   = 'E'
     ITEM_SYMBOL         = chr(ord("▣"))
     ORDERED_ITEM_SYMBOL = '‼'
 
@@ -335,7 +336,10 @@ class ItemRoutingSystem:
         inserted_order = []
 
         # Set the starting position (Defaults to (0, 0))
-        grid[self.starting_position[0]][self.starting_position[1]] = ItemRoutingSystem.WORKER_SYMBOL
+        grid[self.starting_position[0]][self.starting_position[1]] = ItemRoutingSystem.WORKER_START_SYMBOL
+
+        if self.starting_position != self.ending_position:
+            grid[self.ending_position[0]][self.ending_position[1]] = ItemRoutingSystem.WORKER_END_SYMBOL
 
         # Insert item positions
         if positions is None:
@@ -421,11 +425,14 @@ class ItemRoutingSystem:
 
         self.log("")
         self.log("LEGEND:".center(banner_length))
-        self.log(f"{ItemRoutingSystem.WORKER_SYMBOL}: Worker Starting Spot".center(banner_length))
+        self.log(f"{ItemRoutingSystem.WORKER_START_SYMBOL}: Worker Starting Spot".center(banner_length))
+        self.log(f"{ItemRoutingSystem.WORKER_END_SYMBOL}: Worker Ending Spot".center(banner_length))
         self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
         self.log(f"{ItemRoutingSystem.ORDERED_ITEM_SYMBOL}: Ordered Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
         self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
+        self.log("")
+        self.log("Missing Worker Ending Spot means it overlaps with Starting Spot")
         self.log("")
 
         settings_info = "Current Settings:\n" \
@@ -508,7 +515,8 @@ class ItemRoutingSystem:
                     elif step["direction"] == "right":
                         x += i
 
-                    if self.map[x][y] == ItemRoutingSystem.WORKER_SYMBOL:
+                    if self.map[x][y] == ItemRoutingSystem.WORKER_START_SYMBOL or \
+                       self.map[x][y] == ItemRoutingSystem.WORKER_END_SYMBOL:
                         continue
 
                     elif self.map[x][y] == '_':
@@ -1839,7 +1847,7 @@ class ItemRoutingSystem:
                 elif suboption == '3':
                     while True:
                         if update:
-                            self.display_menu(MenuType.WORKER_ENDING_POSITION_POSITION, clear=clear)
+                            self.display_menu(MenuType.WORKER_ENDING_POSITION, clear=clear)
                         else:
                             update = True
                             clear = True
