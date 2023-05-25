@@ -73,6 +73,7 @@ class ItemRoutingSystem:
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
+        self.graph = None
 
         # Display welcome banner
         banner = "------------------------------------------------------------"
@@ -880,6 +881,7 @@ class ItemRoutingSystem:
         access_direction = None
 
         path = []
+        total_cost = 0
 
         for product_id in order:
             # start position
@@ -900,6 +902,8 @@ class ItemRoutingSystem:
                     access_direction = access_point
                     shortest_path = val['path']
 
+            if min_cost != float('inf'):
+                total_cost += min_cost
             path += shortest_path
             pre_node = product_id
 
@@ -909,7 +913,7 @@ class ItemRoutingSystem:
             self.log(f"Minimum Path: {path}")
             # self.log(f"Shortest Number of Steps: {smallest}")
 
-        return path
+        return total_cost, path
 
     def gather_brute_force(self, targets):
         """
@@ -1075,7 +1079,7 @@ class ItemRoutingSystem:
 
         return targets
 
-    def collapse_directions(self, positions):
+    def collapse_directions(self, positions, skip_duplicate=True):
         result = []
         prev_x = prev_y = None
         prev_dir = direction = None
@@ -1102,11 +1106,12 @@ class ItemRoutingSystem:
                 else:
                     direction = 'y-'
 
-            #  Skip second position
-            if prev_dir is None:
-                prev_dir = direction
-                prev_x, prev_y = position
-                continue
+            if skip_duplicate:
+                #  Skip second position
+                if prev_dir is None:
+                    prev_dir = direction
+                    prev_x, prev_y = position
+                    continue
 
             # Evaluate if direction changed
             if prev_dir != direction:
@@ -1119,7 +1124,7 @@ class ItemRoutingSystem:
 
         return result
 
-    def get_descriptive_steps(self, positions, target):
+    def get_descriptive_steps(self, positions, targets, collapse=True):
         """
         Gets a list of directions to gather all items beginning from the
         internal starting position and returning to the starting position.
@@ -1148,7 +1153,19 @@ class ItemRoutingSystem:
 
             return is_right or is_left or is_above or is_below
 
-        updated_positions = self.collapse_directions(positions)
+        if collapse:
+            updated_positions = self.collapse_directions(positions)
+
+        # Manually remove duplicates
+        else:
+            prev_position = None
+            updated_positions = []
+            for position in positions:
+                if prev_position == position:
+                    continue
+
+                prev_position = position
+                updated_positions.append(position)
 
         start = updated_positions.pop(0)
         end = updated_positions.pop()
@@ -1167,8 +1184,12 @@ class ItemRoutingSystem:
             path.append(move)
 
             # At Access Point for target position
-            if is_at_access_point_to_target(position, target):
-                path.append(f"Pickup item at {target}.")
+            for target in targets:
+                print(position, target)
+                if is_at_access_point_to_target(position, target):
+                    print("Appending!")
+                    path.append(f"Pickup item at {target}.")
+                    break
 
         back_to_start, steps = self.move_to_target(current_position, end)
         total_steps += steps
@@ -1199,14 +1220,14 @@ class ItemRoutingSystem:
         if option == AlgoMethod.ORDER_OF_INSERTION:
             # targets = self.get_targets()
             targets = [self.starting_position, target, self.ending_position]
-            result = self.get_descriptive_steps(targets, target)
+            result = self.get_descriptive_steps(targets, [target])
             return result
 
         elif option == AlgoMethod.BRUTE_FORCE:
             # targets = self.get_targets()
             targets = [self.starting_position, target, self.ending_position]
             path = self.gather_brute_force(targets)
-            result = self.get_descriptive_steps(path, target)
+            result = self.get_descriptive_steps(path, [target])
             return result
 
         elif option == AlgoMethod.DIJKSTRA:
@@ -1242,10 +1263,10 @@ class ItemRoutingSystem:
                 self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
                 path, _ = self.dijkstra(self.map, shortest_path[-1], self.ending_position)
                 shortest_path = shortest_path + path[1:]
-                result = self.get_descriptive_steps(shortest_path, target)
+                result = self.get_descriptive_steps(shortest_path, [target])
             elif timeout:
                 path = [self.starting_position, target, self.ending_position]
-                result = self.get_descriptive_steps(path, target)
+                result = self.get_descriptive_steps(path, [target])
             return result
 
     def verify_settings_range(self, value, minimum, maximum):
@@ -1656,12 +1677,46 @@ class ItemRoutingSystem:
                     self.map = deepcopy(original_map)
 
                     self.order = self.process_order(order)
-
+                    self.graph = self.build_graph_for_order(self.order)
 
                 # Get Path for Order
                 elif suboption == '2':
-                    continue
+                    if self.order:
+                        print(self.order)
+                        if self.graph is None:
+                            self.graph = self.build_graph_for_order(self.order)
 
+                        if self.tsp_algorithm == AlgoMethod.BRANCH_AND_BOUND:
+                            cost, path = self.branch_and_bound(self.graph, self.order)
+
+                        elif self.tsp_algorithm == AlgoMethod.LOCALIZED_MIN_PATH:
+                            cost, path = self.localized_min_path(self.graph, self.order)
+
+                        target_locations = []
+                        for product in self.order:
+                            print(product)
+                            if product == 'Start' or product == 'End':
+                                continue
+
+                            location = self.product_info.get(product)
+                            if location:
+                                target_locations.append(location)
+
+                        steps = self.get_descriptive_steps(path, target_locations, collapse=False)
+
+                        if steps:
+                            self.display_path_in_map(steps)
+
+                            self.log("Directions:")
+                            self.log("-----------")
+                            for step, action in enumerate(steps, 1):
+                                self.log(f"{step}. {action}")
+
+                        else:
+                            self.log(f"Path to {product_id} was not found!")
+
+                    else:
+                        self.log("No existing order! Please create an order first!")
                 # Get Path to Product
                 elif suboption == '3':
                     self.log("Get Path to Product")
@@ -2151,7 +2206,7 @@ class ItemRoutingSystem:
 
                                             # Run Branch and Bound
                                             try:
-                                                self.branch_and_bound(graph, grouped_items)
+                                                cost, path = self.branch_and_bound(graph, grouped_items)
                                             except Exception as exc:
                                                 # Return path
                                                 failed += 1
@@ -2161,7 +2216,7 @@ class ItemRoutingSystem:
 
                                             # Run Custom Algorithm
                                             try:
-                                                self.localized_min_path(graph, grouped_items)
+                                                cost, path = self.localized_min_path(graph, grouped_items)
                                             except Exception as exc:
                                                 # Return path
                                                 failed += 1
