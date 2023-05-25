@@ -14,6 +14,7 @@ from copy import deepcopy
 import heapq
 import itertools
 import os
+import platform
 import random
 import signal
 import sys
@@ -2160,7 +2161,7 @@ class ItemRoutingSystem:
                                         if self.debug:
                                             for test_case in self.test_cases:
                                                 size, ids = test_case
-                                                self.log(size, ids, print_type=PrintType.DEBUG)
+                                                self.log(size, ids, print_type=PrintType.MINOR)
 
                                     else:
                                         self.log(f"File '{test_case_file}' was not found, please try entering full path to file!")
@@ -2201,6 +2202,21 @@ class ItemRoutingSystem:
                                         failed = 0
                                         cases_failed = {}
 
+                                        # Get Test System Information
+                                        system_info = {
+                                            "Machine": platform.machine(),
+                                            "Platform": platform.platform(),
+                                            "System": platform.system(),
+                                            "Kernel Version": platform.release()
+                                        }
+
+                                        self.log("\nSystem Information\n"\
+                                                 "------------------")
+                                        for k, v in system_info.items():
+                                            self.log(f"{k}: \n\t{v}")
+                                        self.log("")
+
+                                        # Run All Test Cases
                                         for test_case in self.test_cases:
                                             size, product_ids = test_case
                                             cases_failed[size] = {}
