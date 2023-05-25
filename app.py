@@ -64,12 +64,12 @@ class ItemRoutingSystem:
         self.item_mode = GenerateMode.RANDOM
         self.minimum_items = 0
         self.maximum_items = 8
-        self.maximum_routing_time = 60
         self.items = self.get_item_positions()
 
         # Default algorithm
         self.gathering_algo = AlgoMethod.DIJKSTRA
         self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+        self.maximum_routing_time = 15
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
@@ -210,7 +210,7 @@ class ItemRoutingSystem:
             menu.add_option(2, "Set Worker Starting Position Mode")
             menu.add_option(3, "Set Worker Ending Position Mode")
             menu.add_option(4, "Set Maximum Items Ordered")
-            menu.add_option(5, "Set Routine Time Maximum")
+            menu.add_option(5, "Set Routing Time Maximum")
             menu.add_option(6, "Toggle Debug Mode")
 
             if self.debug:
@@ -447,7 +447,7 @@ class ItemRoutingSystem:
                         f"  Worker Position: {self.starting_position}\n" \
                         f"  Ordered Item Maximum: {self.maximum_items}\n" \
                         f"  Algorithm: {self.tsp_algorithm}\n" \
-                        f"  Maximum Time To Process: {self.maximum_routing_time}\n" \
+                        f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
                         f"  Debug Mode: {self.debug}\n"
 
         self.log(settings_info)
@@ -913,10 +913,9 @@ class ItemRoutingSystem:
             self.log("Function timed out!")
             raise Exception("Function Timeout")
 
-        # Setup 15 second timeout
-        signal.signal(signal.SIGALRM, timeout_handler)
-        timeout = 15 # seconds
-        signal.alarm(timeout)
+        # Setup timeout signal
+        signal.signal(signal.SIGALRM, timeout_handler) # seconds
+        signal.alarm(self.maximum_routing_time)
 
         if algorithm is None:
             algorithm = self.tsp_algorithm
@@ -938,7 +937,7 @@ class ItemRoutingSystem:
         except Exception as exc:
             # Algorithm timed out, return input order list
             self.log(exc)
-            return None, order, timeout
+            return None, order, self.maximum_routing_time
 
         # End Time for timing algorithm run time
         end_time = time.time()
@@ -1269,7 +1268,7 @@ class ItemRoutingSystem:
             # Maximum Routing Time Setup
             timeout = False
             t_temp = 0.0
-            t_thresh = self.maximum_routing_time * 60  # minute to second conversion
+            t_thresh = self.maximum_routing_time
             t_start = time.time()
 
             # Run Dijkstra's for every position next to the target item
@@ -1596,16 +1595,16 @@ class ItemRoutingSystem:
 
         success = False
 
-        minutes = input(f"Set Maximum Routing Time in Minutes (Currently {self.maximum_routing_time}): ")
+        routing_time = input(f"Set Maximum Routing Time in Seconds (Currently {self.maximum_routing_time}): ")
 
-        max_success = self.verify_settings_range(minutes, 0, 1440)
+        max_success = self.verify_settings_range(routing_time, 0, 1440)
         if (max_success):
             success = True
-            self.maximum_routing_time = int(minutes)
+            self.maximum_routing_time = int(routing_time)
         else:
             self.log("Invalid value, please try again!")
 
-        self.log(f"Maximum Routing Time in Minutes: {self.maximum_routing_time}")
+        self.log(f"Maximum Routing Time in Seconds: {self.maximum_routing_time}")
 
         return success
 
@@ -1721,7 +1720,7 @@ class ItemRoutingSystem:
                         cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order)
 
                         # Algo Timed Out
-                        if run_time == 15:
+                        if run_time == self.maximum_routing_time:
                             cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.LOCALIZED_MIN_PATH)
 
 
