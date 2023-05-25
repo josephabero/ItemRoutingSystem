@@ -719,13 +719,12 @@ class ItemRoutingSystem:
         for key, val in matrix.items():
             temp_val = deepcopy(val)
             for k, v in temp_val.items():
-                # print(v)
                 if "path" in v:
                     v.pop("location")
                     v.pop("path")
                 # v.pop()
             print_matrix[str(key)] = temp_val
-        print(json.dumps(print_matrix, indent=4))
+        self.log(print_matrix)
 
     def matrix_reduction(self, matrix, source=None, dest=None):
         """
@@ -750,7 +749,7 @@ class ItemRoutingSystem:
                     for direc in v:
                         v[direc]['cost'] = INFINITY
 
-                # print("Source set to Infinity")
+                self.log("Source set to Infinity", print_type=PrintType.MINOR)
                 # print_matrix(temp_matrix)
 
 
@@ -775,13 +774,15 @@ class ItemRoutingSystem:
                             v[direc]['cost'] = INFINITY
                         else:
                             v[direc]['cost'] = (v.get(direc).get('cost') - row_cost)
-            # if (row_cost != 0):
-                # print(f"Row: {row_cost}")
+
+            if (row_cost != 0):
+                self.log(f"Row: {row_cost}", print_type=PrintType.MINOR)
+
             reduction_cost += row_cost
 
-        # print("Final Child")
+        self.log("Final Child", print_type=PrintType.MINOR)
         # print_matrix(temp_matrix)
-        # print(f"Reduction Cost: {reduction_cost}")
+        self.log(f"Reduction Cost: {reduction_cost}", print_type=PrintType.MINOR)
         return reduction_cost, temp_matrix
 
     def branch_and_bound(self, graph, order):
@@ -794,13 +795,12 @@ class ItemRoutingSystem:
         # 1. Create Matrix
 
         # 2. Reduction
-        # print("Parent Matrix")
+        self.log("Parent Matrix", print_type=PrintType.MINOR)
         reduced_cost, parent_matrix = self.matrix_reduction(graph)
         child_matrix = deepcopy(parent_matrix)
 
         # 3. Choose Random Start
         # start_node, dest_node, start_dir = random.choice( list(graph) )
-        # print(start_node, dest_node, start_dir)
         start_node, dest_node, start_dir = ('Start', 108335, None)
 
         # 4. Set Upper Bound
@@ -910,7 +910,7 @@ class ItemRoutingSystem:
 
     def run_tsp_algorithm(self, graph, order, algorithm=None):
         def timeout_handler(signum, frame):
-            print("Function timed out!")
+            self.log("Function timed out!")
             raise Exception("Function Timeout")
 
         # Setup 15 second timeout
@@ -937,7 +937,7 @@ class ItemRoutingSystem:
 
         except Exception as exc:
             # Algorithm timed out, return input order list
-            print(exc)
+            self.log(exc)
             return None, order, timeout
 
         # End Time for timing algorithm run time
@@ -1220,9 +1220,7 @@ class ItemRoutingSystem:
 
             # At Access Point for target position
             for target in targets:
-                print(position, target)
                 if is_at_access_point_to_target(position, target):
-                    print("Appending!")
                     path.append(f"Pickup item at {target}.")
                     break
 
@@ -1717,19 +1715,18 @@ class ItemRoutingSystem:
                 # Get Path for Order
                 elif suboption == '2':
                     if self.order:
-                        print(self.order)
                         if self.graph is None:
                             self.graph = self.build_graph_for_order(self.order)
 
-                        if self.tsp_algorithm == AlgoMethod.BRANCH_AND_BOUND:
-                            cost, path = self.branch_and_bound(self.graph, self.order)
+                        cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order)
 
-                        elif self.tsp_algorithm == AlgoMethod.LOCALIZED_MIN_PATH:
-                            cost, path = self.localized_min_path(self.graph, self.order)
+                        # Algo Timed Out
+                        if run_time == 15:
+                            cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.LOCALIZED_MIN_PATH)
+
 
                         target_locations = []
                         for product in self.order:
-                            print(product)
                             if product == 'Start' or product == 'End':
                                 continue
 
@@ -2171,10 +2168,6 @@ class ItemRoutingSystem:
 
                             # Run Test Cases
                             elif adv_option == '7':
-                                def timeout_handler(signum, frame):
-                                    print("Function timed out!")
-                                    raise Exception("Function Timeout")
-
                                 if self.test_case_file and self.test_product_file:
                                     success = self.load_product_file(self.test_product_file)
 
