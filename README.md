@@ -29,3 +29,4 @@ make clean
 1. Current Branch and Bound Implementation is Single Access and always begins traversal from Start node
 2. Current Branch and Bound Implementation may be slower than intended as size 7 and higher input sizes take longer than 15 seconds
 3. Some invalid user inputs will crash the program due to unexpected values that are not handled.
+4. On Windows, `SIGALRM` is an unknown signal, so any algorithm with a timeout exception will crash.
