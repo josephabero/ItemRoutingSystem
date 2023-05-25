@@ -839,7 +839,7 @@ class ItemRoutingSystem:
 
                 # Ignore "End" destination and other irrelevant entries
                 if (source == start and source_direction == src_dir and dest != "End"):
-                    highest_reduction = 0
+                    highest_reduction = INFINITY
                     chosen_start = chosen_direc = None
                     chosen_matrix = None
                     child_path = []
@@ -852,17 +852,17 @@ class ItemRoutingSystem:
                         reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
 
                         # Filter for minimum Single Access Point
-                        if chosen_start is None or reduction > highest_reduction:
+                        if chosen_start is None or reduction + cost < highest_reduction:
                             chosen_start = dest
                             chosen_direc = direc
-                            highest_reduction = reduction
+                            highest_reduction = reduction + cost
                             chosen_matrix = deepcopy(temp_matrix)
                             # print(f"Before Child Path: {child_path}")
                             child_path = src_path + values[chosen_direc].get('path')
                             # print(f"After Child Path: {child_path}")
 
                     if child_path:
-                        # print(f"Will Visit: {start}, {chosen_start}, {chosen_direc}")
+                        print(f"Will Visit: {start}, {chosen_start}, {chosen_direc}")
                         queue.append( (chosen_start, chosen_direc, level + 1, cost + reduction, chosen_matrix, child_path) )
 
     def localized_min_path(self, graph, order):
