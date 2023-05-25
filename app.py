@@ -211,11 +211,11 @@ class ItemRoutingSystem:
             menu.add_option(6, "Toggle Debug Mode")
 
             if self.debug:
-                menu.add_option(6, "Advanced Settings")
-                menu.add_option(7, "Back")
+                menu.add_option(7, "Advanced Settings")
+                menu.add_option(8, "Back")
 
             else:
-                menu.add_option(6, "Back")
+                menu.add_option(7, "Back")
 
             info = "Current Settings:\n" \
                    f"  Loaded Product File: {self.product_file}\n" \
@@ -2152,7 +2152,7 @@ class ItemRoutingSystem:
                         break
 
                 # Debug Mode: Back
-                elif suboption == '7' and self.debug:
+                elif suboption == '8' and self.debug:
                     break
 
                 else:
