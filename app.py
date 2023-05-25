@@ -11,11 +11,12 @@ from constants import *
 from menu import Menu
 from queue import PriorityQueue
 
+from copy import deepcopy
 import heapq
 import itertools
-import json
 import os
 import random
+import signal
 import sys
 import time
 
@@ -25,8 +26,9 @@ class ItemRoutingSystem:
 
     Handles user inputs, generation of the map, and settings.
     """
-    WORKER_SYMBOL = 'S'
-    ITEM_SYMBOL = chr(9641) # ▩
+    WORKER_SYMBOL       = 'S'
+    ITEM_SYMBOL         = chr(ord("▣"))
+    ORDERED_ITEM_SYMBOL = '‼'
 
     def __init__(self):
         """
@@ -44,6 +46,9 @@ class ItemRoutingSystem:
         # Default product info list
         self.product_info = {}
         self.product_file = None
+
+        # Default order list
+        self.order = []
 
         # Default test case filename
         self.test_case_file = None
@@ -184,15 +189,17 @@ class ItemRoutingSystem:
 
         elif menu_type == MenuType.VIEW_MAP:
             menu = Menu("View Map Menu")
-            menu.add_option(1, "Get Path to Product")
-            menu.add_option(2, "Get Location of Product")
+            menu.add_option(1, "Create Order")
+            menu.add_option(2, "Get Path for Order")
+            menu.add_option(3, "Get Path to Product")
+            menu.add_option(4, "Get Location of Product")
 
             # Only expose advanced setting option in debug mode
             if self.debug:
-                menu.add_option(3, "Generate New Map")
-                menu.add_option(4, "Back")
+                menu.add_option(5, "Generate New Map")
+                menu.add_option(6, "Back")
             else:
-                menu.add_option(3, "Back")
+                menu.add_option(5, "Back")
 
         elif menu_type == MenuType.SETTINGS:
             menu = Menu("Settings Menu")
@@ -407,6 +414,7 @@ class ItemRoutingSystem:
         self.log("LEGEND:".center(banner_length))
         self.log(f"{ItemRoutingSystem.WORKER_SYMBOL}: Worker Starting Spot".center(banner_length))
         self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
+        self.log(f"{ItemRoutingSystem.ORDERED_ITEM_SYMBOL}: Ordered Item".center(banner_length))
         self.log("Positions are labeled as (X, Y)".center(banner_length))
         self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
         self.log("")
@@ -419,6 +427,98 @@ class ItemRoutingSystem:
             f"  Debug Mode: {self.debug}\n"
 
         self.log(settings_info)
+
+    def display_path_in_map(self, steps):
+        path = []
+        original_map = deepcopy(self.map)
+
+        for step in steps:
+            # From (0, 5), move right 10 to (10, 5).
+            if step.startswith("From"):
+                for direction in ["right", "left", "up", "down"]:
+                    if direction in step:
+                        parsed = step.split(" ")
+
+                        start_x = int(parsed[1][1:-1])  # Parse '(0,'
+                        start_y = int(parsed[2][:-2])   # Parse ' 5)'
+
+                        dir_index = parsed.index(direction)
+                        step_magnitude = int(parsed[dir_index + 1])  # Parse 'right 10'
+
+
+                        end_x = int(parsed[dir_index + 3][1:-1])  # Parse '(10,'
+                        end_y = int(parsed[dir_index + 4][:-2])   # Parse '5).'
+
+                        step_values = {
+                            "type": "move",
+                            "start": (start_x, start_y),
+                            "direction": direction,
+                            "step_magnitude": step_magnitude,
+                            "end": (end_x, end_y)
+                        }
+
+                        path.append(step_values)
+
+            elif step.startswith("Pickup item"):
+                parsed = step.split(" ")
+
+                end_x = int(parsed[3][1:-1])
+                end_y = int(parsed[4][:-2])
+
+                step_values = {
+                    "type": "pickup",
+                    "end": (end_x, end_y)
+                }
+
+                path.append(step_values)
+
+        arrows = {
+            "left": chr(ord('←')),
+            "right": chr(ord('→')),
+            "up": chr(ord('↑')),
+            "down": chr(ord('↓')),
+            "up_down": chr(ord('⇅')),
+            "left_right": chr(ord('⇄'))
+        }
+
+        for step in path:
+
+            if step["type"] == "move":
+                start = step["start"]
+                for i in range(step["step_magnitude"]):
+                    x, y = start
+                    if step["direction"] == "up":
+                        y += i
+
+                    elif step["direction"] == "down":
+                        y -= i
+
+                    elif step["direction"] == "left":
+                        x -= i
+
+                    elif step["direction"] == "right":
+                        x += i
+
+                    if self.map[x][y] == ItemRoutingSystem.WORKER_SYMBOL:
+                        continue
+
+                    elif self.map[x][y] == '_':
+                        self.map[x][y] = arrows[step["direction"]]
+
+                    elif self.map[x][y] in [arrows["up"], arrows["down"]]:
+                        self.map[x][y] = arrows["up_down"]
+
+                    elif self.map[x][y] in [arrows["left"], arrows["right"]]:
+                        self.map[x][y] = arrows["left_right"]
+
+            elif step["type"] == "pickup":
+                x, y = step["end"]
+                self.map[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
+
+        self.display_map()
+
+        # Restore Original Map
+        self.map = deepcopy(original_map)
 
     def move_to_target(self, start, end):
         """
@@ -530,7 +630,7 @@ class ItemRoutingSystem:
                    start == "End" or \
                    end == "Start" or \
                    start == "Start" and end == "End":
-                    self.log(f"Skipping pair: {start, end}", print_type=PrintType.DEBUG)
+                    self.log(f"Skipping pair: {start, end}", print_type=PrintType.MINOR)
                     continue
 
                 for start_dir in directions:
@@ -550,7 +650,7 @@ class ItemRoutingSystem:
 
                         # Don't add invalid position
                         if not is_valid_position(x, y):
-                            self.log(f"Invalid access point position: {x, y}", print_type=PrintType.DEBUG)
+                            self.log(f"Invalid access point position: {x, y}", print_type=PrintType.MINOR)
                             valid_directions[end_dir] = {
                                 "location": None,
                                 "cost": None,
@@ -567,7 +667,7 @@ class ItemRoutingSystem:
                                 start_y = self.product_info[start][1] + directions[start_dir][1]
 
                                 if not is_valid_position(start_x, start_y):
-                                    self.log(f"({start_x}, {start_y}) Not a VALID STARTING POSITION", print_type=PrintType.DEBUG)
+                                    self.log(f"({start_x}, {start_y}) Not a VALID STARTING POSITION", print_type=PrintType.MINOR)
                                     continue
 
                                 start_position = (start_x, start_y)
@@ -588,9 +688,15 @@ class ItemRoutingSystem:
 
         return graph
 
+    def branch_and_bound(self, graph):
+        while True:
+            for k, v in graph.items():
+                # print(k, v)
+                continue
+            time.sleep(1)
+
     def custom_algo(self, graph):
         for k, v in graph.items():
-            # print(k, json.dumps(v, indent=4))
             # print(k, v)
             continue
 
@@ -671,7 +777,7 @@ class ItemRoutingSystem:
 
         x, y = target
         if not is_valid_position(x, y):
-            self.log(f"Invalid target position: {target}", print_type=PrintType.DEBUG)
+            self.log(f"Invalid target position: {target}", print_type=PrintType.MINOR)
             return [], None
         
         # Initialize the distance to all positions to infinity and to the starting position to 0
@@ -691,7 +797,7 @@ class ItemRoutingSystem:
             
             # If we've found the target, we're done
             if position == target:
-                self.log(f"Found path to target {target} with cost {cost}!", print_type=PrintType.DEBUG)
+                self.log(f"Found path to target {target} with cost {cost}!", print_type=PrintType.MINOR)
                 total_cost = cost
                 break
             
@@ -699,14 +805,14 @@ class ItemRoutingSystem:
             for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 x, y = position[0] + dx, position[1] + dy
 
-                self.log(position, (x, y), print_type=PrintType.DEBUG)
+                self.log(position, (x, y), print_type=PrintType.MINOR)
 
                 if not is_valid_position(x, y):
-                    self.log(f"Skipping {(x, y)}: Invalid Position", print_type=PrintType.DEBUG)
+                    self.log(f"Skipping {(x, y)}: Invalid Position", print_type=PrintType.MINOR)
                     continue
 
                 if grid[x][y] == ItemRoutingSystem.ITEM_SYMBOL:
-                    self.log(f"Skipping {(x, y)}: Item", print_type=PrintType.DEBUG)
+                    self.log(f"Skipping {(x, y)}: Item", print_type=PrintType.MINOR)
                     continue
                 
                 # Compute the distance to the neighbor
@@ -727,7 +833,7 @@ class ItemRoutingSystem:
         path.reverse()
         
         if target in path:
-            self.log(f"Path found with cost {total_cost}: {path}", print_type=PrintType.DEBUG)
+            self.log(f"Path found with cost {total_cost}: {path}", print_type=PrintType.MINOR)
             return path, total_cost
         else:
             self.log("Path not found", print_type=PrintType.DEBUG)
@@ -758,51 +864,48 @@ class ItemRoutingSystem:
         return targets
 
     def collapse_directions(self, positions):
-        # Empty list of positions
-        if not positions:
-            return []
+        result = []
+        prev_x = prev_y = None
+        prev_dir = direction = None
 
-        prev_target = []
-        direc = None
-        updated_positions = [positions[0]]
-
-        # Preprocessing
-        start = positions[0]
         for position in positions:
-            # initial direction setup
-            if ( direc is None ):
-                if start == position:
-                    direc = "Start"
-                prev_position = position
+            x, y = position
+
+            # Skip first position
+            if prev_x is None:
+                result.append(position)
+                prev_x, prev_y = position
                 continue
 
-            # If second node, determine direction
-            if direc == "Start":
-                if ( prev_position[1] == position[1] ):
-                    direc = "LR"
+            # Determine Direction
+            if prev_x != x:
+                if prev_x > x:
+                    direction = 'x+'
                 else:
-                    direc = "DU"
+                    direction = 'x-'
 
-            # if moving in same direction, ignore and continue
-            if ( prev_position[0] == position[0] and direc == "DU"):
-                prev_position = position
-                continue
-            elif ( prev_position[1] == position[1] and direc == "LR"):
-                prev_position = position
-                continue
-            # change of direction means you add the position into the list
-            else:
-                updated_positions.append(prev_position)
-                if (direc == "DU"):
-                    direc = "LR"
+            elif prev_y != y:
+                if prev_y > y:
+                    direction = 'y+'
                 else:
-                    direc = "DU"
-            prev_position = position
+                    direction = 'y-'
 
-        # Adds the last position
-        updated_positions.append(positions[-1])
+            #  Skip second position
+            if prev_dir is None:
+                prev_dir = direction
+                prev_x, prev_y = position
+                continue
 
-        return updated_positions
+            # Evaluate if direction changed
+            if prev_dir != direction:
+                prev_dir = direction
+                result.append((prev_x, prev_y))
+
+            prev_x, prev_y = position
+
+        result.append(positions[-1])
+
+        return result
 
 
     def get_descriptive_steps(self, positions, target):
@@ -826,6 +929,14 @@ class ItemRoutingSystem:
             path (list of str): List of English directions worker should take to gather
                                 all items from starting position.
         """
+        def is_at_access_point_to_target(position, target):
+            is_right = (position[0] + 1) == target[0] and (position[1] == target[1])
+            is_left  = (position[0] - 1) == target[0] and (position[1] == target[1])
+            is_above = (position[0]) == target[0] and (position[1] + 1 == target[1])
+            is_below = (position[0]) == target[0] and (position[1] - 1 == target[1])
+
+            return is_right or is_left or is_above or is_below
+
         updated_positions = self.collapse_directions(positions)
 
         start = updated_positions.pop(0)
@@ -842,9 +953,13 @@ class ItemRoutingSystem:
             current_position = position
             total_steps += steps
             path.append(move)
+
+            # At Access Point for target position
+            if is_at_access_point_to_target(position, target):
+                path.append(f"Pickup item at {target}.")
+
         back_to_start, steps = self.move_to_target(current_position, end)
         total_steps += steps
-        path.append(f"Pickup item at {target}.")
         path.append(back_to_start)
         path.append("Pickup completed.")
 
@@ -915,7 +1030,8 @@ class ItemRoutingSystem:
             result = []
             if shortest_path:
                 self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
-                # path = shortest_path + [self.starting_position]
+                path, _ = self.dijkstra(self.map, shortest_path[-1], self.starting_position)
+                shortest_path = shortest_path + path[1:]
                 result = self.get_descriptive_steps(shortest_path, target)
             elif timeout:
                 path = [ self.starting_position, target, self.starting_position ]
@@ -1341,8 +1457,60 @@ class ItemRoutingSystem:
                 # Handle menu options
                 suboption = input("> ")
 
-                # Get Path to Product
+                # Create Order
                 if suboption == '1':
+                    product_id = None
+                    order = []
+                    item_positions = []
+
+                    if self.debug:
+                        self.log("Product IDs:")
+                        for i, product in enumerate(self.product_info, 1):
+                            self.log(f"{i}. {product}")
+
+                    while product_id != "f":
+                        product_id = input("Enter Product ID ('f' to finish order): ").rstrip()
+
+                        if product_id == "f":
+                            break
+
+                        elif product_id and int(product_id) in self.product_info:
+                            order.append(int(product_id))
+
+                        else:
+                            self.log(f"Product ID '{product_id}' was not found, please try again!")
+
+                    if order:
+                        items = "items" if len(order) > 1 else "item"
+                        self.log(f"\n",
+                                 f"You completed your order of {len(order)} {items}!\n",
+                                 f"You ordered:")
+
+                        for i, product in enumerate(order, 1):
+                            self.log(f"  {i}. {product}")
+                            item_positions.append(self.product_info[product])
+
+                    original_map = deepcopy(self.map)
+
+                    # Label ordered items
+                    for position in item_positions:
+                        x, y = position
+                        self.map[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
+
+                    self.display_map()
+
+                    # Restore Original Map
+                    self.map = deepcopy(original_map)
+
+                    self.order = self.process_order(order)
+
+
+                # Get Path for Order
+                elif suboption == '2':
+                    continue
+
+                # Get Path to Product
+                elif suboption == '3':
                     self.log("Get Path to Product")
 
                     # Request Product ID to find path for
@@ -1369,6 +1537,8 @@ class ItemRoutingSystem:
                     steps = self.get_items(self.gathering_algo, item_position)
 
                     if steps:
+                        self.display_path_in_map(steps)
+
                         self.log("Directions:")
                         self.log("-----------")
                         for step, action in enumerate(steps, 1):
@@ -1379,7 +1549,7 @@ class ItemRoutingSystem:
                     clear = False
 
                 # Get Location of Product
-                elif suboption == '2':
+                elif suboption == '4':
                     self.log("Get Location of Product")
 
                     complete = False
@@ -1403,7 +1573,7 @@ class ItemRoutingSystem:
                             complete = True
 
                 # Back
-                elif suboption == '3':
+                elif suboption == '5':
                     # Debug Mode: Generate New Map
                     if self.debug:
                         self.log("Generate New Map")
@@ -1418,7 +1588,7 @@ class ItemRoutingSystem:
                         break
 
                 # Debug Mode: Back
-                elif suboption == '4' and self.debug:
+                elif suboption == '6' and self.debug:
                     break
 
                 else:
@@ -1672,6 +1842,10 @@ class ItemRoutingSystem:
 
                             # Run Test Cases
                             elif adv_option == '6':
+                                def timeout_handler(signum, frame):
+                                    print("Function timed out!")
+                                    raise Exception("Function Timeout")
+
                                 if self.test_case_file and self.test_product_file:
                                     success = self.load_product_file(self.test_product_file)
 
@@ -1708,6 +1882,7 @@ class ItemRoutingSystem:
 
                                         for test_case in self.test_cases:
                                             size, product_ids = test_case
+                                            cases_failed[size] = {}
 
                                             # Get Locations
                                             for product_id in product_ids:
@@ -1718,7 +1893,7 @@ class ItemRoutingSystem:
                                                         cases_failed["Location"] = []
 
                                                     failed += 1
-                                                    cases_failed["Location"].append(product_id)
+                                                    cases_failed[size]["Location"].append(product_id)
 
                                                     self.log(f"Failed to get location for Product '{product_id}'.")
 
@@ -1730,7 +1905,30 @@ class ItemRoutingSystem:
                                             print("-----")
                                             grouped_items = self.process_order(product_ids)
                                             graph = self.build_graph_for_order(grouped_items)
-                                            self.custom_algo(graph)
+
+                                            # Setup 15 second timeout
+                                            signal.signal(signal.SIGALRM, timeout_handler)
+                                            signal.alarm(5)
+
+                                            # Run Branch and Bound
+                                            try:
+                                                self.branch_and_bound(graph)
+                                            except Exception as exc:
+                                                # Return path
+                                                failed += 1
+                                                cases_failed[size]["Branch and Bound"] = "Timeout"
+                                                print("Failed Branch and Bound")
+                                                print(exc)
+
+                                            # Run Custom Algorithm
+                                            try:
+                                                self.custom_algo(graph)
+                                            except Exception as exc:
+                                                # Return path
+                                                failed += 1
+                                                cases_failed[size]["Custom Algorithm"] = "Timeout"
+                                                print("Failed Custom")
+                                                print(exc)
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \
@@ -1738,13 +1936,14 @@ class ItemRoutingSystem:
                                                  f"Failed: {failed}\n"    \
                                                  f"Total:  {passed + failed}")
 
-                                        if cases_failed:
+                                        if failed:
                                             self.log(cases_failed)
 
                                 else:
                                     self.log("No test cases to run! Must load test case file first!")
 
-                                update = False
+                                update = True
+                                clear = False
 
                             # Back
                             elif adv_option == '7':
