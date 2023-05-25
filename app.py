@@ -811,33 +811,42 @@ class ItemRoutingSystem:
         # (source, source_direction, level, cost, matrix, path)
         queue.append( (start_node, start_dir, 0, reduced_cost, child_matrix, path) )
 
+        minimum_cost = INFINITY
         while queue:
 
-            # Get minimum cost node
+            # Get lowest cost node
             index = 0
             if len(queue) > 1:
-                minimum_cost = INFINITY
+                lowest_cost_node = INFINITY
                 for i, (source, source_direction, level, cost, matrix, src_path) in enumerate(queue):
-                    if cost < minimum_cost:
+                    if cost < lowest_cost_node:
                         index = i
 
             source, source_direction, level, cost, matrix, src_path = queue.pop(index)
             self.log(f"New Source: {source}", print_type=PrintType.MINOR)
             self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.MINOR)
 
+            # If cost is greater than minimum cost of already found path, ignore
+            if cost > minimum_cost:
+                continue
+
             # If all items have been picked up
-            if ( level == len(order)-2 ):
-                final_path = src_path + matrix[(source, "End", source_direction)]["N"]["path"]
+            if ( level == len(order) - 2 ):
+                level_path = src_path + matrix[(source, "End", source_direction)]["N"]["path"]
+                self.log(f"Reached Level: {level_path}", print_type=PrintType.MINOR)
+
                 cost += matrix[(source, "End", source_direction)]["N"]["cost"]
 
-                self.log(f"Reached Level: {final_path}", print_type=PrintType.MINOR)
-                return cost, final_path
+                # Store path if minimum path
+                if cost < minimum_cost:
+                    final_path = level_path
+                    minimum_cost = cost
 
             for (start, dest, src_dir), values in matrix.items():
 
                 # Ignore "End" destination and other irrelevant entries
                 if (source == start and source_direction == src_dir and dest != "End"):
-                    highest_reduction = 0
+                    highest_reduction = INFINITY
                     chosen_start = chosen_direc = None
                     chosen_matrix = None
                     child_path = []
@@ -850,10 +859,10 @@ class ItemRoutingSystem:
                         reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
 
                         # Filter for minimum Single Access Point
-                        if chosen_start is None or reduction > highest_reduction:
+                        if chosen_start is None or reduction + cost < highest_reduction:
                             chosen_start = dest
                             chosen_direc = direc
-                            highest_reduction = reduction
+                            highest_reduction = reduction + cost
                             chosen_matrix = deepcopy(temp_matrix)
                             self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
                             child_path = src_path + values[chosen_direc].get('path')
@@ -862,6 +871,8 @@ class ItemRoutingSystem:
                     if child_path:
                         self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
                         queue.append( (chosen_start, chosen_direc, level + 1, cost + reduction, chosen_matrix, child_path) )
+
+        return minimum_cost, final_path
 
     def localized_min_path(self, graph, order):
         """
