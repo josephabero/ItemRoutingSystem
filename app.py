@@ -19,144 +19,6 @@ import signal
 import sys
 import time
 
-class MenuType(Enum):
-    """
-    Constants for menu types.
-    """
-    MAIN_MENU = 0
-    VIEW_MAP = 1
-    SETTINGS = 2
-    ADVANCED_SETTINGS = 3
-    ALGO_METHOD = 4
-    WORKER_START_POSITION = 5
-    WORKER_ENDING_POSITION = 6
-    ITEM_POSITION = 7
-    LOAD_PRODUCT_FILE = 8
-
-
-class AlgoMethod(Enum):
-    """
-    Constants for algorithms used to gather items.
-    """
-    ORDER_OF_INSERTION = "Order of Insertion"
-    BRUTE_FORCE = "Brute Force"
-    DIJKSTRA = "Dijkstra"
-    BRANCH_AND_BOUND = "Branch and Bound"
-    CUSTOM_ALGORITHM = "Custom Algorithm"
-
-    def __str__(cls):
-        return cls.value
-
-
-class GenerateMode(Enum):
-    """
-    Constants for modes of generating settings.
-    """
-    MANUAL = "Manual"
-    RANDOM = "Random"
-    LOADED_FILE = "Loaded File"
-
-    def __str__(cls):
-        return cls.value
-
-
-class PrintType(Enum):
-    """
-    Constants to choose logging mode.
-    """
-    NORMAL = 0
-    DEBUG = 1
-
-
-class Menu:
-    """
-    Displays menu options to screen.
-    """
-
-    def __init__(self, menu_name):
-        """
-        Initializes menu with a name and defaults to no options.
-
-        Args:
-            menu_name (str): name of menu
-        """
-        self.menu_name = menu_name
-        self.options = []
-        self.misc_info = None
-
-    def print_banner(self):
-        """
-        Prints a menu header as a banner.
-
-        Examples:
-            >>> Menu.print_banner()
-            ------------------------------------------------------------
-                                        Menu
-            ------------------------------------------------------------
-        """
-        banner = "------------------------------------------------------------"
-        print(banner)
-        print(f"{self.menu_name.center(len(banner))}")
-        print(banner)
-
-    def display(self, clear=True):
-        """
-        Prints banner with menu name and menu options to choose from.
-
-        Args:
-            clear (bool): Option to clear screen
-
-        Examples:
-            >>> Menu.display()
-            ------------------------------------------------------------
-                                        Menu
-            ------------------------------------------------------------
-
-            1. Option 1
-            2. Option 2
-
-        """
-        if clear:
-            # Windows
-            if os.name == 'nt':
-                os.system('cls')
-
-            # Mac/Linus
-            else:
-                os.system('clear')
-
-        self.print_banner()
-
-        if self.misc_info:
-            print(self.misc_info)
-
-        if self.options:
-            print("")
-            for i, option in enumerate(self.options):
-                print(f"{i + 1}. {option}")
-            print("")
-
-    def add_option(self, index, option):
-        """
-        Inserts option to existing option list.
-
-        Args:
-            index  (int): Position of menu to insert option to.
-            option (str): Option name or description.
-
-        """
-        self.options.insert(index, option)
-
-    def set_misc_info(self, info):
-        """
-        Sets miscellaneous information for the menu.
-
-        Args:
-            info (str): Information relevant to the menu.
-        """
-        if isinstance(info, str):
-            self.misc_info = info
-
 class ItemRoutingSystem:
     """
     Main application for providing directions for a single worker to gather items.
@@ -987,10 +849,55 @@ class ItemRoutingSystem:
                         # print(f"Will Visit: {start}, {chosen_start}, {chosen_direc}")
                         queue.append( (chosen_start, chosen_direc, level + 1, cost + reduction, chosen_matrix, child_path) )
 
-    def custom_algo(self, graph, order):
-        for k, v in graph.items():
-            # print(k, v)
-            continue
+    def localized_min_path(self, graph, order):
+        """
+        find the optimal path with multiple access points
+
+        Args:
+            ordered_list: an organized list of product ID
+
+            graph: the distance graph using All-Pair-Shortest-Path
+
+        Returns:
+            path: a list of the locations
+        """
+        print(graph)
+        pre_node = None
+        access_direction = None
+
+        path = []
+
+        for product_id in order:
+            # start position
+            if product_id == 'Start':
+                pre_node = product_id
+                access_direction = None
+                continue
+
+            min_cost = float('inf')
+            shortest_path = []
+
+            # Choose one of the access points, and get the shortest path
+            for access_point, val in graph[(pre_node, product_id, access_direction)].items():
+                print(pre_node, product_id, access_direction)
+                print(val)
+                if val['cost'] is None:
+                    break
+                if min_cost is None or val['cost'] < min_cost:
+                    min_cost = val['cost']
+                    access_direction = access_point
+                    shortest_path = val['path']
+
+            path += shortest_path
+            pre_node = product_id
+
+        if self.debug:
+            # end_time = time.time()
+            # self.log(f"Total Time: {(end_time - start_time):.4f}")
+            self.log(f"Minimum Path: {path}")
+            # self.log(f"Shortest Number of Steps: {smallest}")
+
+        return path
 
     def gather_brute_force(self, targets):
         """
@@ -1143,97 +1050,6 @@ class ItemRoutingSystem:
             self.log("Path not found", print_type=PrintType.DEBUG)
             return [], None
 
-    # def ordered_list(self, grid, product_ID_list):
-    #     """
-    #     Organize the product ID list, for example, two items near each other will be put together in the ordered ilst
-    #
-    #     Args:
-    #         grid(list of lists): Positions of items within the grid.
-    #
-    #         product_ID_list: a list of unordered product IDs
-    #
-    #     Returns:
-    #         ordered_list: a list of ordered product IDs
-    #     """
-    #
-    #     # Create a dictionary to store the positions of each product ID
-    #     position_dict = {}
-    #
-    #     # Iterate through the grid and populate the position dictionary
-    #     for i in range(self.map_x):
-    #         for j in range(self.map_y):
-    #             position = grid[i][j]
-    #             if position in product_ID_list:
-    #                 if position not in position_dict:
-    #                     position_dict[position] = []
-    #                 position_dict[position].append((i, j))
-    #
-    #     # Sort the positions based on their Manhattan distances
-    #     sorted_positions = sorted(position_dict.values(), key=lambda x: (x[0][0], x[0][1]))
-    #
-    #     # Create the ordered list of product IDs
-    #     ordered_list = []
-    #     for positions in sorted_positions:
-    #         ordered_list.extend([position for position in positions])
-    #
-    #     return ordered_list
-
-
-    def customized_algorithm(self, order, graph):
-        """
-        find the optimal path with multiple access points
-
-        Args:
-            order: an organized list of product ID
-
-            graph: the distance graph using All-Pair-Shortest-Path
-
-        Returns:
-            path: a list of the locations
-        """
-        if self.debug:
-            start_time = time.time()
-
-        updated_order = order.copy()
-        updated_order.insert(0, 'Start')
-        updated_order.append('End')
-
-        pre_node = None
-        access_direction = None
-
-        path = []
-
-        for product_id in updated_order:
-            # start position
-            if product_id == 'Start':
-                pre_node = product_id
-                access_direction = None
-                continue
-
-            min_cost = None
-            shortest_path = []
-
-            # Choose one of the access points, and get the shortest path
-            for access_point, val in graph[(pre_node, product_id, access_direction)].items():
-                # if cose is none, the access point is not available
-                if val['cost'] is None:
-                    break
-                if min_cost is None or val['cost'] < min_cost:
-                    min_cost = val['cost']
-                    access_direction = access_point
-                    shortest_path = val['path']
-
-            path.append(shortest_path)
-            pre_node = product_id
-
-        if self.debug:
-            end_time = time.time()
-            self.log(f"Total Time: {(end_time - start_time):.4f}")
-            self.log(f"Minimum Path: {path}")
-            # self.log(f"Shortest Number of Steps: {smallest}")
-
-        return path
-
     def get_targets(self):
         """
         Gets a full list of targets. Uses stored worker starting position as first and last
@@ -1258,7 +1074,6 @@ class ItemRoutingSystem:
 
         return targets
 
-<<<<<<< HEAD
     def collapse_directions(self, positions):
         result = []
         prev_x = prev_y = None
@@ -1430,13 +1245,6 @@ class ItemRoutingSystem:
             elif timeout:
                 path = [self.starting_position, target, self.starting_position]
                 result = self.get_descriptive_steps(path, target)
-            return result
-
-        elif option == AlgoMethod.BRANCH_AND_BOUND:
-            # targets = self.get_targets()
-            targets = [self.starting_position, target, self.starting_position]
-            path = self.branch_and_bound(targets)
-            result = self.get_descriptive_steps(path, target)
             return result
 
     def verify_settings_range(self, value, minimum, maximum):
@@ -2304,30 +2112,31 @@ class ItemRoutingSystem:
                                             print("-----")
                                             grouped_items = self.process_order(product_ids)
                                             graph = self.build_graph_for_order(grouped_items)
+                                            print(graph)
 
                                             # Setup 15 second timeout
                                             signal.signal(signal.SIGALRM, timeout_handler)
                                             signal.alarm(15)
 
-                                            # Run Branch and Bound
-                                            try:
-                                                self.branch_and_bound(graph, grouped_items)
-                                            except Exception as exc:
-                                                # Return path
-                                                failed += 1
-                                                cases_failed[size]["Branch and Bound"] = "Timeout"
-                                                print("Failed Branch and Bound")
-                                                print(exc)
+                                            # # Run Branch and Bound
+                                            # try:
+                                            #     self.branch_and_bound(graph, grouped_items)
+                                            # except Exception as exc:
+                                            #     # Return path
+                                            #     failed += 1
+                                            #     cases_failed[size]["Branch and Bound"] = "Timeout"
+                                            #     print("Failed Branch and Bound")
+                                            #     print(exc)
 
-                                            # Run Custom Algorithm
-                                            try:
-                                                self.custom_algo(graph, grouped_items)
-                                            except Exception as exc:
-                                                # Return path
-                                                failed += 1
-                                                cases_failed[size]["Custom Algorithm"] = "Timeout"
-                                                print("Failed Custom")
-                                                print(exc)
+                                            # # Run Custom Algorithm
+                                            # try:
+                                            #     self.localized_min_path(graph, grouped_items)
+                                            # except Exception as exc:
+                                            #     # Return path
+                                            #     failed += 1
+                                            #     cases_failed[size]["Custom Algorithm"] = "Timeout"
+                                            #     print("Failed Custom")
+                                            #     print(exc)
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \

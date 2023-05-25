@@ -23,6 +23,8 @@ class AlgoMethod(Enum):
     ORDER_OF_INSERTION = "Order of Insertion"
     BRUTE_FORCE = "Brute Force"
     DIJKSTRA = "Dijkstra"
+    BRANCH_AND_BOUND = "Branch and Bound"
+    CUSTOM_ALGORITHM = "Custom Algorithm"
 
     def __str__(cls):
         return cls.value
