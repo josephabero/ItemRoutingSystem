@@ -801,12 +801,13 @@ class ItemRoutingSystem:
             # print("")
 
             # If all items have been picked up
-            # print(level)
-            if ( level == len(order)):
-                path = src_path + matrix[(source, "End", source_direction)]["N"]["path"]
+            # print("level, len(order):", level, len(order), cost)
+            if ( level == len(order)-2 ):
+                # print("entered!", level, source, source_direction)
+                final_path = src_path + matrix[(source, "End", source_direction)]["N"]["path"]
                 cost += matrix[(source, "End", source_direction)]["N"]["cost"]
-                # print(f"Reached Level: {path}")
-                return cost, path
+                print(f"Reached Level: {final_path}")
+                return cost, final_path
 
             for (start, dest, src_dir), values in matrix.items():
 
@@ -818,7 +819,7 @@ class ItemRoutingSystem:
                     child_path = []
 
                     for direc in values:
-                        if values.get(direc).get('cost') is None and (values.get(direc).get('cost') == INFINITY):
+                        if values.get(direc).get('cost') is None or (values.get(direc).get('cost') == INFINITY):
                             # print("Cost is None or Infinity")
                             continue
 
@@ -837,7 +838,7 @@ class ItemRoutingSystem:
                     if child_path:
                         # print(f"Will Visit: {start}, {chosen_start}, {chosen_direc}")
                         queue.append( (chosen_start, chosen_direc, level + 1, cost + reduction, chosen_matrix, child_path) )
-
+        
     def custom_algo(self, graph, order):
         for k, v in graph.items():
             # print(k, v)
