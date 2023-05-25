@@ -1342,38 +1342,7 @@ class ItemRoutingSystem:
         current_position = start
         total_steps = 0
 
-<<<<<<< HEAD
-=======
         # Preprocessing
-        for position in positions:
-            # initial direction setup
-            if (direc == None):
-                if (start[1] == position[1]):
-                    direc = "LR"
-                else:
-                    direc = "DU"
-                prev_position = position
-                continue
-
-            # if moving in same direction, ignore and continue
-            if (prev_position[0] == position[0] and direc == "DU"):
-                prev_position = position
-                continue
-            elif (prev_position[1] == position[1] and direc == "LR"):
-                prev_position = position
-                continue
-            # change of direction means you add the position int othe list
-            else:
-                updated_positions.append(prev_position)
-                if (direc == "DU"):
-                    direc = "LR"
-                else:
-                    direc = "DU"
-            prev_position = position
-        # dds the last position
-        updated_positions.append(positions[-1])
-
->>>>>>> 608dee626f35fce4c14b7fb33c5915fd6141f6e3
         for position in updated_positions:
             prev_position = current_position
             move, steps = self.move_to_target(current_position, position)
