@@ -772,12 +772,12 @@ class ItemRoutingSystem:
     #     return ordered_list
 
 
-    def customized_algorithm(self, ordered, graph):
+    def customized_algorithm(self, order, graph):
         """
         find the optimal path with multiple access points
 
         Args:
-            ordered_list: an organized list of product ID
+            order: an organized list of product ID
 
             graph: the distance graph using All-Pair-Shortest-Path
 
