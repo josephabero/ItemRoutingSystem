@@ -821,18 +821,15 @@ class ItemRoutingSystem:
                         index = i
 
             source, source_direction, level, cost, matrix, src_path = queue.pop(index)
-            # print(f"New Source: {source}")
-            # print(f"New Source Path: {cost} {src_path}")
-            # print(source, source_direction, level, cost, src_path)
-            # print("")
+            self.log(f"New Source: {source}", print_type=PrintType.MINOR)
+            self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.MINOR)
 
             # If all items have been picked up
-            # print("level, len(order):", level, len(order), cost)
             if ( level == len(order)-2 ):
-                # print("entered!", level, source, source_direction)
                 final_path = src_path + matrix[(source, "End", source_direction)]["N"]["path"]
                 cost += matrix[(source, "End", source_direction)]["N"]["cost"]
-                print(f"Reached Level: {final_path}")
+
+                self.log(f"Reached Level: {final_path}", print_type=PrintType.MINOR)
                 return cost, final_path
 
             for (start, dest, src_dir), values in matrix.items():
@@ -846,7 +843,7 @@ class ItemRoutingSystem:
 
                     for direc in values:
                         if values.get(direc).get('cost') is None or (values.get(direc).get('cost') == INFINITY):
-                            # print("Cost is None or Infinity")
+                            self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
                             continue
 
                         reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
@@ -857,12 +854,12 @@ class ItemRoutingSystem:
                             chosen_direc = direc
                             highest_reduction = reduction
                             chosen_matrix = deepcopy(temp_matrix)
-                            # print(f"Before Child Path: {child_path}")
+                            self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
                             child_path = src_path + values[chosen_direc].get('path')
-                            # print(f"After Child Path: {child_path}")
+                            self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
 
                     if child_path:
-                        # print(f"Will Visit: {start}, {chosen_start}, {chosen_direc}")
+                        self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
                         queue.append( (chosen_start, chosen_direc, level + 1, cost + reduction, chosen_matrix, child_path) )
 
     def localized_min_path(self, graph, order):
@@ -907,13 +904,51 @@ class ItemRoutingSystem:
             path += shortest_path
             pre_node = product_id
 
-        if self.debug:
-            # end_time = time.time()
-            # self.log(f"Total Time: {(end_time - start_time):.4f}")
-            self.log(f"Minimum Path: {path}")
-            # self.log(f"Shortest Number of Steps: {smallest}")
+        self.log(f"Minimum Path: {path}", print_type=PrintType.MINOR)
 
         return total_cost, path
+
+    def run_tsp_algorithm(self, graph, order, algorithm=None):
+        def timeout_handler(signum, frame):
+            print("Function timed out!")
+            raise Exception("Function Timeout")
+
+        # Setup 15 second timeout
+        signal.signal(signal.SIGALRM, timeout_handler)
+        timeout = 15 # seconds
+        signal.alarm(timeout)
+
+        if algorithm is None:
+            algorithm = self.tsp_algorithm
+
+        # Choose algorithm to run
+        if algorithm == AlgoMethod.BRANCH_AND_BOUND:
+            algo_func = self.branch_and_bound
+
+        elif algorithm == AlgoMethod.LOCALIZED_MIN_PATH:
+            algo_func = self.localized_min_path
+
+        # Start Time for timing algorithm run time
+        start_time = time.time()
+
+        # Run Algorithm
+        try:
+            cost, path = algo_func(graph, order)
+
+        except Exception as exc:
+            # Algorithm timed out, return input order list
+            print(exc)
+            return None, order, timeout
+
+        # End Time for timing algorithm run time
+        end_time = time.time()
+        total_time = end_time - start_time
+        self.log(f"Total Time: {(end_time - start_time):.4f}", print_type=PrintType.MINOR)
+
+        # Stop timeout signal
+        signal.alarm(0)
+
+        return cost, path, total_time
 
     def gather_brute_force(self, targets):
         """
@@ -2195,43 +2230,62 @@ class ItemRoutingSystem:
                                                     passed += 1
 
                                             # Test Algorithms to Get Paths
-                                            print(size)
-                                            print("-----")
+                                            self.log(f"Test Case: Size {size}\n"    \
+                                                      "----------------------")
                                             grouped_items = self.process_order(product_ids)
                                             graph = self.build_graph_for_order(grouped_items)
 
-                                            # Setup 15 second timeout
-                                            signal.signal(signal.SIGALRM, timeout_handler)
-                                            signal.alarm(15)
-
                                             # Run Branch and Bound
-                                            try:
-                                                cost, path = self.branch_and_bound(graph, grouped_items)
-                                            except Exception as exc:
-                                                # Return path
+                                            cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.BRANCH_AND_BOUND)
+
+                                            # Algorithm Timed Out
+                                            if cost is None:
                                                 failed += 1
                                                 cases_failed[size]["Branch and Bound"] = "Timeout"
-                                                print("Failed Branch and Bound")
-                                                print(exc)
+                                                self.log("Failed Branch and Bound")
+
+                                            else:
+                                                self.log("Completed Branch and Bound!")
+
+                                            self.log(f"    Time: {run_time:.6f}")
+                                            self.log(f"    Cost: {cost}")
+                                            self.log(f"    Path: {path}")
+                                            self.log("")
+
 
                                             # Run Custom Algorithm
-                                            try:
-                                                cost, path = self.localized_min_path(graph, grouped_items)
-                                            except Exception as exc:
-                                                # Return path
+                                            cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.LOCALIZED_MIN_PATH)
+
+                                            # Algorithm Timed Out
+                                            if cost is None:
                                                 failed += 1
-                                                cases_failed[size]["Custom Algorithm"] = "Timeout"
-                                                print("Failed Custom")
-                                                print(exc)
+                                                cases_failed[size]["Localized Minimum Path"] = "Timeout"
+                                                self.log("Failed Localized Minimum Path")
+
+                                            else:
+                                                self.log("Completed Localized Minimum Path!")
+
+                                            self.log(f"    Time: {run_time:.6f}")
+                                            self.log(f"    Cost: {cost}")
+                                            self.log(f"    Path: {path}")
+                                            self.log("")
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \
                                                  f"Passed: {passed}\n"    \
                                                  f"Failed: {failed}\n"    \
                                                  f"Total:  {passed + failed}")
+                                        self.log("")
 
+                                        # Display Failures
                                         if failed:
-                                            self.log(cases_failed)
+                                            self.log("Failures\n" \
+                                                     "---------")
+                                            for size, fails in cases_failed.items():
+                                                if fails:
+                                                    self.log(f"{size}: ")
+                                                    for case, reason in fails.items():
+                                                        self.log(f"    {case}: {reason}")
 
                                 else:
                                     self.log("No test cases to run! Must load test case file first!")
