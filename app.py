@@ -736,43 +736,43 @@ class ItemRoutingSystem:
             self.log("Path not found", print_type=PrintType.DEBUG)
             return []
 
-    def ordered_list(self, grid, product_ID_list):
-        """
-        Organize the product ID list, for example, two items near each other will be put together in the ordered ilst
+    # def ordered_list(self, grid, product_ID_list):
+    #     """
+    #     Organize the product ID list, for example, two items near each other will be put together in the ordered ilst
+    #
+    #     Args:
+    #         grid(list of lists): Positions of items within the grid.
+    #
+    #         product_ID_list: a list of unordered product IDs
+    #
+    #     Returns:
+    #         ordered_list: a list of ordered product IDs
+    #     """
+    #
+    #     # Create a dictionary to store the positions of each product ID
+    #     position_dict = {}
+    #
+    #     # Iterate through the grid and populate the position dictionary
+    #     for i in range(self.map_x):
+    #         for j in range(self.map_y):
+    #             position = grid[i][j]
+    #             if position in product_ID_list:
+    #                 if position not in position_dict:
+    #                     position_dict[position] = []
+    #                 position_dict[position].append((i, j))
+    #
+    #     # Sort the positions based on their Manhattan distances
+    #     sorted_positions = sorted(position_dict.values(), key=lambda x: (x[0][0], x[0][1]))
+    #
+    #     # Create the ordered list of product IDs
+    #     ordered_list = []
+    #     for positions in sorted_positions:
+    #         ordered_list.extend([position for position in positions])
+    #
+    #     return ordered_list
 
-        Args:
-            grid(list of lists): Positions of items within the grid.
 
-            product_ID_list: a list of unordered product IDs
-
-        Returns:
-            ordered_list: a list of ordered product IDs
-        """
-
-        # Create a dictionary to store the positions of each product ID
-        position_dict = {}
-
-        # Iterate through the grid and populate the position dictionary
-        for i in range(self.map_x):
-            for j in range(self.map_y):
-                position = grid[i][j]
-                if position in product_ID_list:
-                    if position not in position_dict:
-                        position_dict[position] = []
-                    position_dict[position].append((i, j))
-
-        # Sort the positions based on their Manhattan distances
-        sorted_positions = sorted(position_dict.values(), key=lambda x: (x[0][0], x[0][1]))
-
-        # Create the ordered list of product IDs
-        ordered_list = []
-        for positions in sorted_positions:
-            ordered_list.extend([position for position in positions])
-
-        return ordered_list
-
-
-    def customized_algorithm(self, ordered_list, graph):
+    def customized_algorithm(self, ordered, graph):
         """
         find the optimal path with multiple access points
 
@@ -786,18 +786,31 @@ class ItemRoutingSystem:
         """
         if self.debug:
             start_time = time.time()
-        
+
+        updated_order = order.copy()
+        updated_order.insert(0, 'Start')
+        updated_order.append('End')
+
         pre_node = None
         access_direction = None
 
         path = []
 
-        for product_id in ordered_list:
+        for product_id in updated_order:
+            # start position
+            if product_id == 'Start':
+                pre_node = product_id
+                access_direction = None
+                continue
+
             min_cost = None
             shortest_path = []
 
             # Choose one of the access points, and get the shortest path
             for access_point, val in graph[(pre_node, product_id, access_direction)].items():
+                # if cose is none, the access point is not available
+                if val['cost'] is None:
+                    break
                 if min_cost is None or val['cost'] < min_cost:
                     min_cost = val['cost']
                     access_direction = access_point
@@ -805,19 +818,6 @@ class ItemRoutingSystem:
 
             path.append(shortest_path)
             pre_node = product_id
-
-        # Calculate the path from the last element in ordered_list to 'End'
-        last_product_id = ordered_list[-1]
-        min_cost_back = None
-        shortest_path_back = []
-
-        # get the shortest path to the ending position
-        for access_point, val in graph[(last_product_id, 'End', access_direction)].items():
-            if min_cost_back is None or val['cost'] < min_cost_back:
-                min_cost_back = val['cost']
-                shortest_path_back = val['path']
-
-        path.append(shortest_path_back)
 
         if self.debug:
             end_time = time.time()
