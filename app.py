@@ -9,6 +9,7 @@ directions to gather shopping items around a warehouse.
 
 from constants import *
 from menu import Menu
+from queue import PriorityQueue
 
 from copy import deepcopy
 import heapq
