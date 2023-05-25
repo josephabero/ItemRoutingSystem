@@ -861,7 +861,6 @@ class ItemRoutingSystem:
         Returns:
             path: a list of the locations
         """
-        print(graph)
         pre_node = None
         access_direction = None
 
@@ -879,8 +878,6 @@ class ItemRoutingSystem:
 
             # Choose one of the access points, and get the shortest path
             for access_point, val in graph[(pre_node, product_id, access_direction)].items():
-                print(pre_node, product_id, access_direction)
-                print(val)
                 if val['cost'] is None:
                     break
                 if min_cost is None or val['cost'] < min_cost:
@@ -979,17 +976,6 @@ class ItemRoutingSystem:
         if not is_valid_position(x, y):
             self.log(f"Invalid target position: {target}", print_type=PrintType.MINOR)
             return [], None
-
-        # Find the starting position
-        for i in range(self.map_x):
-            for j in range(self.map_y):
-                if grid[j][i] == ItemRoutingSystem.WORKER_SYMBOL:
-                    start = (i, j)
-                    break
-            if start: break
-
-        if not start:
-            raise ValueError("Starting position ItemRoutingSystem.WORKER_SYMBOL not found in grid.")
 
         # Initialize the distance to all positions to infinity and to the starting position to 0
         dist = {(i, j): float('inf') for i in range(self.map_x) for j in range(self.map_y)}
@@ -2107,36 +2093,35 @@ class ItemRoutingSystem:
                                                 else:
                                                     passed += 1
 
-                                            # TODO: Get Paths
+                                            # Test Algorithms to Get Paths
                                             print(size)
                                             print("-----")
                                             grouped_items = self.process_order(product_ids)
                                             graph = self.build_graph_for_order(grouped_items)
-                                            print(graph)
 
                                             # Setup 15 second timeout
                                             signal.signal(signal.SIGALRM, timeout_handler)
                                             signal.alarm(15)
 
-                                            # # Run Branch and Bound
-                                            # try:
-                                            #     self.branch_and_bound(graph, grouped_items)
-                                            # except Exception as exc:
-                                            #     # Return path
-                                            #     failed += 1
-                                            #     cases_failed[size]["Branch and Bound"] = "Timeout"
-                                            #     print("Failed Branch and Bound")
-                                            #     print(exc)
+                                            # Run Branch and Bound
+                                            try:
+                                                self.branch_and_bound(graph, grouped_items)
+                                            except Exception as exc:
+                                                # Return path
+                                                failed += 1
+                                                cases_failed[size]["Branch and Bound"] = "Timeout"
+                                                print("Failed Branch and Bound")
+                                                print(exc)
 
-                                            # # Run Custom Algorithm
-                                            # try:
-                                            #     self.localized_min_path(graph, grouped_items)
-                                            # except Exception as exc:
-                                            #     # Return path
-                                            #     failed += 1
-                                            #     cases_failed[size]["Custom Algorithm"] = "Timeout"
-                                            #     print("Failed Custom")
-                                            #     print(exc)
+                                            # Run Custom Algorithm
+                                            try:
+                                                self.localized_min_path(graph, grouped_items)
+                                            except Exception as exc:
+                                                # Return path
+                                                failed += 1
+                                                cases_failed[size]["Custom Algorithm"] = "Timeout"
+                                                print("Failed Custom")
+                                                print(exc)
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \
