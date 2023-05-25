@@ -2163,7 +2163,7 @@ class ItemRoutingSystem:
                                 # Set Product File Name
                                 success = False
                                 while not success:
-                                    test_case_file = input("Enter product filename: ")
+                                    test_case_file = input("Enter test case filename: ")
 
                                     success = self.load_test_case_file(test_case_file)
 
