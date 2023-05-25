@@ -660,7 +660,7 @@ class ItemRoutingSystem:
 
                         # Get target end position
                         if end == "End":
-                            x, y = self.starting_position
+                            x, y = self.ending_position
                         else:
                             end_position = self.product_info[end]
                             x, y = end_position[0] + dx, end_position[1] + dy
@@ -1060,7 +1060,7 @@ class ItemRoutingSystem:
         if self.inserted_order:
             targets = self.inserted_order.copy()
             targets.insert(0, self.starting_position)
-            targets.append(self.starting_position)
+            targets.append(self.ending_position)
 
         if self.debug:
             end_time = time.time()
@@ -1191,13 +1191,13 @@ class ItemRoutingSystem:
 
         if option == AlgoMethod.ORDER_OF_INSERTION:
             # targets = self.get_targets()
-            targets = [self.starting_position, target, self.starting_position]
+            targets = [self.starting_position, target, self.ending_position]
             result = self.get_descriptive_steps(targets, target)
             return result
 
         elif option == AlgoMethod.BRUTE_FORCE:
             # targets = self.get_targets()
-            targets = [self.starting_position, target, self.starting_position]
+            targets = [self.starting_position, target, self.ending_position]
             path = self.gather_brute_force(targets)
             result = self.get_descriptive_steps(path, target)
             return result
@@ -1233,11 +1233,11 @@ class ItemRoutingSystem:
             result = []
             if shortest_path:
                 self.log(f"Path to product is: {shortest_path}", print_type=PrintType.DEBUG)
-                path, _ = self.dijkstra(self.map, shortest_path[-1], self.starting_position)
+                path, _ = self.dijkstra(self.map, shortest_path[-1], self.ending_position)
                 shortest_path = shortest_path + path[1:]
                 result = self.get_descriptive_steps(shortest_path, target)
             elif timeout:
-                path = [self.starting_position, target, self.starting_position]
+                path = [self.starting_position, target, self.ending_position]
                 result = self.get_descriptive_steps(path, target)
             return result
 
@@ -1438,7 +1438,11 @@ class ItemRoutingSystem:
 
                     # Overlapping Item and Worker Positions
                     elif position == self.starting_position:
-                        self.log("Item position is the same as the worker position! Please Try Again.\n",
+                        self.log("Item position is the same as the starting worker position! Please Try Again.\n",
+                                 print_type=PrintType.DEBUG)
+
+                    elif position == self.ending_position:
+                        self.log("Item position is the same as the ending worker position! Please Try Again.\n",
                                  print_type=PrintType.DEBUG)
 
                     else:
@@ -1480,7 +1484,9 @@ class ItemRoutingSystem:
 
                         # Overlapping Item and Worker Positions
                         elif position == self.starting_position:
-                            self.log("Item position is the same as the worker position! Please Try Again.\n")
+                            self.log("Item position is the same as the starting worker position! Please Try Again.\n")
+                        elif position == self.ending_position:
+                            self.log("Item position is the same as the ending worker position! Please Try Again.\n")
 
                         else:
                             item_positions.append(position)
