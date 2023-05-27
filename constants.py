@@ -49,3 +49,13 @@ class PrintType(Enum):
     NORMAL = 0
     DEBUG = 1
     MINOR = 2
+
+class AccessType(Enum):
+    """
+    Constants to choose branch and bound access type.
+    """
+    SINGLE_ACCESS = "Single Access"
+    MULTI_ACCESS = "Multi Access"
+
+    def __str__(cls):
+        return cls.value

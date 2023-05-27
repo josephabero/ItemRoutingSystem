@@ -72,6 +72,7 @@ class ItemRoutingSystem:
         self.gathering_algo = AlgoMethod.DIJKSTRA
         self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
         self.maximum_routing_time = 15
+        self.bnb_access_type = AccessType.MULTI_ACCESS
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
@@ -738,6 +739,57 @@ class ItemRoutingSystem:
             print_matrix[str(key)] = temp_val
         self.log(print_matrix)
 
+    # def set_branch_and_bound_access_type(self, access_type):
+
+    #     if access_type == AccessType.SINGLE_ACCESS:
+
+    #     elif access_type == AccessType.MULTI_ACCESS:
+
+
+    def get_access_points_to_visit(self, access_points, matrix, starting_node, src_path, access_type=None):
+        nodes_to_visit = []
+
+        start, dest, src_dir = starting_node
+
+        highest_reduction = INFINITY
+        chosen_start = chosen_direc = None
+        chosen_matrix = None
+        child_path = []
+
+        if access_type is None:
+            access_type = self.bnb_access_type
+
+        for direc in access_points:
+            if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
+                # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
+                continue
+
+            reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
+
+            if access_type == AccessType.SINGLE_ACCESS:
+                # Filter for minimum Single Access Point
+                if chosen_start is None or reduction + cost < highest_reduction:
+                    chosen_start = dest
+                    chosen_direc = direc
+                    highest_reduction = reduction + cost
+                    chosen_matrix = deepcopy(temp_matrix)
+
+                    # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
+                    # self.log(f"{src_path}", print_type=PrintType.MINOR)
+                    child_path = src_path + [(dest, direc)]
+                    # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
+
+            elif access_type == AccessType.MULTI_ACCESS:
+                child_path = src_path + [(dest, direc)]
+                node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
+                nodes_to_visit.append(node_to_visit)
+
+        if access_type == AccessType.SINGLE_ACCESS and child_path:
+            # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
+            nodes_to_visit.append(chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
+
+        return nodes_to_visit
+
     def matrix_reduction(self, matrix, source=None, dest=None):
         """
         Performs the matrix reduction for branch-and-bound
@@ -864,39 +916,39 @@ class ItemRoutingSystem:
             else:
                 self.log(f"Beginning Traversal for '{source} {source_direction}', {cost}", print_type=PrintType.MINOR)
 
-            for (start, dest, src_dir), values in matrix.items():
+            for (start, dest, src_dir), access_points in matrix.items():
                 # Ignore other irrelevant entries
                 if source == start and source_direction == src_dir:
                     # self.log(f"Traversal Info: {start}, {src_dir}, {dest}, {values.keys()}", print_type=PrintType.MINOR)
-                    highest_reduction = INFINITY
-                    chosen_start = chosen_direc = None
-                    chosen_matrix = None
-                    child_path = []
 
-                    for direc in values:
-                        if values.get(direc).get('cost') is None or (values.get(direc).get('cost') == INFINITY):
+                    for direc in access_points:
+                        if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
                             # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
                             continue
 
                         reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
 
-                        # Filter for minimum Single Access Point
-                        if chosen_start is None or reduction + cost < highest_reduction:
-                            chosen_start = dest
-                            chosen_direc = direc
-                            highest_reduction = reduction + cost
-                            chosen_matrix = deepcopy(temp_matrix)
+                        if self.bnb_access_type == AccessType.SINGLE_ACCESS:
+                            # Filter for minimum Single Access Point
+                            if chosen_start is None or reduction + cost < highest_reduction:
+                                chosen_start = dest
+                                chosen_direc = direc
+                                highest_reduction = reduction + cost
+                                chosen_matrix = deepcopy(temp_matrix)
 
-                            # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
-                            # self.log(f"{src_path}", print_type=PrintType.MINOR)
+                                # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
+                                # self.log(f"{src_path}", print_type=PrintType.MINOR)
+                                child_path = src_path + [(dest, direc)]
+                                # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
+
+                        elif self.bnb_access_type == AccessType.MULTI_ACCESS:
                             child_path = src_path + [(dest, direc)]
-                            # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
+                            node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
+                            queue.append(node_to_visit)
 
-                    if child_path:
+                    if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
                         # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
-
-                        node_to_visit = (chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
-                        queue.append(node_to_visit)
+                        queue.append(chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
 
         return minimum_cost, final_path
 
