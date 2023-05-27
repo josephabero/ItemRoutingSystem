@@ -640,7 +640,16 @@ class ItemRoutingSystem:
 
             return is_in_bounds and is_open_position
 
-        graph = {}
+        # Initialize Graph with End -> Start node of cost 0
+        graph = {
+            ('End', 'Start', None): {
+                None: {
+                    'location': self.ending_position,
+                    'cost': 0,
+                    'path': [(self.ending_position), self.starting_position]
+                }
+            }
+        }
 
         directions = {
             "N": (0, 1),
@@ -671,6 +680,7 @@ class ItemRoutingSystem:
                         # Get target end position
                         if end == "End":
                             x, y = self.ending_position
+                            end_dir = None  # Always set ending direction to None for 'End' node
                         else:
                             end_position = self.product_info[end]
                             x, y = end_position[0] + dx, end_position[1] + dy
