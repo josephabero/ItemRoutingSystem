@@ -240,9 +240,10 @@ class ItemRoutingSystem:
             menu.add_option(3, "Set Map Orientation")
             menu.add_option(4, "Set Gathering Algorithm")
             menu.add_option(5, "Set TSP Algorithm")
-            menu.add_option(6, "Load Test Case File")
-            menu.add_option(7, "Run Test Cases")
-            menu.add_option(8, "Back")
+            menu.add_option(6, "Set TSP Access Type")
+            menu.add_option(7, "Load Test Case File")
+            menu.add_option(8, "Run Test Cases")
+            menu.add_option(9, "Back")
 
             position_str = ' '.join(str(p) for p in self.items)
             if len(self.items) > 10:
@@ -263,6 +264,7 @@ class ItemRoutingSystem:
                    f"  Mode: {self.worker_mode}\n" \
                    f"  Gathering Algorithm: {self.gathering_algo}\n" \
                    f"  TSP Algorithm: {self.tsp_algorithm}\n" \
+                   f"  TSP Access Type: {self.bnb_access_type}" \
                    f"Item Settings:\n" \
                    f"  Mode: {self.item_mode}\n" \
                    f"  Number of Items: {len(self.items)}\n" \
@@ -288,6 +290,12 @@ class ItemRoutingSystem:
             menu = Menu("Set TSP Algorithm")
             menu.add_option(1, "Branch and Bound")
             menu.add_option(2, "Localized Minimum Path")
+            menu.add_option(3, "Back")
+
+        elif menu_type == MenuType.TSP_ACCESS_TYPE:
+            menu = Menu("Set TSP Access Type")
+            menu.add_option(1, "Single Access Point")
+            menu.add_option(2, "Multi Access Point")
             menu.add_option(3, "Back")
 
         elif menu_type == MenuType.WORKER_START_POSITION:
@@ -739,57 +747,6 @@ class ItemRoutingSystem:
             print_matrix[str(key)] = temp_val
         self.log(print_matrix)
 
-    # def set_branch_and_bound_access_type(self, access_type):
-
-    #     if access_type == AccessType.SINGLE_ACCESS:
-
-    #     elif access_type == AccessType.MULTI_ACCESS:
-
-
-    def get_access_points_to_visit(self, access_points, matrix, starting_node, src_path, access_type=None):
-        nodes_to_visit = []
-
-        start, dest, src_dir = starting_node
-
-        highest_reduction = INFINITY
-        chosen_start = chosen_direc = None
-        chosen_matrix = None
-        child_path = []
-
-        if access_type is None:
-            access_type = self.bnb_access_type
-
-        for direc in access_points:
-            if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
-                # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
-                continue
-
-            reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
-
-            if access_type == AccessType.SINGLE_ACCESS:
-                # Filter for minimum Single Access Point
-                if chosen_start is None or reduction + cost < highest_reduction:
-                    chosen_start = dest
-                    chosen_direc = direc
-                    highest_reduction = reduction + cost
-                    chosen_matrix = deepcopy(temp_matrix)
-
-                    # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
-                    # self.log(f"{src_path}", print_type=PrintType.MINOR)
-                    child_path = src_path + [(dest, direc)]
-                    # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
-
-            elif access_type == AccessType.MULTI_ACCESS:
-                child_path = src_path + [(dest, direc)]
-                node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
-                nodes_to_visit.append(node_to_visit)
-
-        if access_type == AccessType.SINGLE_ACCESS and child_path:
-            # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
-            nodes_to_visit.append(chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
-
-        return nodes_to_visit
-
     def matrix_reduction(self, matrix, source=None, dest=None):
         """
         Performs the matrix reduction for branch-and-bound
@@ -920,6 +877,12 @@ class ItemRoutingSystem:
                 # Ignore other irrelevant entries
                 if source == start and source_direction == src_dir:
                     # self.log(f"Traversal Info: {start}, {src_dir}, {dest}, {values.keys()}", print_type=PrintType.MINOR)
+                    child_path = []
+
+                    if self.bnb_access_type == AccessType.SINGLE_ACCESS:
+                        highest_reduction = INFINITY
+                        chosen_start = chosen_direc = None
+                        chosen_matrix = None
 
                     for direc in access_points:
                         if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
@@ -948,7 +911,8 @@ class ItemRoutingSystem:
 
                     if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
                         # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
-                        queue.append(chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
+                        node_to_visit = (chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
+                        queue.append(node_to_visit)
 
         return minimum_cost, final_path
 
@@ -2229,8 +2193,38 @@ class ItemRoutingSystem:
                                         update = False
                                         clear = False
 
-                            # Load Test Case File
+                            # Set TSP Access Type
                             elif adv_option == '6':
+                                while True:
+                                    if update:
+                                        self.display_menu(MenuType.TSP_ACCESS_TYPE, clear=clear)
+                                    else:
+                                        update = True
+                                        clear = True
+
+                                    algo_option = input("> ")
+
+                                    # Branch and Bound
+                                    if algo_option == '1':
+                                        self.bnb_access_type = AccessType.SINGLE_ACCESS
+                                        break
+
+                                    # Custom Algorithm
+                                    elif algo_option == '2':
+                                        self.bnb_access_type = AccessType.MULTI_ACCESS
+                                        break
+
+                                    # Back
+                                    elif algo_option == '3':
+                                        break
+
+                                    else:
+                                        self.log("Invalid choice. Try again.")
+                                        update = False
+                                        clear = False
+
+                            # Load Test Case File
+                            elif adv_option == '7':
                                 if update:
                                     self.display_menu(MenuType.LOAD_TEST_CASE_FILE, clear=clear)
                                 else:
@@ -2256,7 +2250,7 @@ class ItemRoutingSystem:
                                         self.log(f"File '{test_case_file}' was not found, please try entering full path to file!")
 
                             # Run Test Cases
-                            elif adv_option == '7':
+                            elif adv_option == '8':
                                 if self.test_case_file and self.test_product_file:
                                     success = self.load_product_file(self.test_product_file)
 
@@ -2391,7 +2385,7 @@ class ItemRoutingSystem:
                                 clear = False
 
                             # Back
-                            elif adv_option == '8':
+                            elif adv_option == '9':
                                 break
 
                             else:
