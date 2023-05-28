@@ -939,6 +939,7 @@ class ItemRoutingSystem:
             if product_id == 'Start':
                 pre_node = product_id
                 access_direction = None
+                path += [('Start', None)]
                 continue
 
             min_cost = float('inf')
@@ -951,7 +952,7 @@ class ItemRoutingSystem:
                 if min_cost is None or val['cost'] < min_cost:
                     min_cost = val['cost']
                     access_direction = access_point
-                    shortest_path = val['path']
+                    shortest_path = [(product_id, access_point)]
 
             if min_cost != float('inf'):
                 total_cost += min_cost
@@ -964,17 +965,14 @@ class ItemRoutingSystem:
 
     def get_locations_for_path(self, graph, path):
         locations = []
-        print(path)
-        print(len(path))
         for left in range(len(path) - 1):
-            print(left, left + 1)
             left_item = path[left]
             right_item = path[left + 1]
             # Access points available
             if len(left_item) > 1:
                 left_node, left_dir = left_item
                 right_node, right_dir = right_item
-                print(f"Adding Node: {left_node, left_dir} -> {right_node, right_dir}")
+                print(f"Getting Location for {left_node, left_dir} -> {right_node, right_dir}")
                 locations += graph[(left_node, right_node, left_dir)][right_dir]["path"]
 
         return locations
@@ -2382,22 +2380,22 @@ class ItemRoutingSystem:
                                             self.log("")
 
 
-                                            # # Run Custom Algorithm
-                                            # cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.LOCALIZED_MIN_PATH)
+                                            # Run Custom Algorithm
+                                            cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.LOCALIZED_MIN_PATH)
 
-                                            # # Algorithm Timed Out
-                                            # if cost is None:
-                                            #     failed += 1
-                                            #     cases_failed[size]["Localized Minimum Path"] = "Timeout"
-                                            #     self.log("Failed Localized Minimum Path")
+                                            # Algorithm Timed Out
+                                            if cost is None:
+                                                failed += 1
+                                                cases_failed[size]["Localized Minimum Path"] = "Timeout"
+                                                self.log("Failed Localized Minimum Path")
 
-                                            # else:
-                                            #     self.log("Completed Localized Minimum Path!")
+                                            else:
+                                                self.log("Completed Localized Minimum Path!")
 
-                                            # self.log(f"    Time: {run_time:.6f}")
-                                            # self.log(f"    Cost: {cost}")
-                                            # self.log(f"    Path: {path}")
-                                            # self.log("")
+                                            self.log(f"    Time: {run_time:.6f}")
+                                            self.log(f"    Cost: {cost}")
+                                            self.log(f"    Path: {path}")
+                                            self.log("")
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \
