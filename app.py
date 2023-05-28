@@ -264,7 +264,7 @@ class ItemRoutingSystem:
                    f"  Mode: {self.worker_mode}\n" \
                    f"  Gathering Algorithm: {self.gathering_algo}\n" \
                    f"  TSP Algorithm: {self.tsp_algorithm}\n" \
-                   f"  TSP Access Type: {self.bnb_access_type}" \
+                   f"  TSP Access Type: {self.bnb_access_type}\n" \
                    f"Item Settings:\n" \
                    f"  Mode: {self.item_mode}\n" \
                    f"  Number of Items: {len(self.items)}\n" \
@@ -962,6 +962,42 @@ class ItemRoutingSystem:
 
         return total_cost, path
 
+    def get_locations_for_path(self, graph, path):
+        locations = []
+        print(path)
+        print(len(path))
+        for left in range(len(path) - 1):
+            print(left, left + 1)
+            left_item = path[left]
+            right_item = path[left + 1]
+            # Access points available
+            if len(left_item) > 1:
+                left_node, left_dir = left_item
+                right_node, right_dir = right_item
+                print(f"Adding Node: {left_node, left_dir} -> {right_node, right_dir}")
+                locations += graph[(left_node, right_node, left_dir)][right_dir]["path"]
+
+        return locations
+
+    def rotate_path(self, path):
+        start_node = ('Start', None)
+        result = []
+        try:
+            start_index = path.index(start_node)
+
+            # Path already begins at start node
+            if start_index == 0:
+                return path
+
+            # Rotate Path
+            for i in range(len(path)):
+                result.append(path[(start_index + i) % len(path)])
+            return result
+
+        # Start node is not included in input path
+        except ValueError:
+            return path
+
     def run_tsp_algorithm(self, graph, order, algorithm=None):
         def timeout_handler(signum, frame):
             self.log("Function timed out!")
@@ -986,7 +1022,9 @@ class ItemRoutingSystem:
 
         # Run Algorithm
         try:
-            cost, path = algo_func(graph, order)
+            cost, algo_path = algo_func(graph, order)
+            algo_path = self.rotate_path(algo_path)
+            path = self.get_locations_for_path(graph, algo_path)
 
         except Exception as exc:
             # Algorithm timed out, return input order list
@@ -2344,22 +2382,22 @@ class ItemRoutingSystem:
                                             self.log("")
 
 
-                                            # Run Custom Algorithm
-                                            cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.LOCALIZED_MIN_PATH)
+                                            # # Run Custom Algorithm
+                                            # cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.LOCALIZED_MIN_PATH)
 
-                                            # Algorithm Timed Out
-                                            if cost is None:
-                                                failed += 1
-                                                cases_failed[size]["Localized Minimum Path"] = "Timeout"
-                                                self.log("Failed Localized Minimum Path")
+                                            # # Algorithm Timed Out
+                                            # if cost is None:
+                                            #     failed += 1
+                                            #     cases_failed[size]["Localized Minimum Path"] = "Timeout"
+                                            #     self.log("Failed Localized Minimum Path")
 
-                                            else:
-                                                self.log("Completed Localized Minimum Path!")
+                                            # else:
+                                            #     self.log("Completed Localized Minimum Path!")
 
-                                            self.log(f"    Time: {run_time:.6f}")
-                                            self.log(f"    Cost: {cost}")
-                                            self.log(f"    Path: {path}")
-                                            self.log("")
+                                            # self.log(f"    Time: {run_time:.6f}")
+                                            # self.log(f"    Cost: {cost}")
+                                            # self.log(f"    Path: {path}")
+                                            # self.log("")
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \
