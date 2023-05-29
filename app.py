@@ -712,7 +712,13 @@ class ItemRoutingSystem:
 
                     if valid_directions:
                         graph[(start, end, start_dir)] = valid_directions
-
+        
+            # loops start and end to each other for proper bnb behavior
+            path, cost = self.dijkstra(self.map, self.starting_position, self.ending_position)
+            graph[('Start', 'End', None)] = { 'N': {"location": (self.ending_position[0], self.ending_position[1]), "cost": 0, "path": path} }
+            path, cost = self.dijkstra(self.map, self.ending_position, self.starting_position)
+            graph[('End', 'Start', None)] = { 'N': {"location": (self.starting_position[0], self.starting_position[1]), "cost": 0, "path": path} }
+            
         return graph
 
     def print_matrix(self, matrix):
@@ -832,7 +838,7 @@ class ItemRoutingSystem:
                 continue
 
             # If all items have been picked up
-            if ( level == len(order) - 2 ):
+            if ( level == len(order) ):
                 level_path = src_path + matrix[(source, "End", source_direction)]["N"]["path"]
                 self.log(f"Reached Level: {level_path}", print_type=PrintType.MINOR)
 
@@ -962,6 +968,62 @@ class ItemRoutingSystem:
 
         return cost, path, total_time
 
+
+# justin
+    def nearest_neighbor(graph, order):
+        """
+        Implements the Nearest Neightbor Heuristic for TSP.
+        """
+        queue = []
+        final_path = []
+        final_cost = INFINITY
+        
+        # create a path for every single starting node
+        for key in graph.keys():
+            queue.append(key[0], key[2])
+            total_cost = 0;
+            
+            while ( len(queue) != len(order)+1 )
+                (popped_node, popped_dir) = queue.pop()
+                min_cost = INFINITY
+                visited_min_cost = INFINITY
+                next_node = []
+                visited_next_node = []
+                
+                for (curr_node, dest_node, curr_dir), values in graph.items():       
+                    # there exists a unvisited node, prioritize it
+                    if ( popped_node == curr_node and popped_dir == curr_dir and (dest_node not in queue) ):
+                        for direc in values:
+                            if (min_cost > values[direc]['cost']):
+                                min_cost = values[direc]['cost']
+                                next_node = (dest_node, direc)
+                         
+                    # all nodes are visited, choose the least cost of the visited nodes
+                    else if ( popped_node == curr_node and popped_dir == curr_dir ):
+                        for direc in values:
+                            if (visited_min_cost > values[direc]['cost']):
+                                visited_min_cost = values[direc]['cost']
+                                visited_next_node = (dest_node, direc)
+                # is there exists a path to a unvisited node, add prioritize it by adding it, otherwise choose the min cost node
+                if (next_node):
+                    total_cost += min_cost
+                    queue.append(next_node)
+                else:
+                    total_cost += visited_min_cost
+                    queue.append(visited_next_node)
+                
+            # a path completed, save it as a path based on cost
+            if (final_cost > total_cost):
+                final_path = queue.copy()
+                final_cost = total_cost
+        
+        # least cost path found
+        return final_path
+            
+
+
+
+
     def gather_brute_force(self, targets):
         """
         Performs brute force algorithm to gather all valid permutations of desired path then
@@ -972,7 +1034,7 @@ class ItemRoutingSystem:
 
         Returns:
             min_path (list of tuples): List of item positions to traverse in order.
-        """
+    """
         if self.debug:
             start_time = time.time()
 
