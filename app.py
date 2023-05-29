@@ -14,6 +14,7 @@ from queue import PriorityQueue
 from copy import deepcopy
 import heapq
 import itertools
+from math import ceil
 import os
 import platform
 import random
@@ -928,7 +929,7 @@ class ItemRoutingSystem:
 
         # Setup timeout signal
         signal.signal(signal.SIGALRM, timeout_handler) # seconds
-        signal.alarm(self.maximum_routing_time)
+        signal.alarm(ceil(self.maximum_routing_time))
 
         if algorithm is None:
             algorithm = self.tsp_algorithm
