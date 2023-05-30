@@ -974,32 +974,33 @@ class ItemRoutingSystem:
         """
         Implements the Nearest Neightbor Heuristic for TSP.
         """
-        queue = []
-        final_path = []
+        final_path = None
         final_cost = INFINITY
         
         # create a path for every single starting node
         for key in graph.keys():
-            queue.append(key[0], key[2])
+            queue = []
+            first_node = (key[0], key[2])
+            queue.append(first_node)
             total_cost = 0;
             
-            while ( len(queue) != len(order)+1 )
-                (popped_node, popped_dir) = queue.pop()
+            while ( len(queue) != len(order) ):
+                popped_node = queue[-1:]
                 min_cost = INFINITY
                 visited_min_cost = INFINITY
-                next_node = []
-                visited_next_node = []
+                next_node = None
+                visited_next_node = None
                 
                 for (curr_node, dest_node, curr_dir), values in graph.items():       
                     # there exists a unvisited node, prioritize it
-                    if ( popped_node == curr_node and popped_dir == curr_dir and (dest_node not in queue) ):
+                    if ( popped_node[0] == curr_node and popped_node[1] == curr_dir and (dest_node not in queue) ):
                         for direc in values:
                             if (min_cost > values[direc]['cost']):
                                 min_cost = values[direc]['cost']
                                 next_node = (dest_node, direc)
                          
                     # all nodes are visited, choose the least cost of the visited nodes
-                    else if ( popped_node == curr_node and popped_dir == curr_dir ):
+                    elif ( popped_node == curr_node and popped_dir == curr_dir ):
                         for direc in values:
                             if (visited_min_cost > values[direc]['cost']):
                                 visited_min_cost = values[direc]['cost']
@@ -1018,7 +1019,7 @@ class ItemRoutingSystem:
                 final_cost = total_cost
         
         # least cost path found
-        return final_path
+        return final_cost, final_path
             
 
 
