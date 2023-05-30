@@ -984,15 +984,16 @@ class ItemRoutingSystem:
             queue.append(first_node)
             total_cost = 0;
             
-            while ( len(queue) != len(order) ):
+            while ( not (all(item in order for item in queue)) ):
                 popped_node = queue[-1:]
                 min_cost = INFINITY
                 visited_min_cost = INFINITY
                 next_node = None
                 visited_next_node = None
                 
-                for (curr_node, dest_node, curr_dir), values in graph.items():       
-                    # there exists a unvisited node, prioritize it
+                for (curr_node, dest_node, curr_dir), values in graph.items():   
+                
+                    # there exists an unvisited node, prioritize it
                     if ( popped_node[0] == curr_node and popped_node[1] == curr_dir and (dest_node not in queue) ):
                         for direc in values:
                             if (min_cost > values[direc]['cost']):
@@ -1005,7 +1006,9 @@ class ItemRoutingSystem:
                             if (visited_min_cost > values[direc]['cost']):
                                 visited_min_cost = values[direc]['cost']
                                 visited_next_node = (dest_node, direc)
-                # is there exists a path to a unvisited node, add prioritize it by adding it, otherwise choose the min cost node
+                                
+                # is there exists a path to a unvisited node, prioritize by adding it
+                # else, add the least cost path to a visited node
                 if (next_node):
                     total_cost += min_cost
                     queue.append(next_node)
@@ -1013,12 +1016,12 @@ class ItemRoutingSystem:
                     total_cost += visited_min_cost
                     queue.append(visited_next_node)
                 
-            # a path completed, save it as a path based on cost
+            # a path completed, save it as a path based on least cost
             if (final_cost > total_cost):
                 final_path = queue.copy()
                 final_cost = total_cost
         
-        # least cost path found
+        # least cost path found, return
         return final_cost, final_path
             
 
