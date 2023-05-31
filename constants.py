@@ -10,11 +10,14 @@ class MenuType(Enum):
     VIEW_MAP = 1
     SETTINGS = 2
     ADVANCED_SETTINGS = 3
-    ALGO_METHOD = 4
-    WORKER_POSITION = 5
-    ITEM_POSITION = 6
-    LOAD_PRODUCT_FILE = 7
-    LOAD_TEST_CASE_FILE = 8
+    GATHER_ALGO_METHOD = 4
+    TSP_ALGO_METHOD = 5
+    TSP_ACCESS_TYPE = 6
+    WORKER_START_POSITION = 7
+    WORKER_ENDING_POSITION = 8
+    ITEM_POSITION = 9
+    LOAD_PRODUCT_FILE = 10
+    LOAD_TEST_CASE_FILE = 11
 
 class AlgoMethod(Enum):
     """
@@ -24,7 +27,7 @@ class AlgoMethod(Enum):
     BRUTE_FORCE = "Brute Force"
     DIJKSTRA = "Dijkstra"
     BRANCH_AND_BOUND = "Branch and Bound"
-    CUSTOM_ALGORITHM = "Custom Algorithm"
+    LOCALIZED_MIN_PATH = "Localized Minimum Path"
 
     def __str__(cls):
         return cls.value
@@ -47,3 +50,13 @@ class PrintType(Enum):
     NORMAL = 0
     DEBUG = 1
     MINOR = 2
+
+class AccessType(Enum):
+    """
+    Constants to choose branch and bound access type.
+    """
+    SINGLE_ACCESS = "Single Access"
+    MULTI_ACCESS = "Multi Access"
+
+    def __str__(cls):
+        return cls.value
