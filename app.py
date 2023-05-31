@@ -1999,6 +1999,10 @@ class ItemRoutingSystem:
                             self.order = self.process_order(product_ids)
                             self.graph = self.build_graph_for_order(self.order)
 
+                        # Go back to View Map Menu
+                        clear = False
+                        break
+
 
                 # Get Path for Order
                 elif suboption == '2':
