@@ -980,22 +980,26 @@ class ItemRoutingSystem:
         # create a path for every single starting node
         for key in graph.keys():
             queue = []
-            list = []
-            loop = False
+            list = order.copy()
             first_node = (key[0], key[2])
             queue.append(first_node)
             total_cost = 0;
             
-            while not loop :
+            while list:
                 popped_node = queue[-1:]
+                
+                # first time through, set the starting node as unvisited, used for cycling
+                if (total_cost == 0):
+                    queue.pop()
                 min_cost = INFINITY
                 visited_min_cost = INFINITY
                 next_node = None
                 visited_next_node = None
                 
                 for (curr_node, dest_node, curr_dir), values in graph.items():   
+                
                     # there exists an unvisited node, prioritize it
-                    if ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir and (dest_node not in queue) ):
+                    if ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir and (dest_node in list) ):
                         for direc in values:
                             if (min_cost > values[direc]['cost']):
                                 min_cost = values[direc]['cost']
@@ -1010,21 +1014,16 @@ class ItemRoutingSystem:
                                 
                 # is there exists a path to a unvisited node, prioritize by adding it
                 # else, add the least cost path to a visited node
-                if (next_node):
+                if (next_node is not None):
                     total_cost += min_cost
                     queue.append(next_node)
-                    list.append(next_node)
+                    if next_node[0] in list:
+                        list.remove(next_node[0])
                 else:
                     total_cost += visited_min_cost
                     queue.append(visited_next_node)
-                    list.append(visited_next_node)
-                
-                # end condition check
-                for item in list:
-                    if (item[0] not in order):
-                        loop = False
-                        break
-                    loop = True
+                    if visited_next_node[0] in list:
+                        list.remove(visited_next_node[0])
                 
             # a path completed, save it as a path based on least cost
             if (final_cost > total_cost):
