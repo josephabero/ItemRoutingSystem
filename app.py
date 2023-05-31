@@ -844,6 +844,7 @@ class ItemRoutingSystem:
         """
         Applies the branch and bound algorithm to generate a path
         """
+        start_time = time.time()
         queue = []
         final_path = []
 
@@ -852,11 +853,16 @@ class ItemRoutingSystem:
         # 2. Reduction
         # self.log("Parent Matrix", print_type=PrintType.MINOR)
         reduced_cost, parent_matrix = self.matrix_reduction(graph)
+        matrix_time = time.time()
+        print(f"Initial Matrix Reduction: {(matrix_time - start_time):.4f}")
         child_matrix = deepcopy(parent_matrix)
+
+        child_copy_time = time.time()
+        print(f"Initial Matrix Copy: {(child_copy_time - matrix_time):.4f}")
 
         # 3. Choose Random Start
         start_node, dest_node, start_dir = random.choice( list(graph) )
-        self.log(start_node, dest_node, start_dir, print_type=PrintType.MINOR)
+        # self.log(start_node, dest_node, start_dir, print_type=PrintType.MINOR)
 
         # 4. Set Upper Bound
         upper_bound = order
@@ -865,22 +871,30 @@ class ItemRoutingSystem:
         # (source, source_direction, cost, matrix, path)
 
         # For first traversal, ignore start_dir, add all of surrounding access points to traverse
+        start_first_traversal_time = time.time()
         for (start, dest, src_dir), values in parent_matrix.items():
             if start_node == start:
                 child_path = [(start, src_dir)]
                 # self.log(f"Will Visit: {start}, {dest}, {src_dir}", print_type=PrintType.MINOR)
                 queue.append( (start, src_dir, reduced_cost, child_matrix, child_path) )
 
+        end_first_traversal_time = time.time()
+        print(f"Initial Traversal: {(end_first_traversal_time - start_first_traversal_time):.4f}")
+
+
         minimum_cost = INFINITY
         while queue:
 
             # Get lowest cost node
             index = 0
+            start_lowest_cost_time = time.time()
             if len(queue) > 1:
                 lowest_cost_node = INFINITY
                 for i, (source, source_direction, cost, matrix, src_path) in enumerate(queue):
                     if cost < lowest_cost_node:
                         index = i
+            end_lowest_cost_time = time.time()
+            print(f"Get lowest cost node: {(end_lowest_cost_time - start_lowest_cost_time):.4f}")
 
             source, source_direction, cost, matrix, src_path = queue.pop(index)
             # self.log(f"New Source: {source}", print_type=PrintType.MINOR)
@@ -894,20 +908,22 @@ class ItemRoutingSystem:
             # If all nodes have been visited
             # self.log(len(src_path), len(order), print_type=PrintType.MINOR)
             if len(src_path) == len(order):
-                self.log(f"Reached Level: {len(src_path)}, {src_path}", print_type=PrintType.MINOR)
+                # self.log(f"Reached Level: {len(src_path)}, {src_path}", print_type=PrintType.MINOR)
 
                 # Store path if minimum path
                 if cost < minimum_cost:
-                    self.log(f"New minimum cost: {cost}", print_type=PrintType.DEBUG)
+                    # self.log(f"New minimum cost: {cost}", print_type=PrintType.DEBUG)
                     final_path = src_path
                     minimum_cost = cost
 
-            if source == 'Start':
-                self.log(f"Beginning Traversal for '{source}', {cost}", print_type=PrintType.MINOR)
-            else:
-                self.log(f"Beginning Traversal for '{source} {source_direction}', {cost}", print_type=PrintType.MINOR)
+            # if source == 'Start':
+            #     self.log(f"Beginning Traversal for '{source}', {cost}", print_type=PrintType.MINOR)
+            # else:
+            #     self.log(f"Beginning Traversal for '{source} {source_direction}', {cost}", print_type=PrintType.MINOR)
 
+            start_traversal_time = time.time()
             for (start, dest, src_dir), access_points in matrix.items():
+                start_traversal_iteration = time.time()
                 # Ignore other irrelevant entries
                 if source == start and source_direction == src_dir:
                     # self.log(f"Traversal Info: {start}, {src_dir}, {dest}, {values.keys()}", print_type=PrintType.MINOR)
@@ -918,15 +934,24 @@ class ItemRoutingSystem:
                         chosen_start = chosen_direc = None
                         chosen_matrix = None
 
+
                     for direc in access_points:
+                        start_ap_time = time.time()
                         if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
                             # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
+                            # print("Skipping AP")
+                            # end_ap_time = time.time()
+                            # print(f"AP Time: {(end_ap_time - start_ap_time):.4f}")
                             continue
 
+                        start_matrix_reduction = time.time()
                         reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
+                        end_matrix_reduction = time.time()
+                        print(f"Matrix reduction: {end_matrix_reduction - start_matrix_reduction}")
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS:
                             # Filter for minimum Single Access Point
+                            print("Single Access AP")
                             if chosen_start is None or reduction + cost < highest_reduction:
                                 chosen_start = dest
                                 chosen_direc = direc
@@ -939,15 +964,25 @@ class ItemRoutingSystem:
                                 # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
 
                         elif self.bnb_access_type == AccessType.MULTI_ACCESS:
+                            print("Multi Access AP")
                             child_path = src_path + [(dest, direc)]
                             node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
                             queue.append(node_to_visit)
+
+                        end_ap_time = time.time()
+                        print(f"AP Time: {(end_ap_time - start_ap_time):.4f}")
 
                     if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
                         # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
                         node_to_visit = (chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
                         queue.append(node_to_visit)
 
+                    end_traversal_iteration = time.time()
+                    print(f"Traversal iteration: {(end_traversal_iteration - start_traversal_iteration):.4f}")
+
+        end_time = time.time()
+        print(f"Total traversal: {(end_time - start_traversal_time):.4f}")
+        print(f"Total time: {(end_time - start_time):.4f}")
         return minimum_cost, final_path
 
     def localized_min_path(self, graph, order):
