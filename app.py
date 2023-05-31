@@ -75,7 +75,7 @@ class ItemRoutingSystem:
         # Default algorithm
         self.gathering_algo = AlgoMethod.DIJKSTRA
         self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
-        self.maximum_routing_time = 15
+        self.maximum_routing_time = 60
         self.bnb_access_type = AccessType.MULTI_ACCESS
 
         # Generate initial map from default settings
@@ -731,11 +731,7 @@ class ItemRoutingSystem:
                         # Don't add invalid position
                         if not is_valid_position(x, y):
                             self.log(f"Invalid access point position: {x, y}", print_type=PrintType.MINOR)
-                            valid_directions[end_dir] = {
-                                "location": None,
-                                "cost": None,
-                                "path": []
-                            }
+                            continue
 
                         # Add valid positions & get path
                         else:
@@ -879,11 +875,11 @@ class ItemRoutingSystem:
         # self.log("Parent Matrix", print_type=PrintType.MINOR)
         reduced_cost, parent_matrix = self.matrix_reduction(graph)
         matrix_time = time.time()
-        print(f"Initial Matrix Reduction: {(matrix_time - start_time):.4f}")
+        # print(f"Initial Matrix Reduction: {(matrix_time - start_time):.4f}")
         child_matrix = deepcopy(parent_matrix)
 
         child_copy_time = time.time()
-        print(f"Initial Matrix Copy: {(child_copy_time - matrix_time):.4f}")
+        # print(f"Initial Matrix Copy: {(child_copy_time - matrix_time):.4f}")
 
         # 3. Choose Random Start
         start_node, dest_node, start_dir = random.choice( list(graph) )
@@ -904,9 +900,11 @@ class ItemRoutingSystem:
                 queue.append( (start, src_dir, reduced_cost, child_matrix, child_path) )
 
         end_first_traversal_time = time.time()
-        print(f"Initial Traversal: {(end_first_traversal_time - start_first_traversal_time):.4f}")
+        # print(f"Initial Traversal: {(end_first_traversal_time - start_first_traversal_time):.4f}")
 
 
+        total_reduction_time = 0
+        total_traversal_time = 0
         minimum_cost = INFINITY
         while queue:
 
@@ -919,11 +917,11 @@ class ItemRoutingSystem:
                     if cost < lowest_cost_node:
                         index = i
             end_lowest_cost_time = time.time()
-            print(f"Get lowest cost node: {(end_lowest_cost_time - start_lowest_cost_time):.4f}")
+            # print(f"Get lowest cost node: {(end_lowest_cost_time - start_lowest_cost_time):.4f}")
 
             source, source_direction, cost, matrix, src_path = queue.pop(index)
             # self.log(f"New Source: {source}", print_type=PrintType.MINOR)
-            # self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.MINOR)
+            # self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.DEBUG)
 
             # If cost is greater than minimum cost of already found path, ignore
             if cost > minimum_cost:
@@ -972,11 +970,13 @@ class ItemRoutingSystem:
                         start_matrix_reduction = time.time()
                         reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
                         end_matrix_reduction = time.time()
-                        print(f"Matrix reduction: {(end_matrix_reduction - start_matrix_reduction):.4f}")
+                        total_reduction_time += (end_matrix_reduction - start_matrix_reduction)
+                        # print(f"Matrix reduction: {(end_matrix_reduction - start_matrix_reduction):.4f}")
+                        # print(f"Total reduction: {total_reduction_time:.4f}")
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS:
                             # Filter for minimum Single Access Point
-                            print("Single Access AP")
+                            # print("Single Access AP")
                             if chosen_start is None or reduction + cost < highest_reduction:
                                 chosen_start = dest
                                 chosen_direc = direc
@@ -989,18 +989,18 @@ class ItemRoutingSystem:
                                 # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
 
                         elif self.bnb_access_type == AccessType.MULTI_ACCESS:
-                            print("Multi Access AP")
+                            # print("Multi Access AP")
                             child_path = src_path + [(dest, direc)]
                             node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
                             if (cost + reduction) < minimum_cost:
                                 start_search_time = time.time()
                                 index = binary_search(queue, 0, len(queue) - 1, cost + reduction)
                                 end_search_time = time.time()
-                                print(f"Search Time: {(end_search_time - start_search_time):.4f}")
+                                # print(f"Search Time: {(end_search_time - start_search_time):.4f}")
                                 queue.insert(index, node_to_visit)
 
                         end_ap_time = time.time()
-                        print(f"AP Time: {(end_ap_time - start_ap_time):.4f}")
+                        # print(f"AP Time: {(end_ap_time - start_ap_time):.4f}")
 
                     if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
                         # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
@@ -1009,14 +1009,17 @@ class ItemRoutingSystem:
                             start_search_time = time.time()
                             index = binary_search(queue, 0, len(queue) - 1, cost + reduction)
                             end_search_time = time.time()
-                            print(f"Search Time: {(end_search_time - start_search_time):.4f}")
+                            # print(f"Search Time: {(end_search_time - start_search_time):.4f}")
                             queue.insert(index, node_to_visit)
 
                     end_traversal_iteration = time.time()
-                    print(f"Traversal iteration: {(end_traversal_iteration - start_traversal_iteration):.4f}")
+                    total_traversal_time += end_traversal_iteration - start_traversal_iteration
+                    # print(f"Traversal iteration: {(end_traversal_iteration - start_traversal_iteration):.4f}")
+                    # print(f"Total Traversal: {(total_traversal_time):.4f}")
 
         end_time = time.time()
-        print(f"Total traversal: {(end_time - start_traversal_time):.4f}")
+        print(f"Total reduction: {total_reduction_time:.4f}")
+        print(f"Total traversal: {(total_traversal_time):.4f}")
         print(f"Total time: {(end_time - start_time):.4f}")
         return minimum_cost, final_path
 
@@ -1127,6 +1130,7 @@ class ItemRoutingSystem:
             cost, algo_path = algo_func(graph, order)
             algo_path = self.rotate_path(algo_path)
             path = self.get_locations_for_path(graph, algo_path)
+
 
         except Exception as exc:
             # Algorithm timed out, return input order list
@@ -1352,7 +1356,7 @@ class ItemRoutingSystem:
 
         return result
 
-    def get_descriptive_steps(self, positions, targets, collapse=True):
+    def get_descriptive_steps(self, products, positions, targets, collapse=True):
         """
         Gets a list of directions to gather all items beginning from the
         internal starting position and returning to the starting position.
@@ -1403,6 +1407,8 @@ class ItemRoutingSystem:
         current_position = start
         total_steps = 0
 
+        next_product = 0
+
         # Preprocessing
         for position in updated_positions:
             prev_position = current_position
@@ -1414,7 +1420,8 @@ class ItemRoutingSystem:
             # At Access Point for target position
             for target in targets:
                 if is_at_access_point_to_target(position, target):
-                    path.append(f"Pickup item at {target}.")
+                    # path.append(f"Pickup item at {target}.")
+
                     break
 
         back_to_start, steps = self.move_to_target(current_position, end)
@@ -1957,7 +1964,7 @@ class ItemRoutingSystem:
                                         for product_id in order_list:
                                             if int(product_id) in self.product_info:
                                                 product_ids.append(int(product_id))
-                                                success = Ture
+                                                success = True
 
                                             else:
                                                 success = False
@@ -2076,11 +2083,11 @@ class ItemRoutingSystem:
                         if self.graph is None:
                             self.graph = self.build_graph_for_order(self.order)
 
-                        cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order)
+                        cost, products, location, run_time = self.run_tsp_algorithm(self.graph, self.order)
 
                         # Algo Timed Out
                         if run_time == self.maximum_routing_time:
-                            cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.LOCALIZED_MIN_PATH)
+                            cost, products, location, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.LOCALIZED_MIN_PATH)
 
 
                         target_locations = []
@@ -2092,7 +2099,7 @@ class ItemRoutingSystem:
                             if location:
                                 target_locations.append(location)
 
-                        steps = self.get_descriptive_steps(path, target_locations, collapse=False)
+                        steps = self.get_descriptive_steps(products, location, target_locations, collapse=False)
 
                         if steps:
                             self.display_path_in_map(steps)
@@ -2638,8 +2645,11 @@ class ItemRoutingSystem:
                                             # Test Algorithms to Get Paths
                                             self.log(f"Test Case: Size {size}\n"    \
                                                       "----------------------")
+                                            print(product_ids)
                                             grouped_items = self.process_order(product_ids)
+                                            print(grouped_items)
                                             graph = self.build_graph_for_order(grouped_items)
+                                            print(graph)
 
                                             # Run Branch and Bound
                                             cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.BRANCH_AND_BOUND)
@@ -2659,39 +2669,39 @@ class ItemRoutingSystem:
                                             self.log("")
 
 
-                                            # Run Custom Algorithm
-                                            cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.LOCALIZED_MIN_PATH)
+                                        #     # Run Custom Algorithm
+                                        #     cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.LOCALIZED_MIN_PATH)
 
-                                            # Algorithm Timed Out
-                                            if cost is None:
-                                                failed += 1
-                                                cases_failed[size]["Localized Minimum Path"] = "Timeout"
-                                                self.log("Failed Localized Minimum Path")
+                                        #     # Algorithm Timed Out
+                                        #     if cost is None:
+                                        #         failed += 1
+                                        #         cases_failed[size]["Localized Minimum Path"] = "Timeout"
+                                        #         self.log("Failed Localized Minimum Path")
 
-                                            else:
-                                                self.log("Completed Localized Minimum Path!")
+                                        #     else:
+                                        #         self.log("Completed Localized Minimum Path!")
 
-                                            self.log(f"    Time: {run_time:.6f}")
-                                            self.log(f"    Cost: {cost}")
-                                            self.log(f"    Path: {path}")
-                                            self.log("")
+                                        #     self.log(f"    Time: {run_time:.6f}")
+                                        #     self.log(f"    Cost: {cost}")
+                                        #     self.log(f"    Path: {path}")
+                                        #     self.log("")
 
-                                        self.log(f"Results\n"             \
-                                                 f"---------\n"           \
-                                                 f"Passed: {passed}\n"    \
-                                                 f"Failed: {failed}\n"    \
-                                                 f"Total:  {passed + failed}")
-                                        self.log("")
+                                        # self.log(f"Results\n"             \
+                                        #          f"---------\n"           \
+                                        #          f"Passed: {passed}\n"    \
+                                        #          f"Failed: {failed}\n"    \
+                                        #          f"Total:  {passed + failed}")
+                                        # self.log("")
 
-                                        # Display Failures
-                                        if failed:
-                                            self.log("Failures\n" \
-                                                     "---------")
-                                            for size, fails in cases_failed.items():
-                                                if fails:
-                                                    self.log(f"{size}: ")
-                                                    for case, reason in fails.items():
-                                                        self.log(f"    {case}: {reason}")
+                                        # # Display Failures
+                                        # if failed:
+                                        #     self.log("Failures\n" \
+                                        #              "---------")
+                                        #     for size, fails in cases_failed.items():
+                                        #         if fails:
+                                        #             self.log(f"{size}: ")
+                                        #             for case, reason in fails.items():
+                                        #                 self.log(f"    {case}: {reason}")
 
                                 else:
                                     self.log("No test cases to run! Must load test case file first!")
