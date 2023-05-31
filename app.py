@@ -72,6 +72,7 @@ class ItemRoutingSystem:
         self.gathering_algo = AlgoMethod.DIJKSTRA
         self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
         self.maximum_routing_time = 15
+        self.bnb_access_type = AccessType.MULTI_ACCESS
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
@@ -239,9 +240,10 @@ class ItemRoutingSystem:
             menu.add_option(3, "Set Map Orientation")
             menu.add_option(4, "Set Gathering Algorithm")
             menu.add_option(5, "Set TSP Algorithm")
-            menu.add_option(6, "Load Test Case File")
-            menu.add_option(7, "Run Test Cases")
-            menu.add_option(8, "Back")
+            menu.add_option(6, "Set TSP Access Type")
+            menu.add_option(7, "Load Test Case File")
+            menu.add_option(8, "Run Test Cases")
+            menu.add_option(9, "Back")
 
             position_str = ' '.join(str(p) for p in self.items)
             if len(self.items) > 10:
@@ -262,6 +264,7 @@ class ItemRoutingSystem:
                    f"  Mode: {self.worker_mode}\n" \
                    f"  Gathering Algorithm: {self.gathering_algo}\n" \
                    f"  TSP Algorithm: {self.tsp_algorithm}\n" \
+                   f"  TSP Access Type: {self.bnb_access_type}\n" \
                    f"Item Settings:\n" \
                    f"  Mode: {self.item_mode}\n" \
                    f"  Number of Items: {len(self.items)}\n" \
@@ -287,6 +290,12 @@ class ItemRoutingSystem:
             menu = Menu("Set TSP Algorithm")
             menu.add_option(1, "Branch and Bound")
             menu.add_option(2, "Localized Minimum Path")
+            menu.add_option(3, "Back")
+
+        elif menu_type == MenuType.TSP_ACCESS_TYPE:
+            menu = Menu("Set TSP Access Type")
+            menu.add_option(1, "Single Access Point")
+            menu.add_option(2, "Multi Access Point")
             menu.add_option(3, "Back")
 
         elif menu_type == MenuType.WORKER_START_POSITION:
@@ -864,37 +873,44 @@ class ItemRoutingSystem:
             else:
                 self.log(f"Beginning Traversal for '{source} {source_direction}', {cost}", print_type=PrintType.MINOR)
 
-            for (start, dest, src_dir), values in matrix.items():
+            for (start, dest, src_dir), access_points in matrix.items():
                 # Ignore other irrelevant entries
                 if source == start and source_direction == src_dir:
                     # self.log(f"Traversal Info: {start}, {src_dir}, {dest}, {values.keys()}", print_type=PrintType.MINOR)
-                    highest_reduction = INFINITY
-                    chosen_start = chosen_direc = None
-                    chosen_matrix = None
                     child_path = []
 
-                    for direc in values:
-                        if values.get(direc).get('cost') is None or (values.get(direc).get('cost') == INFINITY):
+                    if self.bnb_access_type == AccessType.SINGLE_ACCESS:
+                        highest_reduction = INFINITY
+                        chosen_start = chosen_direc = None
+                        chosen_matrix = None
+
+                    for direc in access_points:
+                        if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
                             # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
                             continue
 
                         reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
 
-                        # Filter for minimum Single Access Point
-                        if chosen_start is None or reduction + cost < highest_reduction:
-                            chosen_start = dest
-                            chosen_direc = direc
-                            highest_reduction = reduction + cost
-                            chosen_matrix = deepcopy(temp_matrix)
+                        if self.bnb_access_type == AccessType.SINGLE_ACCESS:
+                            # Filter for minimum Single Access Point
+                            if chosen_start is None or reduction + cost < highest_reduction:
+                                chosen_start = dest
+                                chosen_direc = direc
+                                highest_reduction = reduction + cost
+                                chosen_matrix = deepcopy(temp_matrix)
 
-                            # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
-                            # self.log(f"{src_path}", print_type=PrintType.MINOR)
+                                # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
+                                # self.log(f"{src_path}", print_type=PrintType.MINOR)
+                                child_path = src_path + [(dest, direc)]
+                                # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
+
+                        elif self.bnb_access_type == AccessType.MULTI_ACCESS:
                             child_path = src_path + [(dest, direc)]
-                            # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
+                            node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
+                            queue.append(node_to_visit)
 
-                    if child_path:
+                    if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
                         # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
-
                         node_to_visit = (chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
                         queue.append(node_to_visit)
 
@@ -923,6 +939,7 @@ class ItemRoutingSystem:
             if product_id == 'Start':
                 pre_node = product_id
                 access_direction = None
+                path += [('Start', None)]
                 continue
 
             min_cost = float('inf')
@@ -935,7 +952,7 @@ class ItemRoutingSystem:
                 if min_cost is None or val['cost'] < min_cost:
                     min_cost = val['cost']
                     access_direction = access_point
-                    shortest_path = val['path']
+                    shortest_path = [(product_id, access_point)]
 
             if min_cost != float('inf'):
                 total_cost += min_cost
@@ -945,6 +962,39 @@ class ItemRoutingSystem:
         self.log(f"Minimum Path: {path}", print_type=PrintType.MINOR)
 
         return total_cost, path
+
+    def get_locations_for_path(self, graph, path):
+        locations = []
+        for left in range(len(path) - 1):
+            left_item = path[left]
+            right_item = path[left + 1]
+            # Access points available
+            if len(left_item) > 1:
+                left_node, left_dir = left_item
+                right_node, right_dir = right_item
+                print(f"Getting Location for {left_node, left_dir} -> {right_node, right_dir}")
+                locations += graph[(left_node, right_node, left_dir)][right_dir]["path"]
+
+        return locations
+
+    def rotate_path(self, path):
+        start_node = ('Start', None)
+        result = []
+        try:
+            start_index = path.index(start_node)
+
+            # Path already begins at start node
+            if start_index == 0:
+                return path
+
+            # Rotate Path
+            for i in range(len(path)):
+                result.append(path[(start_index + i) % len(path)])
+            return result
+
+        # Start node is not included in input path
+        except ValueError:
+            return path
 
     def run_tsp_algorithm(self, graph, order, algorithm=None):
         def timeout_handler(signum, frame):
@@ -970,7 +1020,9 @@ class ItemRoutingSystem:
 
         # Run Algorithm
         try:
-            cost, path = algo_func(graph, order)
+            cost, algo_path = algo_func(graph, order)
+            algo_path = self.rotate_path(algo_path)
+            path = self.get_locations_for_path(graph, algo_path)
 
         except Exception as exc:
             # Algorithm timed out, return input order list
@@ -2177,8 +2229,38 @@ class ItemRoutingSystem:
                                         update = False
                                         clear = False
 
-                            # Load Test Case File
+                            # Set TSP Access Type
                             elif adv_option == '6':
+                                while True:
+                                    if update:
+                                        self.display_menu(MenuType.TSP_ACCESS_TYPE, clear=clear)
+                                    else:
+                                        update = True
+                                        clear = True
+
+                                    algo_option = input("> ")
+
+                                    # Branch and Bound
+                                    if algo_option == '1':
+                                        self.bnb_access_type = AccessType.SINGLE_ACCESS
+                                        break
+
+                                    # Custom Algorithm
+                                    elif algo_option == '2':
+                                        self.bnb_access_type = AccessType.MULTI_ACCESS
+                                        break
+
+                                    # Back
+                                    elif algo_option == '3':
+                                        break
+
+                                    else:
+                                        self.log("Invalid choice. Try again.")
+                                        update = False
+                                        clear = False
+
+                            # Load Test Case File
+                            elif adv_option == '7':
                                 if update:
                                     self.display_menu(MenuType.LOAD_TEST_CASE_FILE, clear=clear)
                                 else:
@@ -2204,7 +2286,7 @@ class ItemRoutingSystem:
                                         self.log(f"File '{test_case_file}' was not found, please try entering full path to file!")
 
                             # Run Test Cases
-                            elif adv_option == '7':
+                            elif adv_option == '8':
                                 if self.test_case_file and self.test_product_file:
                                     success = self.load_product_file(self.test_product_file)
 
@@ -2339,7 +2421,7 @@ class ItemRoutingSystem:
                                 clear = False
 
                             # Back
-                            elif adv_option == '8':
+                            elif adv_option == '9':
                                 break
 
                             else:
