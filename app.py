@@ -290,7 +290,8 @@ class ItemRoutingSystem:
             menu = Menu("Set TSP Algorithm")
             menu.add_option(1, "Branch and Bound")
             menu.add_option(2, "Localized Minimum Path")
-            menu.add_option(3, "Back")
+            menu.add_option(3, "Repetitive Nearest Neighbor")
+            menu.add_option(4, "Back")
 
         elif menu_type == MenuType.TSP_ACCESS_TYPE:
             menu = Menu("Set TSP Access Type")
@@ -2286,8 +2287,13 @@ class ItemRoutingSystem:
                                         self.tsp_algorithm = AlgoMethod.LOCALIZED_MIN_PATH
                                         break
 
-                                    # Back
+                                    # Repetitive Nearest Neighbor
                                     elif algo_option == '3':
+                                        self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
+                                        break
+
+                                    # Back
+                                    elif algo_option == '4':
                                         break
 
                                     else:
