@@ -1015,6 +1015,9 @@ class ItemRoutingSystem:
         elif algorithm == AlgoMethod.LOCALIZED_MIN_PATH:
             algo_func = self.localized_min_path
 
+        elif algorithm == AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR:
+            algo_func = self.nearest_neighbor
+
         # Start Time for timing algorithm run time
         start_time = time.time()
 
@@ -2425,40 +2428,31 @@ class ItemRoutingSystem:
                                             grouped_items = self.process_order(product_ids)
                                             graph = self.build_graph_for_order(grouped_items)
 
-                                            # Run Branch and Bound
-                                            cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.BRANCH_AND_BOUND)
 
-                                            # Algorithm Timed Out
-                                            if cost is None:
-                                                failed += 1
-                                                cases_failed[size]["Branch and Bound"] = "Timeout"
-                                                self.log("Failed Branch and Bound")
+                                            # Run Test Case against desired algorithms
+                                            algorithms_to_test = [
+                                                AlgoMethod.LOCALIZED_MIN_PATH,
+                                                AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
+                                                # AlgoMethod.BRANCH_AND_BOUND
+                                            ]
 
-                                            else:
-                                                self.log("Completed Branch and Bound!")
+                                            for algo in algorithms_to_test:
+                                                # Run Branch and Bound
+                                                cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, algo)
 
-                                            self.log(f"    Time: {run_time:.6f}")
-                                            self.log(f"    Cost: {cost}")
-                                            self.log(f"    Path: {path}")
-                                            self.log("")
+                                                # Algorithm Timed Out
+                                                if cost is None:
+                                                    failed += 1
+                                                    cases_failed[size][str(algo)] = "Timeout"
+                                                    self.log(f"Failed {algo}!")
 
+                                                else:
+                                                    self.log(f"Completed {algo}!")
 
-                                            # Run Custom Algorithm
-                                            cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.LOCALIZED_MIN_PATH)
-
-                                            # Algorithm Timed Out
-                                            if cost is None:
-                                                failed += 1
-                                                cases_failed[size]["Localized Minimum Path"] = "Timeout"
-                                                self.log("Failed Localized Minimum Path")
-
-                                            else:
-                                                self.log("Completed Localized Minimum Path!")
-
-                                            self.log(f"    Time: {run_time:.6f}")
-                                            self.log(f"    Cost: {cost}")
-                                            self.log(f"    Path: {path}")
-                                            self.log("")
+                                                self.log(f"    Time: {run_time:.6f}")
+                                                self.log(f"    Cost: {cost}")
+                                                self.log(f"    Path: {path}")
+                                                self.log("")
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \

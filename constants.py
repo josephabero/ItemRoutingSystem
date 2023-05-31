@@ -28,6 +28,7 @@ class AlgoMethod(Enum):
     DIJKSTRA = "Dijkstra"
     BRANCH_AND_BOUND = "Branch and Bound"
     LOCALIZED_MIN_PATH = "Localized Minimum Path"
+    REPETITIVE_NEAREST_NEIGHBOR = "Repetitive Nearest Neighbor"
 
     def __str__(cls):
         return cls.value
