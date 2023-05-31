@@ -1039,8 +1039,6 @@ class ItemRoutingSystem:
 
         return cost, path, total_time
 
-
-# justin
     def nearest_neighbor(graph, order):
         """
         Implements the Nearest Neightbor Heuristic for TSP.
@@ -1104,10 +1102,6 @@ class ItemRoutingSystem:
         # least cost path found, return
         return final_cost, final_path
 
-
-
-
-
     def gather_brute_force(self, targets):
         """
         Performs brute force algorithm to gather all valid permutations of desired path then
@@ -1118,7 +1112,7 @@ class ItemRoutingSystem:
 
         Returns:
             min_path (list of tuples): List of item positions to traverse in order.
-    """
+        """
         if self.debug:
             start_time = time.time()
 
