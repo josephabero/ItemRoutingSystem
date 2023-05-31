@@ -72,7 +72,7 @@ class ItemRoutingSystem:
         # Default algorithm
         self.gathering_algo = AlgoMethod.DIJKSTRA
         self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
-        self.maximum_routing_time = 15
+        self.maximum_routing_time = 60
         self.bnb_access_type = AccessType.MULTI_ACCESS
 
         # Generate initial map from default settings
