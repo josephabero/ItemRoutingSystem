@@ -14,6 +14,7 @@ from queue import PriorityQueue
 from copy import deepcopy
 import heapq
 import itertools
+from math import ceil
 import os
 import platform
 import random
@@ -71,7 +72,7 @@ class ItemRoutingSystem:
         # Default algorithm
         self.gathering_algo = AlgoMethod.DIJKSTRA
         self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
-        self.maximum_routing_time = 15
+        self.maximum_routing_time = 60
         self.bnb_access_type = AccessType.MULTI_ACCESS
 
         # Generate initial map from default settings
@@ -930,6 +931,7 @@ class ItemRoutingSystem:
         """
 
         path = []
+        total_cost = 0
 
         sorted_order = []
 
@@ -984,6 +986,7 @@ class ItemRoutingSystem:
             if product_id == 'Start':
                 pre_node = product_id
                 access_direction = None
+                path += [('Start', None)]
                 continue
 
             min_cost = float('inf')
@@ -996,18 +999,92 @@ class ItemRoutingSystem:
                 if min_cost is None or val['cost'] < min_cost:
                     min_cost = val['cost']
                     access_direction = access_point
-                    shortest_path = val['path']
+                    shortest_path = [(product_id, access_point)]
 
+            if min_cost != float('inf'):
+                total_cost += min_cost
             path += shortest_path
             pre_node = product_id
 
-        if self.debug:
-            # end_time = time.time()
-            # self.log(f"Total Time: {(end_time - start_time):.4f}")
-            self.log(f"Minimum Path: {path}")
-            # self.log(f"Shortest Number of Steps: {smallest}")
-        #print(path)
-        return path
+        self.log(f"Minimum Path: {path}", print_type=PrintType.MINOR)
+
+        return total_cost, path
+
+    def get_locations_for_path(self, graph, path):
+        locations = []
+        for left in range(len(path) - 1):
+            left_item = path[left]
+            right_item = path[left + 1]
+            # Access points available
+            if len(left_item) > 1:
+                left_node, left_dir = left_item
+                right_node, right_dir = right_item
+                print(f"Getting Location for {left_node, left_dir} -> {right_node, right_dir}")
+                locations += graph[(left_node, right_node, left_dir)][right_dir]["path"]
+
+        return locations
+
+    def rotate_path(self, path):
+        start_node = ('Start', None)
+        result = []
+        try:
+            start_index = path.index(start_node)
+
+            # Path already begins at start node
+            if start_index == 0:
+                return path
+
+            # Rotate Path
+            for i in range(len(path)):
+                result.append(path[(start_index + i) % len(path)])
+            return result
+
+        # Start node is not included in input path
+        except ValueError:
+            return path
+
+    def run_tsp_algorithm(self, graph, order, algorithm=None):
+        def timeout_handler(signum, frame):
+            self.log("Function timed out!")
+            raise Exception("Function Timeout")
+
+        # Setup timeout signal
+        signal.signal(signal.SIGALRM, timeout_handler) # seconds
+        signal.alarm(ceil(self.maximum_routing_time))
+
+        if algorithm is None:
+            algorithm = self.tsp_algorithm
+
+        # Choose algorithm to run
+        if algorithm == AlgoMethod.BRANCH_AND_BOUND:
+            algo_func = self.branch_and_bound
+
+        elif algorithm == AlgoMethod.LOCALIZED_MIN_PATH:
+            algo_func = self.localized_min_path
+
+        # Start Time for timing algorithm run time
+        start_time = time.time()
+
+        # Run Algorithm
+        try:
+            cost, algo_path = algo_func(graph, order)
+            algo_path = self.rotate_path(algo_path)
+            path = self.get_locations_for_path(graph, algo_path)
+
+        except Exception as exc:
+            # Algorithm timed out, return input order list
+            self.log(exc)
+            return None, order, self.maximum_routing_time
+
+        # End Time for timing algorithm run time
+        end_time = time.time()
+        total_time = end_time - start_time
+        self.log(f"Total Time: {(end_time - start_time):.4f}", print_type=PrintType.MINOR)
+
+        # Stop timeout signal
+        signal.alarm(0)
+
+        return cost, path, total_time
 
     def get_locations_for_path(self, graph, path):
         locations = []
@@ -1437,26 +1514,44 @@ class ItemRoutingSystem:
                 result = self.get_descriptive_steps(path, [target])
             return result
 
-    def verify_settings_range(self, value, minimum, maximum):
+    def verify_settings_range(self, value, minimum, maximum, expected_type=int):
         """
         Helper function to validate the value is within the specified range.
 
         Args:
-            value   (int): Integer value to validate
-            minimum (int): Smallest integer value allowed
-            maximum (int): Largest integer value allowed
+            value   (int, float): Value to validate
+            minimum (int, float): Smallest value allowed
+            maximum (int, float): Largest value allowed
 
         Returns:
             True if value falls within minimum and maximum value.
             False otherwise.
         """
+        def cast_data_type(value, expected_type):
+            success = False
+
+            try:
+                result = expected_type(value)
+                success = True
+            except TypeError:
+                self.log(f"Invalid value {value}, could not cast to '{expected_type}'!", print_type= PrintType.DEBUG)
+                return False, value
+
+            return success, result
+
+        input_success, casted_value = cast_data_type(value, expected_type)
+
+        # Failed to cast the value
+        if not input_success:
+            return False
+
         try:
-            if minimum <= int(value) <= maximum:
+            if minimum <= casted_value <= maximum:
                 return True
-            elif int(value) < minimum:
-                self.log(f"Try again! {value} is too small, must be minimum {minimum}.")
-            elif int(value) > maximum:
-                self.log(f"Try again! {value} is too large, must be maximum {maximum}.")
+            elif casted_value < minimum:
+                self.log(f"Try again! {casted_value} is too small, must be minimum {minimum}.")
+            elif casted_value > maximum:
+                self.log(f"Try again! {casted_value} is too large, must be maximum {maximum}.")
             else:
                 self.log(f"Invalid option: {value}")
         except Exception as e:
@@ -1724,23 +1819,23 @@ class ItemRoutingSystem:
 
         return success
 
-    def set_routing_time_maximum(self):
+    def set_maximum_routing_time(self):
 
         banner = Menu("Set Routing Time Maximum")
         banner.display()
 
         success = False
 
-        routing_time = input(f"Set Maximum Routing Time in Seconds (Currently {self.maximum_routing_time}): ")
+        routing_time = input(f"Set Maximum Routing Time in Seconds (Currently {self.maximum_routing_time:.2f}): ")
 
-        max_success = self.verify_settings_range(routing_time, 0, 1440)
-        if (max_success):
+        max_success = self.verify_settings_range(routing_time, 0, 1440, float)
+        if max_success:
             success = True
-            self.maximum_routing_time = int(routing_time)
+            self.maximum_routing_time = float(routing_time)
         else:
             self.log("Invalid value, please try again!")
 
-        self.log(f"Maximum Routing Time in Seconds: {self.maximum_routing_time}")
+        self.log(f"Maximum Routing Time in Seconds: {self.maximum_routing_time:.2f}")
 
         return success
 
@@ -2078,6 +2173,8 @@ class ItemRoutingSystem:
                             # Go back to Settings menu
                             break
 
+                    clear = False
+
                 # Set Worker Ending Position
                 elif suboption == '3':
                     while True:
@@ -2132,14 +2229,20 @@ class ItemRoutingSystem:
                             # Go back to Settings menu
                             break
 
+                    clear = False
+
 
                 # Set Maximum Items Ordered Amount
                 elif suboption == '4':
                     self.set_maximum_items_ordered()
                     self.items = self.get_item_positions()
 
+                    clear = False
+
                 elif suboption == '5':
-                    self.set_routing_time_maximum()
+                    self.set_maximum_routing_time()
+
+                    clear = False
 
                 # Toggle Debug
                 elif suboption == '6':
