@@ -713,12 +713,6 @@ class ItemRoutingSystem:
                     if valid_directions:
                         graph[(start, end, start_dir)] = valid_directions
         
-            # loops start and end to each other for proper bnb behavior
-            path, cost = self.dijkstra(self.map, self.starting_position, self.ending_position)
-            graph[('Start', 'End', None)] = { 'N': {"location": (self.ending_position[0], self.ending_position[1]), "cost": 0, "path": path} }
-            path, cost = self.dijkstra(self.map, self.ending_position, self.starting_position)
-            graph[('End', 'Start', None)] = { 'N': {"location": (self.starting_position[0], self.starting_position[1]), "cost": 0, "path": path} }
-            
         return graph
 
     def print_matrix(self, matrix):
