@@ -52,6 +52,8 @@ class ItemRoutingSystem:
 
         # Default order list
         self.order = []
+        self.order_file = None
+        self.order_info = []
 
         # Default test case filename
         self.test_case_file = None
@@ -129,6 +131,23 @@ class ItemRoutingSystem:
                 self.product_info[int(fields[0])] = int(float(fields[1])), int(float(fields[2]))
             f.close()
         except FileNotFoundError:
+            success = False
+
+        return success
+
+    def load_order_file(self, order_file_name):
+        success = True
+
+        try:
+            self.order_file = order_file_name
+            f = open(order_file_name, 'r')
+
+            for line in f:
+                formatted_line = [ int(l.lstrip()) for l in line.rstrip().split(",") ]
+                self.order_info.append(formatted_line)
+            f.close()
+        except FileNotFoundError:
+            self.order_file = None
             success = False
 
         return success
@@ -1829,8 +1848,18 @@ class ItemRoutingSystem:
 
 
                     elif order_option == "2":
-                        print("Input a file")
-                        break
+                        # Set Order File Name
+                        success = False
+                        while not success:
+                            order_file = input("Enter order filename: ")
+
+                            success = self.load_order_file(order_file)
+
+                            if success:
+                                self.log(f"Successfully loaded orders from file '{order_file}'!")
+                            else:
+                                self.log(f"Invalid order file '{order_file}'! Please try again.")
+                        continue
 
 
                     if product_ids:
