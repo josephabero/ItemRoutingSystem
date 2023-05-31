@@ -1086,6 +1086,73 @@ class ItemRoutingSystem:
 
         return cost, path, total_time
 
+    def nearest_neighbor(graph, order):
+        """
+        Implements the Nearest Neightbor Heuristic for TSP.
+        """
+        final_path = None
+        final_cost = INFINITY
+
+        # create a path for every single starting node
+        for key in graph.keys():
+            first_time_thru = True
+            queue = []
+            item_list = order.copy()
+            first_node = (key[0], key[2])
+            queue.append(first_node)
+            total_cost = 0;
+
+            while item_list:
+                popped_node = queue[-1:]
+
+                # first time through, set the starting node as unvisited, used for cycling
+                if (first_time_thru):
+                    first_time_thru = False
+                    queue.pop()
+                min_cost = INFINITY
+                visited_min_cost = INFINITY
+                next_node = None
+                visited_next_node = None
+
+                for (curr_node, dest_node, curr_dir), values in graph.items():
+
+                    # there exists an unvisited node, prioritize it
+                    if ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir and (dest_node in item_list) ):
+                        for direc in values:
+                            if (values[direc]['cost'] is None):
+                                continue
+                            elif (min_cost > values[direc]['cost']):
+                                min_cost = values[direc]['cost']
+                                next_node = (dest_node, direc)
+
+                    # all nodes are visited, choose the least cost of the visited nodes
+                    elif ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir ):
+                        for direc in values:
+                            if (values[direc]['cost'] is None):
+                                continue
+                            elif (visited_min_cost > values[direc]['cost']):
+                                visited_min_cost = values[direc]['cost']
+                                visited_next_node = (dest_node, direc)
+
+                # is there exists a path to a unvisited node, prioritize by adding it
+                # else, add the least cost path to a visited node
+                if (next_node is not None):
+                    total_cost += min_cost
+                    queue.append(next_node)
+                    if next_node[0] in item_list:
+                        item_list.remove(next_node[0])
+                else:
+                    total_cost += visited_min_cost
+                    queue.append(visited_next_node)
+             
+            # a path completed, save it as a path based on least cost
+            if (final_cost > total_cost):
+                final_path = queue.copy()
+                final_cost = total_cost
+
+        # least cost path found, return
+        return final_cost, final_path
+
     def gather_brute_force(self, targets):
         """
         Performs brute force algorithm to gather all valid permutations of desired path then
