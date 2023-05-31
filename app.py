@@ -232,6 +232,7 @@ class ItemRoutingSystem:
             menu = Menu("Create Order")
             menu.add_option(1, "Individual Order")
             menu.add_option(2, "Multiple Orders From File")
+            menu.add_option(3, "Back")
 
         elif menu_type == MenuType.MULTIPLE_ORDERS:
             menu = Menu("Multiple Orders")
@@ -1005,7 +1006,7 @@ class ItemRoutingSystem:
             if len(left_item) > 1:
                 left_node, left_dir = left_item
                 right_node, right_dir = right_item
-                print(f"Getting Location for {left_node, left_dir} -> {right_node, right_dir}")
+                self.log(f"Getting Location for {left_node, left_dir} -> {right_node, right_dir}", print_type=PrintType.MINOR)
                 locations += graph[(left_node, right_node, left_dir)][right_dir]["path"]
 
         return locations
@@ -1488,16 +1489,20 @@ class ItemRoutingSystem:
 
         success = False
 
-        x = input(f"Set Map X Size (Currently {self.map_x}, Minimum {minimum_x}, Max {maximum_x}): ")
-        y = input(f"Set Map Y Size (Currently {self.map_y}, Minimum {minimum_y}, Max {maximum_y}): ")
+        try:
+            x = input(f"Set Map X Size (Currently {self.map_x}, Minimum {minimum_x}, Max {maximum_x}): ")
+            y = input(f"Set Map Y Size (Currently {self.map_y}, Minimum {minimum_y}, Max {maximum_y}): ")
 
-        x_success = self.verify_settings_range(x, minimum_x, maximum_x)
-        y_success = self.verify_settings_range(y, minimum_y, maximum_y)
+            x_success = self.verify_settings_range(x, minimum_x, maximum_x)
+            y_success = self.verify_settings_range(y, minimum_y, maximum_y)
 
-        if x_success and y_success:
-            self.map_x = int(x)
-            self.map_y = int(y)
-            success = True
+            if x_success and y_success:
+                self.map_x = int(x)
+                self.map_y = int(y)
+                success = True
+
+        except ValueError:
+            self.log("Invalid map size values, please try again.")
 
         self.log(f"Current Map Size: {self.map_x}x{self.map_y}")
         return success
@@ -1533,18 +1538,22 @@ class ItemRoutingSystem:
                 y = input(
                     f"Set starting Y position (Currently {self.starting_position[1]}, Maximum {self.map_y - 1}): ")
 
-                x_success = self.verify_settings_range(x, 0, self.map_x - 1)
-                y_success = self.verify_settings_range(y, 0, self.map_y - 1)
+                try:
+                    x_success = self.verify_settings_range(x, 0, self.map_x - 1)
+                    y_success = self.verify_settings_range(y, 0, self.map_y - 1)
 
-                if x_success and y_success:
+                    if x_success and y_success:
 
-                    # Overlapping Item and Worker Positions
-                    if (int(x), int(y)) in self.items:
-                        self.log("Worker position is the same as a item position! Please Try Again.\n")
+                        # Overlapping Item and Worker Positions
+                        if (int(x), int(y)) in self.items:
+                            self.log("Worker position is the same as a item position! Please Try Again.\n")
 
-                    else:
-                        self.starting_position = (int(x), int(y))
-                        success = True
+                        else:
+                            self.starting_position = (int(x), int(y))
+                            success = True
+
+                except ValueError:
+                    self.log("Invalid worker positions, please try again!")
 
                 self.log(f"Current Worker Starting Position: {self.starting_position}")
         return success
@@ -1576,23 +1585,26 @@ class ItemRoutingSystem:
             banner.display()
 
             while not success:
-                x = input(
-                    f"Set ending X position (Currently {self.ending_position[0]}, Maximum {self.map_x - 1}): ")
-                y = input(
-                    f"Set ending Y position (Currently {self.ending_position[1]}, Maximum {self.map_y - 1}): ")
+                try:
+                    x = input(
+                        f"Set ending X position (Currently {self.ending_position[0]}, Maximum {self.map_x - 1}): ")
+                    y = input(
+                        f"Set ending Y position (Currently {self.ending_position[1]}, Maximum {self.map_y - 1}): ")
 
-                x_success = self.verify_settings_range(x, 0, self.map_x - 1)
-                y_success = self.verify_settings_range(y, 0, self.map_y - 1)
+                    x_success = self.verify_settings_range(x, 0, self.map_x - 1)
+                    y_success = self.verify_settings_range(y, 0, self.map_y - 1)
 
-                if x_success and y_success:
+                    if x_success and y_success:
 
-                    # Overlapping Item and Worker Positions
-                    if (int(x), int(y)) in self.items:
-                        self.log("Worker position is the same as a item position! Please Try Again.\n")
+                        # Overlapping Item and Worker Positions
+                        if (int(x), int(y)) in self.items:
+                            self.log("Worker position is the same as a item position! Please Try Again.\n")
 
-                    else:
-                        self.ending_position = (int(x), int(y))
-                        success = True
+                        else:
+                            self.ending_position = (int(x), int(y))
+                            success = True
+                except ValueError:
+                    self.log("Invalid worker positions, please try again!")
 
                 self.log(f"Current Worker Ending Position: {self.ending_position}")
         return success
@@ -1654,9 +1666,15 @@ class ItemRoutingSystem:
             banner = Menu("Set Item Starting Position")
             banner.display()
 
-            number_of_items = input(f"Set number of items (Up to {self.maximum_items}): ")
+            item_success = False
 
-            item_success = self.verify_settings_range(number_of_items, self.minimum_items, self.maximum_items)
+            try:
+                number_of_items = input(f"Set number of items (Up to {self.maximum_items}): ")
+
+                item_success = self.verify_settings_range(number_of_items, self.minimum_items, self.maximum_items)
+
+            except ValueError:
+                self.log(f"Invalid value '{number_of_items}'!")
 
             if not item_success:
                 self.log("Failed to set number of items in range.")
@@ -1712,18 +1730,22 @@ class ItemRoutingSystem:
         max_items = (self.map_x) * (self.map_y) - 1
 
         while not success:
-            user_max = input(f"Set Maximum Items (Currently {self.maximum_items}, Maximum {max_items}): ")
+            try:
+                user_max = input(f"Set Maximum Items (Currently {self.maximum_items}, Maximum {max_items}): ")
 
-            max_success = self.verify_settings_range(user_max, self.minimum_items, max_items)
+                max_success = self.verify_settings_range(user_max, self.minimum_items, max_items)
 
-            self.log(f"Item Max Success: {max_success}", print_type=PrintType.DEBUG)
+                self.log(f"Item Max Success: {max_success}", print_type=PrintType.DEBUG)
 
-            if max_success:
-                self.maximum_items = int(user_max)
-                success = True
+                if max_success:
+                    self.maximum_items = int(user_max)
+                    success = True
 
-            else:
-                self.log("Invalid values, please try again!")
+                else:
+                    self.log("Invalid values, please try again!")
+
+            except ValueError:
+                self.log(f"Invalid value {user_max}, please try again!")
 
         self.log(f"Maximum Items: {self.maximum_items}")
 
@@ -1736,14 +1758,19 @@ class ItemRoutingSystem:
 
         success = False
 
-        routing_time = input(f"Set Maximum Routing Time in Seconds (Currently {self.maximum_routing_time:.2f}): ")
+        while not success:
+            try:
+                routing_time = input(f"Set Maximum Routing Time in Seconds (Currently {self.maximum_routing_time:.2f}): ")
 
-        max_success = self.verify_settings_range(routing_time, 0, 1440, float)
-        if max_success:
-            success = True
-            self.maximum_routing_time = float(routing_time)
-        else:
-            self.log("Invalid value, please try again!")
+                max_success = self.verify_settings_range(routing_time, 0, 1440, float)
+                if max_success:
+                    success = True
+                    self.maximum_routing_time = float(routing_time)
+                else:
+                    self.log("Invalid value, please try again!")
+
+            except ValueError:
+                self.log(f"Invalid value {routing_time}, please try again!")
 
         self.log(f"Maximum Routing Time in Seconds: {self.maximum_routing_time:.2f}")
 
@@ -1806,77 +1833,74 @@ class ItemRoutingSystem:
 
                 # Create Order
                 if suboption == '1':
-                    if update:
-                        self.display_menu(MenuType.CREATE_ORDER, clear=clear)
-                    else:
-                        update = True
-                        clear = True
+                    clear = True
+                    while True:
+                        if update:
+                            self.display_menu(MenuType.CREATE_ORDER, clear=clear)
+                        else:
+                            update = True
+                            clear = True
 
-                    # Handle menu options
-                    order_option = input("> ")
+                        # Handle menu options
+                        order_option = input("> ")
 
-                    order = []
-                    product_ids = []
-                    item_positions = []
+                        order = []
+                        product_ids = []
+                        item_positions = []
 
-                    if self.debug:
-                        self.log("Product IDs:")
-                        for i, product in enumerate(self.product_info, 1):
-                            self.log(f"{i}. {product}")
+                        if self.debug:
+                            self.log("Product IDs:")
+                            for i, product in enumerate(self.product_info, 1):
+                                self.log(f"{i}. {product}")
 
-                    if order_option == "1":
-                        self.log("Order uses comma-separated Product IDs.\n" \
-                                 "Example:\n" \
-                                 "  1, 34, 50"
-                                )
+                        # Individual Order
+                        if order_option == "1":
+                            self.log("Order uses comma-separated Product IDs.\n" \
+                                     "Example:\n" \
+                                     "  1, 34, 50"
+                                    )
 
-                        order = input("Enter Order ('c' to cancel): ").rstrip()
-
-                        if "c" in order:
-                            continue
-                            # Do Nothing
-
-                        elif order:
-                            success = True
-
-                            if "," in order:
-                                order_list = order.split(", ")
-                            else:
-                                order_list = [int(order)]
-
-                            for product_id in order_list:
-                                if int(product_id) in self.product_info:
-                                    product_ids.append(int(product_id))
-
-                                else:
-                                    success = False
-                                    clear = False
-                                    self.log(f"Product '{product_id}' is not within inventory. Not including in path.")
-
-
-                    elif order_option == "2":
-                        if self.order_file is None:
-                            # Set Order File Name
                             success = False
                             while not success:
-                                order_file = input("Enter order filename: ")
+                                order = input("Enter Order ('c' to cancel): ").rstrip()
 
-                                success = self.load_order_file(order_file)
+                                if "c" in order:
+                                    success = True
 
-                                if success:
-                                    self.log(f"Successfully loaded orders from file '{order_file}'!")
-                                else:
-                                    self.log(f"Invalid order file '{order_file}'! Please try again.")
+                                    self.log(f"Cancelled Order!")
+                                    if self.order:
+                                        self.log(f"  Using current order:")
+                                        for i, product in enumerate(self.order):
+                                            self.log(f"  {i}. {product}")
 
-                        self.display_menu(MenuType.MULTIPLE_ORDERS, clear=clear)
 
-                        ordering = True
-                        while ordering:
-                            mult_option = input("> ")
+                                    continue
+                                    # Do Nothing
 
-                            ordering = False
+                                elif order:
+                                    try:
+                                        if "," in order:
+                                            order_list = order.split(", ")
+                                        else:
+                                            order_list = [int(order)]
 
-                            if mult_option == "1":
+                                        for product_id in order_list:
+                                            if int(product_id) in self.product_info:
+                                                product_ids.append(int(product_id))
+                                                success = Ture
+
+                                            else:
+                                                success = False
+                                                clear = False
+                                                self.log(f"Product '{product_id}' is not within inventory. Not including in path.")
+
+                                    except ValueError:
+                                        self.log(f"Invalid order '{order}'! Please use the specified order format.")
+
+
+                        # Multiple Orders from File
+                        elif order_option == "2":
+                            if self.order_file is None:
                                 # Set Order File Name
                                 success = False
                                 while not success:
@@ -1889,62 +1913,92 @@ class ItemRoutingSystem:
                                     else:
                                         self.log(f"Invalid order file '{order_file}'! Please try again.")
 
-                            elif mult_option == "2":
-                                self.log(f"Current Order is #{self.order_number}, continuing to next order.")
-                                if len(self.order_info) > 0 and self.order_number < len(self.order_info):
-                                    self.order_number  = (self.order_number + 1) % len(self.order_info)
-                                    product_ids = self.order_info[self.order_number]
-                                    self.log(f"Using Order #{self.order_number}!")
+                            self.display_menu(MenuType.MULTIPLE_ORDERS, clear=clear)
 
-                            elif mult_option == "3":
-                                success = False
-                                while not success:
-                                    order_number = input(f"Enter order number (0 - {len(self.order_info) - 1}): ")
+                            ordering = True
+                            while ordering:
+                                mult_option = input("> ")
 
-                                    try:
-                                        order_number = int(order_number)
-                                        if len(self.order_info) > 0 and order_number < len(self.order_info):
-                                            product_ids = self.order_info[order_number]
-                                            self.order_number  = order_number
-                                            success = True
+                                ordering = False
+
+                                if mult_option == "1":
+                                    # Set Order File Name
+                                    success = False
+                                    while not success:
+                                        order_file = input("Enter order filename: ")
+
+                                        success = self.load_order_file(order_file)
+
+                                        if success:
+                                            self.log(f"Successfully loaded orders from file '{order_file}'!")
                                         else:
+                                            self.log(f"Invalid order file '{order_file}'! Please try again.")
+
+                                elif mult_option == "2":
+                                    self.log(f"Current Order is #{self.order_number}, continuing to next order.")
+                                    if len(self.order_info) > 0 and self.order_number < len(self.order_info):
+                                        self.order_number  = (self.order_number + 1) % len(self.order_info)
+                                        product_ids = self.order_info[self.order_number]
+                                        self.log(f"Using Order #{self.order_number}!")
+
+                                elif mult_option == "3":
+                                    success = False
+                                    while not success:
+                                        order_number = input(f"Enter order number (0 - {len(self.order_info) - 1}): ")
+
+                                        try:
+                                            order_number = int(order_number)
+                                            if len(self.order_info) > 0 and order_number < len(self.order_info):
+                                                product_ids = self.order_info[order_number]
+                                                self.order_number  = order_number
+                                                success = True
+                                            else:
+                                                self.log(f"Invalid order number '{order_number}'. Please try entering a number under {len(self.order_info)}.")
+
+                                        except ValueError:
                                             self.log(f"Invalid order number '{order_number}'. Please try entering a number under {len(self.order_info)}.")
 
-                                    except ValueError:
-                                        self.log(f"Invalid order number '{order_number}'. Please try entering a number under {len(self.order_info)}.")
+                                elif mult_option == "4":
+                                    continue
 
-                            elif mult_option == "4":
-                                continue
+                                else:
+                                    self.log(f"Invalid option '{mult_option}'! Please try again.")
+                                    ordering = True
 
-                            else:
-                                self.log(f"Invalid option '{mult_option}'! Please try again.")
-                                ordering = True
+                        # Back
+                        elif order_option == "3":
+                            clear = True
+                            break
 
+                        else:
+                            self.log(f"Invalid option '{order_option}. Please try again.")
+                            clear = False
 
-                    if product_ids:
-                        items = "items" if len(product_ids) > 1 else "item"
-                        self.log(f"\n",
-                                 f"You completed your order of {len(product_ids)} {items}!\n",
-                                 f"You ordered:")
+                        if product_ids:
+                            items = "items" if len(product_ids) > 1 else "item"
+                            self.log(f"\n",
+                                     f"You completed your order of {len(product_ids)} {items}!\n",
+                                     f"You ordered:")
 
-                        for i, product in enumerate(product_ids, 1):
-                            self.log(f"  {i}. {product}")
-                            item_positions.append(self.product_info[product])
+                            for i, product in enumerate(product_ids, 1):
+                                self.log(f"  {i}. {product}")
+                                item_positions.append(self.product_info[product])
 
-                    original_map = deepcopy(self.map)
+                            original_map = deepcopy(self.map)
 
-                    # Label ordered items
-                    for position in item_positions:
-                        x, y = position
-                        self.map[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
+                            # Label ordered items
+                            for position in item_positions:
+                                x, y = position
+                                self.map[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
 
-                    self.display_map()
+                            self.display_map()
 
-                    # Restore Original Map
-                    self.map = deepcopy(original_map)
+                            # Restore Original Map
+                            self.map = deepcopy(original_map)
 
-                    self.order = self.process_order(product_ids)
-                    self.graph = self.build_graph_for_order(self.order)
+                            self.order = self.process_order(product_ids)
+                            self.graph = self.build_graph_for_order(self.order)
+
 
                 # Get Path for Order
                 elif suboption == '2':
@@ -1983,6 +2037,8 @@ class ItemRoutingSystem:
 
                     else:
                         self.log("No existing order! Please create an order first!")
+                        clear = False
+
                 # Get Path to Product
                 elif suboption == '3':
                     self.log("Get Path to Product")
