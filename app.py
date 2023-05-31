@@ -208,6 +208,11 @@ class ItemRoutingSystem:
             else:
                 menu.add_option(5, "Back")
 
+        elif menu_type == MenuType.CREATE_ORDER:
+            menu = Menu("Create Order")
+            menu.add_option(1, "Individual Order")
+            menu.add_option(2, "Multiple Orders From File")
+
         elif menu_type == MenuType.SETTINGS:
             menu = Menu("Settings Menu")
             menu.add_option(1, "Load Product File")
@@ -1774,8 +1779,17 @@ class ItemRoutingSystem:
 
                 # Create Order
                 if suboption == '1':
-                    product_id = None
+                    if update:
+                        self.display_menu(MenuType.CREATE_ORDER, clear=clear)
+                    else:
+                        update = True
+                        clear = True
+
+                    # Handle menu options
+                    order_option = input("> ")
+
                     order = []
+                    product_ids = []
                     item_positions = []
 
                     if self.debug:
@@ -1783,25 +1797,49 @@ class ItemRoutingSystem:
                         for i, product in enumerate(self.product_info, 1):
                             self.log(f"{i}. {product}")
 
-                    while product_id != "f":
-                        product_id = input("Enter Product ID ('f' to finish order): ").rstrip()
+                    if order_option == "1":
+                        self.log("Order uses comma-separated Product IDs.\n" \
+                                 "Example:\n" \
+                                 "  1, 34, 50"
+                                )
 
-                        if product_id == "f":
-                            break
+                        order = input("Enter Order ('c' to cancel): ").rstrip()
 
-                        elif product_id and int(product_id) in self.product_info:
-                            order.append(int(product_id))
+                        if "c" in order:
+                            continue
+                            # Do Nothing
 
-                        else:
-                            self.log(f"Product ID '{product_id}' was not found, please try again!")
+                        elif order:
+                            success = True
 
-                    if order:
-                        items = "items" if len(order) > 1 else "item"
+                            if "," in order:
+                                order_list = order.split(", ")
+                            else:
+                                order_list = [int(order)]
+
+                            print(order, order_list)
+                            for product_id in order_list:
+                                if int(product_id) in self.product_info:
+                                    product_ids.append(int(product_id))
+
+                                else:
+                                    success = False
+                                    clear = False
+                                    self.log(f"Product '{product_id}' is not within inventory. Not including in path.")
+
+
+                    elif order_option == "2":
+                        print("Input a file")
+                        break
+
+
+                    if product_ids:
+                        items = "items" if len(product_ids) > 1 else "item"
                         self.log(f"\n",
-                                 f"You completed your order of {len(order)} {items}!\n",
+                                 f"You completed your order of {len(product_ids)} {items}!\n",
                                  f"You ordered:")
 
-                        for i, product in enumerate(order, 1):
+                        for i, product in enumerate(product_ids, 1):
                             self.log(f"  {i}. {product}")
                             item_positions.append(self.product_info[product])
 
@@ -1817,7 +1855,7 @@ class ItemRoutingSystem:
                     # Restore Original Map
                     self.map = deepcopy(original_map)
 
-                    self.order = self.process_order(order)
+                    self.order = self.process_order(product_ids)
                     self.graph = self.build_graph_for_order(self.order)
 
                 # Get Path for Order
