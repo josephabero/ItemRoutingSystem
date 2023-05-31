@@ -969,7 +969,7 @@ class ItemRoutingSystem:
             if len(left_item) > 1:
                 left_node, left_dir = left_item
                 right_node, right_dir = right_item
-                print(f"Getting Location for {left_node, left_dir} -> {right_node, right_dir}")
+                self.log(f"Getting Location for {left_node, left_dir} -> {right_node, right_dir}", print_type=PrintType.MINOR)
                 locations += graph[(left_node, right_node, left_dir)][right_dir]["path"]
 
         return locations
@@ -1039,7 +1039,7 @@ class ItemRoutingSystem:
 
         return cost, path, total_time
 
-    def nearest_neighbor(graph, order):
+    def nearest_neighbor(self, graph, order):
         """
         Implements the Nearest Neightbor Heuristic for TSP.
         """
