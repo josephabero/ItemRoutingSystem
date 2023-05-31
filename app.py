@@ -72,6 +72,7 @@ class ItemRoutingSystem:
         self.gathering_algo = AlgoMethod.DIJKSTRA
         self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
         self.maximum_routing_time = 15
+        self.bnb_access_type = AccessType.MULTI_ACCESS
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
@@ -239,9 +240,10 @@ class ItemRoutingSystem:
             menu.add_option(3, "Set Map Orientation")
             menu.add_option(4, "Set Gathering Algorithm")
             menu.add_option(5, "Set TSP Algorithm")
-            menu.add_option(6, "Load Test Case File")
-            menu.add_option(7, "Run Test Cases")
-            menu.add_option(8, "Back")
+            menu.add_option(6, "Set TSP Access Type")
+            menu.add_option(7, "Load Test Case File")
+            menu.add_option(8, "Run Test Cases")
+            menu.add_option(9, "Back")
 
             position_str = ' '.join(str(p) for p in self.items)
             if len(self.items) > 10:
@@ -262,6 +264,7 @@ class ItemRoutingSystem:
                    f"  Mode: {self.worker_mode}\n" \
                    f"  Gathering Algorithm: {self.gathering_algo}\n" \
                    f"  TSP Algorithm: {self.tsp_algorithm}\n" \
+                   f"  TSP Access Type: {self.bnb_access_type}\n" \
                    f"Item Settings:\n" \
                    f"  Mode: {self.item_mode}\n" \
                    f"  Number of Items: {len(self.items)}\n" \
@@ -287,6 +290,12 @@ class ItemRoutingSystem:
             menu = Menu("Set TSP Algorithm")
             menu.add_option(1, "Branch and Bound")
             menu.add_option(2, "Localized Minimum Path")
+            menu.add_option(3, "Back")
+
+        elif menu_type == MenuType.TSP_ACCESS_TYPE:
+            menu = Menu("Set TSP Access Type")
+            menu.add_option(1, "Single Access Point")
+            menu.add_option(2, "Multi Access Point")
             menu.add_option(3, "Back")
 
         elif menu_type == MenuType.WORKER_START_POSITION:
@@ -640,7 +649,16 @@ class ItemRoutingSystem:
 
             return is_in_bounds and is_open_position
 
-        graph = {}
+        # Initialize Graph with End -> Start node of cost 0
+        graph = {
+            ('End', 'Start', None): {
+                None: {
+                    'location': self.ending_position,
+                    'cost': 0,
+                    'path': [(self.ending_position), self.starting_position]
+                }
+            }
+        }
 
         directions = {
             "N": (0, 1),
@@ -671,6 +689,7 @@ class ItemRoutingSystem:
                         # Get target end position
                         if end == "End":
                             x, y = self.ending_position
+                            end_dir = None  # Always set ending direction to None for 'End' node
                         else:
                             end_position = self.product_info[end]
                             x, y = end_position[0] + dx, end_position[1] + dy
@@ -712,7 +731,7 @@ class ItemRoutingSystem:
 
                     if valid_directions:
                         graph[(start, end, start_dir)] = valid_directions
-        
+
         return graph
 
     def print_matrix(self, matrix):
@@ -792,25 +811,31 @@ class ItemRoutingSystem:
         Applies the branch and bound algorithm to generate a path
         """
         queue = []
-        path = []
+        final_path = []
 
         # 1. Create Matrix
 
         # 2. Reduction
-        self.log("Parent Matrix", print_type=PrintType.MINOR)
+        # self.log("Parent Matrix", print_type=PrintType.MINOR)
         reduced_cost, parent_matrix = self.matrix_reduction(graph)
         child_matrix = deepcopy(parent_matrix)
 
         # 3. Choose Random Start
-        # start_node, dest_node, start_dir = random.choice( list(graph) )
-        start_node, dest_node, start_dir = ('Start', 108335, None)
+        start_node, dest_node, start_dir = random.choice( list(graph) )
+        self.log(start_node, dest_node, start_dir, print_type=PrintType.MINOR)
 
         # 4. Set Upper Bound
         upper_bound = order
 
         # 5. Traversal
-        # (source, source_direction, level, cost, matrix, path)
-        queue.append( (start_node, start_dir, 0, reduced_cost, child_matrix, path) )
+        # (source, source_direction, cost, matrix, path)
+
+        # For first traversal, ignore start_dir, add all of surrounding access points to traverse
+        for (start, dest, src_dir), values in parent_matrix.items():
+            if start_node == start:
+                child_path = [(start, src_dir)]
+                # self.log(f"Will Visit: {start}, {dest}, {src_dir}", print_type=PrintType.MINOR)
+                queue.append( (start, src_dir, reduced_cost, child_matrix, child_path) )
 
         minimum_cost = INFINITY
         while queue:
@@ -819,59 +844,75 @@ class ItemRoutingSystem:
             index = 0
             if len(queue) > 1:
                 lowest_cost_node = INFINITY
-                for i, (source, source_direction, level, cost, matrix, src_path) in enumerate(queue):
+                for i, (source, source_direction, cost, matrix, src_path) in enumerate(queue):
                     if cost < lowest_cost_node:
                         index = i
 
-            source, source_direction, level, cost, matrix, src_path = queue.pop(index)
-            self.log(f"New Source: {source}", print_type=PrintType.MINOR)
-            self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.MINOR)
+            source, source_direction, cost, matrix, src_path = queue.pop(index)
+            # self.log(f"New Source: {source}", print_type=PrintType.MINOR)
+            # self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.MINOR)
 
             # If cost is greater than minimum cost of already found path, ignore
             if cost > minimum_cost:
+                # self.log(f"Cost {cost} is bigger than {minimum_cost}, skipping.", print_type=PrintType.MINOR)
                 continue
 
-            # If all items have been picked up
-            if ( level == len(order) ):
-                level_path = src_path + matrix[(source, "End", source_direction)]["N"]["path"]
-                self.log(f"Reached Level: {level_path}", print_type=PrintType.MINOR)
-
-                cost += matrix[(source, "End", source_direction)]["N"]["cost"]
+            # If all nodes have been visited
+            # self.log(len(src_path), len(order), print_type=PrintType.MINOR)
+            if len(src_path) == len(order):
+                self.log(f"Reached Level: {len(src_path)}, {src_path}", print_type=PrintType.MINOR)
 
                 # Store path if minimum path
                 if cost < minimum_cost:
-                    final_path = level_path
+                    self.log(f"New minimum cost: {cost}", print_type=PrintType.DEBUG)
+                    final_path = src_path
                     minimum_cost = cost
 
-            for (start, dest, src_dir), values in matrix.items():
+            if source == 'Start':
+                self.log(f"Beginning Traversal for '{source}', {cost}", print_type=PrintType.MINOR)
+            else:
+                self.log(f"Beginning Traversal for '{source} {source_direction}', {cost}", print_type=PrintType.MINOR)
 
-                # Ignore "End" destination and other irrelevant entries
-                if (source == start and source_direction == src_dir and dest != "End"):
-                    highest_reduction = INFINITY
-                    chosen_start = chosen_direc = None
-                    chosen_matrix = None
+            for (start, dest, src_dir), access_points in matrix.items():
+                # Ignore other irrelevant entries
+                if source == start and source_direction == src_dir:
+                    # self.log(f"Traversal Info: {start}, {src_dir}, {dest}, {values.keys()}", print_type=PrintType.MINOR)
                     child_path = []
 
-                    for direc in values:
-                        if values.get(direc).get('cost') is None or (values.get(direc).get('cost') == INFINITY):
-                            self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
+                    if self.bnb_access_type == AccessType.SINGLE_ACCESS:
+                        highest_reduction = INFINITY
+                        chosen_start = chosen_direc = None
+                        chosen_matrix = None
+
+                    for direc in access_points:
+                        if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
+                            # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
                             continue
 
                         reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
 
-                        # Filter for minimum Single Access Point
-                        if chosen_start is None or reduction + cost < highest_reduction:
-                            chosen_start = dest
-                            chosen_direc = direc
-                            highest_reduction = reduction + cost
-                            chosen_matrix = deepcopy(temp_matrix)
-                            self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
-                            child_path = src_path + values[chosen_direc].get('path')
-                            self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
+                        if self.bnb_access_type == AccessType.SINGLE_ACCESS:
+                            # Filter for minimum Single Access Point
+                            if chosen_start is None or reduction + cost < highest_reduction:
+                                chosen_start = dest
+                                chosen_direc = direc
+                                highest_reduction = reduction + cost
+                                chosen_matrix = deepcopy(temp_matrix)
 
-                    if child_path:
-                        self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
-                        queue.append( (chosen_start, chosen_direc, level + 1, cost + reduction, chosen_matrix, child_path) )
+                                # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
+                                # self.log(f"{src_path}", print_type=PrintType.MINOR)
+                                child_path = src_path + [(dest, direc)]
+                                # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
+
+                        elif self.bnb_access_type == AccessType.MULTI_ACCESS:
+                            child_path = src_path + [(dest, direc)]
+                            node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
+                            queue.append(node_to_visit)
+
+                    if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
+                        # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
+                        node_to_visit = (chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
+                        queue.append(node_to_visit)
 
         return minimum_cost, final_path
 
@@ -898,6 +939,7 @@ class ItemRoutingSystem:
             if product_id == 'Start':
                 pre_node = product_id
                 access_direction = None
+                path += [('Start', None)]
                 continue
 
             min_cost = float('inf')
@@ -910,7 +952,7 @@ class ItemRoutingSystem:
                 if min_cost is None or val['cost'] < min_cost:
                     min_cost = val['cost']
                     access_direction = access_point
-                    shortest_path = val['path']
+                    shortest_path = [(product_id, access_point)]
 
             if min_cost != float('inf'):
                 total_cost += min_cost
@@ -920,6 +962,39 @@ class ItemRoutingSystem:
         self.log(f"Minimum Path: {path}", print_type=PrintType.MINOR)
 
         return total_cost, path
+
+    def get_locations_for_path(self, graph, path):
+        locations = []
+        for left in range(len(path) - 1):
+            left_item = path[left]
+            right_item = path[left + 1]
+            # Access points available
+            if len(left_item) > 1:
+                left_node, left_dir = left_item
+                right_node, right_dir = right_item
+                print(f"Getting Location for {left_node, left_dir} -> {right_node, right_dir}")
+                locations += graph[(left_node, right_node, left_dir)][right_dir]["path"]
+
+        return locations
+
+    def rotate_path(self, path):
+        start_node = ('Start', None)
+        result = []
+        try:
+            start_index = path.index(start_node)
+
+            # Path already begins at start node
+            if start_index == 0:
+                return path
+
+            # Rotate Path
+            for i in range(len(path)):
+                result.append(path[(start_index + i) % len(path)])
+            return result
+
+        # Start node is not included in input path
+        except ValueError:
+            return path
 
     def run_tsp_algorithm(self, graph, order, algorithm=None):
         def timeout_handler(signum, frame):
@@ -945,7 +1020,9 @@ class ItemRoutingSystem:
 
         # Run Algorithm
         try:
-            cost, path = algo_func(graph, order)
+            cost, algo_path = algo_func(graph, order)
+            algo_path = self.rotate_path(algo_path)
+            path = self.get_locations_for_path(graph, algo_path)
 
         except Exception as exc:
             # Algorithm timed out, return input order list
@@ -970,7 +1047,7 @@ class ItemRoutingSystem:
         """
         final_path = None
         final_cost = INFINITY
-        
+
         # create a path for every single starting node
         for key in graph.keys():
             queue = []
@@ -978,10 +1055,10 @@ class ItemRoutingSystem:
             first_node = (key[0], key[2])
             queue.append(first_node)
             total_cost = 0;
-            
+
             while list:
                 popped_node = queue[-1:]
-                
+
                 # first time through, set the starting node as unvisited, used for cycling
                 if (total_cost == 0):
                     queue.pop()
@@ -989,23 +1066,23 @@ class ItemRoutingSystem:
                 visited_min_cost = INFINITY
                 next_node = None
                 visited_next_node = None
-                
-                for (curr_node, dest_node, curr_dir), values in graph.items():   
-                
+
+                for (curr_node, dest_node, curr_dir), values in graph.items():
+
                     # there exists an unvisited node, prioritize it
                     if ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir and (dest_node in list) ):
                         for direc in values:
                             if (min_cost > values[direc]['cost']):
                                 min_cost = values[direc]['cost']
                                 next_node = (dest_node, direc)
-                         
+
                     # all nodes are visited, choose the least cost of the visited nodes
                     elif ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir ):
                         for direc in values:
                             if (visited_min_cost > values[direc]['cost']):
                                 visited_min_cost = values[direc]['cost']
                                 visited_next_node = (dest_node, direc)
-                                
+
                 # is there exists a path to a unvisited node, prioritize by adding it
                 # else, add the least cost path to a visited node
                 if (next_node is not None):
@@ -1018,15 +1095,15 @@ class ItemRoutingSystem:
                     queue.append(visited_next_node)
                     if visited_next_node[0] in list:
                         list.remove(visited_next_node[0])
-                
+
             # a path completed, save it as a path based on least cost
             if (final_cost > total_cost):
                 final_path = queue.copy()
                 final_cost = total_cost
-        
+
         # least cost path found, return
         return final_cost, final_path
-            
+
 
 
 
@@ -2221,8 +2298,38 @@ class ItemRoutingSystem:
                                         update = False
                                         clear = False
 
-                            # Load Test Case File
+                            # Set TSP Access Type
                             elif adv_option == '6':
+                                while True:
+                                    if update:
+                                        self.display_menu(MenuType.TSP_ACCESS_TYPE, clear=clear)
+                                    else:
+                                        update = True
+                                        clear = True
+
+                                    algo_option = input("> ")
+
+                                    # Branch and Bound
+                                    if algo_option == '1':
+                                        self.bnb_access_type = AccessType.SINGLE_ACCESS
+                                        break
+
+                                    # Custom Algorithm
+                                    elif algo_option == '2':
+                                        self.bnb_access_type = AccessType.MULTI_ACCESS
+                                        break
+
+                                    # Back
+                                    elif algo_option == '3':
+                                        break
+
+                                    else:
+                                        self.log("Invalid choice. Try again.")
+                                        update = False
+                                        clear = False
+
+                            # Load Test Case File
+                            elif adv_option == '7':
                                 if update:
                                     self.display_menu(MenuType.LOAD_TEST_CASE_FILE, clear=clear)
                                 else:
@@ -2248,7 +2355,7 @@ class ItemRoutingSystem:
                                         self.log(f"File '{test_case_file}' was not found, please try entering full path to file!")
 
                             # Run Test Cases
-                            elif adv_option == '7':
+                            elif adv_option == '8':
                                 if self.test_case_file and self.test_product_file:
                                     success = self.load_product_file(self.test_product_file)
 
@@ -2383,7 +2490,7 @@ class ItemRoutingSystem:
                                 clear = False
 
                             # Back
-                            elif adv_option == '8':
+                            elif adv_option == '9':
                                 break
 
                             else:
