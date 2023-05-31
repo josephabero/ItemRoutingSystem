@@ -291,7 +291,8 @@ class ItemRoutingSystem:
             menu = Menu("Set TSP Algorithm")
             menu.add_option(1, "Branch and Bound")
             menu.add_option(2, "Localized Minimum Path")
-            menu.add_option(3, "Back")
+            menu.add_option(3, "Repetitive Nearest Neighbor")
+            menu.add_option(4, "Back")
 
         elif menu_type == MenuType.TSP_ACCESS_TYPE:
             menu = Menu("Set TSP Access Type")
@@ -698,11 +699,7 @@ class ItemRoutingSystem:
                         # Don't add invalid position
                         if not is_valid_position(x, y):
                             self.log(f"Invalid access point position: {x, y}", print_type=PrintType.MINOR)
-                            valid_directions[end_dir] = {
-                                "location": None,
-                                "cost": None,
-                                "path": []
-                            }
+                            continue
 
                         # Add valid positions & get path
                         else:
@@ -1019,7 +1016,7 @@ class ItemRoutingSystem:
             if len(left_item) > 1:
                 left_node, left_dir = left_item
                 right_node, right_dir = right_item
-                print(f"Getting Location for {left_node, left_dir} -> {right_node, right_dir}")
+                self.log(f"Getting Location for {left_node, left_dir} -> {right_node, right_dir}", print_type=PrintType.MINOR)
                 locations += graph[(left_node, right_node, left_dir)][right_dir]["path"]
 
         return locations
@@ -1062,6 +1059,9 @@ class ItemRoutingSystem:
         elif algorithm == AlgoMethod.LOCALIZED_MIN_PATH:
             algo_func = self.localized_min_path
 
+        elif algorithm == AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR:
+            algo_func = self.nearest_neighbor
+
         # Start Time for timing algorithm run time
         start_time = time.time()
 
@@ -1086,7 +1086,7 @@ class ItemRoutingSystem:
 
         return cost, path, total_time
 
-    def nearest_neighbor(graph, order):
+    def nearest_neighbor(self, graph, order):
         """
         Implements the Nearest Neightbor Heuristic for TSP.
         """
@@ -2360,8 +2360,13 @@ class ItemRoutingSystem:
                                         self.tsp_algorithm = AlgoMethod.LOCALIZED_MIN_PATH
                                         break
 
-                                    # Back
+                                    # Repetitive Nearest Neighbor
                                     elif algo_option == '3':
+                                        self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
+                                        break
+
+                                    # Back
+                                    elif algo_option == '4':
                                         break
 
                                     else:
@@ -2502,40 +2507,31 @@ class ItemRoutingSystem:
                                             grouped_items = self.process_order(product_ids)
                                             graph = self.build_graph_for_order(grouped_items)
 
-                                            # Run Branch and Bound
-                                            cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.BRANCH_AND_BOUND)
 
-                                            # Algorithm Timed Out
-                                            if cost is None:
-                                                failed += 1
-                                                cases_failed[size]["Branch and Bound"] = "Timeout"
-                                                self.log("Failed Branch and Bound")
+                                            # Run Test Case against desired algorithms
+                                            algorithms_to_test = [
+                                                AlgoMethod.LOCALIZED_MIN_PATH,
+                                                AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
+                                                # AlgoMethod.BRANCH_AND_BOUND
+                                            ]
 
-                                            else:
-                                                self.log("Completed Branch and Bound!")
+                                            for algo in algorithms_to_test:
+                                                # Run Branch and Bound
+                                                cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, algo)
 
-                                            self.log(f"    Time: {run_time:.6f}")
-                                            self.log(f"    Cost: {cost}")
-                                            self.log(f"    Path: {path}")
-                                            self.log("")
+                                                # Algorithm Timed Out
+                                                if cost is None:
+                                                    failed += 1
+                                                    cases_failed[size][str(algo)] = "Timeout"
+                                                    self.log(f"Failed {algo}!")
 
+                                                else:
+                                                    self.log(f"Completed {algo}!")
 
-                                            # Run Custom Algorithm
-                                            cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, AlgoMethod.LOCALIZED_MIN_PATH)
-
-                                            # Algorithm Timed Out
-                                            if cost is None:
-                                                failed += 1
-                                                cases_failed[size]["Localized Minimum Path"] = "Timeout"
-                                                self.log("Failed Localized Minimum Path")
-
-                                            else:
-                                                self.log("Completed Localized Minimum Path!")
-
-                                            self.log(f"    Time: {run_time:.6f}")
-                                            self.log(f"    Cost: {cost}")
-                                            self.log(f"    Path: {path}")
-                                            self.log("")
+                                                self.log(f"    Time: {run_time:.6f}")
+                                                self.log(f"    Cost: {cost}")
+                                                self.log(f"    Path: {path}")
+                                                self.log("")
 
                                         self.log(f"Results\n"             \
                                                  f"---------\n"           \
