@@ -12,11 +12,12 @@ class MenuType(Enum):
     ADVANCED_SETTINGS = 3
     GATHER_ALGO_METHOD = 4
     TSP_ALGO_METHOD = 5
-    WORKER_START_POSITION = 6
-    WORKER_ENDING_POSITION = 7
-    ITEM_POSITION = 8
-    LOAD_PRODUCT_FILE = 9
-    LOAD_TEST_CASE_FILE = 10
+    TSP_ACCESS_TYPE = 6
+    WORKER_START_POSITION = 7
+    WORKER_ENDING_POSITION = 8
+    ITEM_POSITION = 9
+    LOAD_PRODUCT_FILE = 10
+    LOAD_TEST_CASE_FILE = 11
 
 class AlgoMethod(Enum):
     """
@@ -49,3 +50,13 @@ class PrintType(Enum):
     NORMAL = 0
     DEBUG = 1
     MINOR = 2
+
+class AccessType(Enum):
+    """
+    Constants to choose branch and bound access type.
+    """
+    SINGLE_ACCESS = "Single Access"
+    MULTI_ACCESS = "Multi Access"
+
+    def __str__(cls):
+        return cls.value

@@ -730,7 +730,7 @@ class ItemRoutingSystem:
                             }
 
                     if valid_directions:
-                        graph[(start, end, start_dir)] = valid_directions 
+                        graph[(start, end, start_dir)] = valid_directions
 
         return graph
 
@@ -1049,12 +1049,12 @@ class ItemRoutingSystem:
         # create a path for every single starting node
         for key in graph.keys():
             queue = []
-            list = order.copy()
+            item_list = order.copy()
             first_node = (key[0], key[2])
             queue.append(first_node)
             total_cost = 0;
 
-            while list:
+            while item_list:
                 popped_node = queue[-1:]
 
                 # first time through, set the starting node as unvisited, used for cycling
@@ -1068,7 +1068,7 @@ class ItemRoutingSystem:
                 for (curr_node, dest_node, curr_dir), values in graph.items():
 
                     # there exists an unvisited node, prioritize it
-                    if ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir and (dest_node in list) ):
+                    if ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir and (dest_node in item_list) ):
                         for direc in values:
                             if (min_cost > values[direc]['cost']):
                                 min_cost = values[direc]['cost']
@@ -1086,8 +1086,8 @@ class ItemRoutingSystem:
                 if (next_node is not None):
                     total_cost += min_cost
                     queue.append(next_node)
-                    if next_node[0] in list:
-                        list.remove(next_node[0])
+                    if next_node[0] in item_list:
+                        item_list.remove(next_node[0])
                 else:
                     total_cost += visited_min_cost
                     queue.append(visited_next_node)
