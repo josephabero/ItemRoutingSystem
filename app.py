@@ -54,6 +54,7 @@ class ItemRoutingSystem:
         self.order = []
         self.order_file = None
         self.order_info = []
+        self.order_number = 0
 
         # Default test case filename
         self.test_case_file = None
@@ -231,6 +232,13 @@ class ItemRoutingSystem:
             menu = Menu("Create Order")
             menu.add_option(1, "Individual Order")
             menu.add_option(2, "Multiple Orders From File")
+
+        elif menu_type == MenuType.MULTIPLE_ORDERS:
+            menu = Menu("Multiple Orders")
+            menu.add_option(1, "Load New Order File")
+            menu.add_option(2, f"Continue to Next Order (Currently {self.order_number})")
+            menu.add_option(3, "Choose Order")
+            menu.add_option(4, "Back")
 
         elif menu_type == MenuType.SETTINGS:
             menu = Menu("Settings Menu")
@@ -1836,7 +1844,6 @@ class ItemRoutingSystem:
                             else:
                                 order_list = [int(order)]
 
-                            print(order, order_list)
                             for product_id in order_list:
                                 if int(product_id) in self.product_info:
                                     product_ids.append(int(product_id))
@@ -1848,18 +1855,70 @@ class ItemRoutingSystem:
 
 
                     elif order_option == "2":
-                        # Set Order File Name
-                        success = False
-                        while not success:
-                            order_file = input("Enter order filename: ")
+                        if self.order_file is None:
+                            # Set Order File Name
+                            success = False
+                            while not success:
+                                order_file = input("Enter order filename: ")
 
-                            success = self.load_order_file(order_file)
+                                success = self.load_order_file(order_file)
 
-                            if success:
-                                self.log(f"Successfully loaded orders from file '{order_file}'!")
+                                if success:
+                                    self.log(f"Successfully loaded orders from file '{order_file}'!")
+                                else:
+                                    self.log(f"Invalid order file '{order_file}'! Please try again.")
+
+                        self.display_menu(MenuType.MULTIPLE_ORDERS, clear=clear)
+
+                        ordering = True
+                        while ordering:
+                            mult_option = input("> ")
+
+                            ordering = False
+
+                            if mult_option == "1":
+                                # Set Order File Name
+                                success = False
+                                while not success:
+                                    order_file = input("Enter order filename: ")
+
+                                    success = self.load_order_file(order_file)
+
+                                    if success:
+                                        self.log(f"Successfully loaded orders from file '{order_file}'!")
+                                    else:
+                                        self.log(f"Invalid order file '{order_file}'! Please try again.")
+
+                            elif mult_option == "2":
+                                self.log(f"Current Order is #{self.order_number}, continuing to next order.")
+                                if len(self.order_info) > 0 and self.order_number < len(self.order_info):
+                                    self.order_number  = (self.order_number + 1) % len(self.order_info)
+                                    product_ids = self.order_info[self.order_number]
+                                    self.log(f"Using Order #{self.order_number}!")
+
+                            elif mult_option == "3":
+                                success = False
+                                while not success:
+                                    order_number = input(f"Enter order number (0 - {len(self.order_info) - 1}): ")
+
+                                    try:
+                                        order_number = int(order_number)
+                                        if len(self.order_info) > 0 and order_number < len(self.order_info):
+                                            product_ids = self.order_info[order_number]
+                                            self.order_number  = order_number
+                                            success = True
+                                        else:
+                                            self.log(f"Invalid order number '{order_number}'. Please try entering a number under {len(self.order_info)}.")
+
+                                    except ValueError:
+                                        self.log(f"Invalid order number '{order_number}'. Please try entering a number under {len(self.order_info)}.")
+
+                            elif mult_option == "4":
+                                continue
+
                             else:
-                                self.log(f"Invalid order file '{order_file}'! Please try again.")
-                        continue
+                                self.log(f"Invalid option '{mult_option}'! Please try again.")
+                                ordering = True
 
 
                     if product_ids:

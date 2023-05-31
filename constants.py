@@ -19,6 +19,7 @@ class MenuType(Enum):
     LOAD_PRODUCT_FILE = 10
     LOAD_TEST_CASE_FILE = 11
     CREATE_ORDER = 12
+    MULTIPLE_ORDERS = 13
 
 class AlgoMethod(Enum):
     """
