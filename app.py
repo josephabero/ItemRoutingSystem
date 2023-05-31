@@ -711,8 +711,7 @@ class ItemRoutingSystem:
                             }
 
                     if valid_directions:
-                        graph[(start, end, start_dir)] = valid_directions
-        
+                        graph[(start, end, start_dir)] = valid_directions 
         return graph
 
     def print_matrix(self, matrix):
@@ -1016,8 +1015,6 @@ class ItemRoutingSystem:
                 else:
                     total_cost += visited_min_cost
                     queue.append(visited_next_node)
-                    if visited_next_node[0] in list:
-                        list.remove(visited_next_node[0])
                 
             # a path completed, save it as a path based on least cost
             if (final_cost > total_cost):
