@@ -1048,6 +1048,7 @@ class ItemRoutingSystem:
 
         # create a path for every single starting node
         for key in graph.keys():
+            first_time_thru = True
             queue = []
             item_list = order.copy()
             first_node = (key[0], key[2])
@@ -1058,7 +1059,8 @@ class ItemRoutingSystem:
                 popped_node = queue[-1:]
 
                 # first time through, set the starting node as unvisited, used for cycling
-                if (total_cost == 0):
+                if (first_time_thru):
+                    first_time_thru = False
                     queue.pop()
                 min_cost = INFINITY
                 visited_min_cost = INFINITY
@@ -1070,14 +1072,18 @@ class ItemRoutingSystem:
                     # there exists an unvisited node, prioritize it
                     if ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir and (dest_node in item_list) ):
                         for direc in values:
-                            if (min_cost > values[direc]['cost']):
+                            if (values[direc]['cost'] is None):
+                                continue
+                            elif (min_cost > values[direc]['cost']):
                                 min_cost = values[direc]['cost']
                                 next_node = (dest_node, direc)
 
                     # all nodes are visited, choose the least cost of the visited nodes
                     elif ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir ):
                         for direc in values:
-                            if (visited_min_cost > values[direc]['cost']):
+                            if (values[direc]['cost'] is None):
+                                continue
+                            elif (visited_min_cost > values[direc]['cost']):
                                 visited_min_cost = values[direc]['cost']
                                 visited_next_node = (dest_node, direc)
 
