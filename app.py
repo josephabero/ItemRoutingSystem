@@ -922,20 +922,66 @@ class ItemRoutingSystem:
         find the optimal path with multiple access points
 
         Args:
-            ordered_list: an organized list of product ID
+            order: an organized list of product ID
 
             graph: the distance graph using All-Pair-Shortest-Path
 
         Returns:
             path: a list of the locations
         """
-        pre_node = None
-        access_direction = None
 
         path = []
         total_cost = 0
 
+        sorted_order = []
+
         for product_id in order:
+
+            if product_id == 'Start':
+                continue
+
+            if product_id == 'End':
+                break
+
+            node_minimum_cost = float('inf')
+
+            # calculate the node min cost in different directions
+            for direction, values in graph[('Start', product_id, None)].items():
+                cost = values["cost"]
+                if cost is None:
+                    break
+                if cost < node_minimum_cost:
+                    node_minimum_cost = cost
+
+            # sort the node minimum cost with bubble sort
+            n = len(sorted_order)
+            if n == 0:
+                sorted_order.append(product_id)
+            else:
+                for i in range(n):
+                    compared_node = sorted_order[i]
+                    compared_minimum_cost = float('inf')
+                    # get the compared node minimum cost
+                    for direction, values in graph[('Start', compared_node, None)].items():
+                        cost = values["cost"]
+                        if cost is None:
+                            break
+                        if cost < compared_minimum_cost:
+                            compared_minimum_cost = cost
+                    # if current node cost is less, insert
+                    if node_minimum_cost < compared_minimum_cost:
+                        index = i
+                        break
+                sorted_order.insert(index, product_id)
+
+        sorted_order.insert(0, 'Start')
+        sorted_order.append('End')
+        #print(sorted_order)
+
+        pre_node = None
+        access_direction = None
+
+        for product_id in sorted_order:
             # start position
             if product_id == 'Start':
                 pre_node = product_id
@@ -1131,7 +1177,7 @@ class ItemRoutingSystem:
         # Initialize the previous position dictionary
         prev = {}
         total_cost = 0
-        
+
         while pq:
             # Get the position with the smallest distance from the priority queue
             (cost, position) = heapq.heappop(pq)
