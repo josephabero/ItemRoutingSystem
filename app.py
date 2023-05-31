@@ -844,6 +844,31 @@ class ItemRoutingSystem:
         """
         Applies the branch and bound algorithm to generate a path
         """
+        def binary_search(arr, low, high, target):
+            # Check base case
+            cost_index = 2
+
+            if high >= low:
+
+                mid = (high + low) // 2
+
+                # If element is present at the middle itself
+                if arr[mid][cost_index] == target:
+                    return mid
+
+                # If element is smaller than mid, then it can only
+                # be present in left subarray
+                elif arr[mid][cost_index] > target:
+                    return binary_search(arr, low, mid - 1, target)
+
+                # Else the element can only be present in right subarray
+                else:
+                    return binary_search(arr, mid + 1, high, target)
+
+            else:
+                # Element is not present in the array
+                return -1
+
         start_time = time.time()
         queue = []
         final_path = []
@@ -947,7 +972,7 @@ class ItemRoutingSystem:
                         start_matrix_reduction = time.time()
                         reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
                         end_matrix_reduction = time.time()
-                        print(f"Matrix reduction: {end_matrix_reduction - start_matrix_reduction}")
+                        print(f"Matrix reduction: {(end_matrix_reduction - start_matrix_reduction):.4f}")
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS:
                             # Filter for minimum Single Access Point
@@ -967,7 +992,12 @@ class ItemRoutingSystem:
                             print("Multi Access AP")
                             child_path = src_path + [(dest, direc)]
                             node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
-                            queue.append(node_to_visit)
+                            if (cost + reduction) < minimum_cost:
+                                start_search_time = time.time()
+                                index = binary_search(queue, 0, len(queue) - 1, cost + reduction)
+                                end_search_time = time.time()
+                                print(f"Search Time: {(end_search_time - start_search_time):.4f}")
+                                queue.insert(index, node_to_visit)
 
                         end_ap_time = time.time()
                         print(f"AP Time: {(end_ap_time - start_ap_time):.4f}")
@@ -975,7 +1005,12 @@ class ItemRoutingSystem:
                     if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
                         # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
                         node_to_visit = (chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
-                        queue.append(node_to_visit)
+                        if (cost + reduction) < minimum_cost:
+                            start_search_time = time.time()
+                            index = binary_search(queue, 0, len(queue) - 1, cost + reduction)
+                            end_search_time = time.time()
+                            print(f"Search Time: {(end_search_time - start_search_time):.4f}")
+                            queue.insert(index, node_to_visit)
 
                     end_traversal_iteration = time.time()
                     print(f"Traversal iteration: {(end_traversal_iteration - start_traversal_iteration):.4f}")
