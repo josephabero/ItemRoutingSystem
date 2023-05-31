@@ -698,11 +698,7 @@ class ItemRoutingSystem:
                         # Don't add invalid position
                         if not is_valid_position(x, y):
                             self.log(f"Invalid access point position: {x, y}", print_type=PrintType.MINOR)
-                            valid_directions[end_dir] = {
-                                "location": None,
-                                "cost": None,
-                                "path": []
-                            }
+                            continue
 
                         # Add valid positions & get path
                         else:
