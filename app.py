@@ -526,6 +526,7 @@ class ItemRoutingSystem:
 
         for step in steps:
             # From (0, 5), move right 10 to (10, 5).
+            print(step)
             if step.startswith("From"):
                 for direction in ["right", "left", "up", "down"]:
                     if direction in step:
@@ -551,11 +552,25 @@ class ItemRoutingSystem:
 
                         path.append(step_values)
 
-            elif step.startswith("Pickup item"):
+            elif step.startswith("Pickup item at"):
                 parsed = step.split(" ")
 
                 end_x = int(parsed[3][1:-1])
                 end_y = int(parsed[4][:-2])
+
+                step_values = {
+                    "type": "pickup",
+                    "end": (end_x, end_y)
+                }
+
+                path.append(step_values)
+
+            elif step.startswith("Pickup item"):
+                parsed = step.split(" ")
+                print(parsed)
+
+                end_x = int(parsed[4][1:-1])
+                end_y = int(parsed[5][:-2])
 
                 step_values = {
                     "type": "pickup",
@@ -1505,7 +1520,7 @@ class ItemRoutingSystem:
 
         return result
 
-    def get_descriptive_steps(self, positions, targets, collapse=True):
+    def get_descriptive_steps(self, positions, targets, products=[], collapse=True):
         """
         Gets a list of directions to gather all items beginning from the
         internal starting position and returning to the starting position.
@@ -1534,22 +1549,32 @@ class ItemRoutingSystem:
 
             return is_right or is_left or is_above or is_below
 
-        if collapse:
-            updated_positions = self.collapse_directions(positions)
+        if products:
+            _products = deepcopy(products)
+            if "Start" in _products:
+                _products.remove("Start")
+            if "End" in _products:
+                _products.remove("End")
 
+        _positions = deepcopy(positions)
+
+        if collapse:
+            updated_positions = self.collapse_directions(_positions)
         # Manually remove duplicates
         else:
             prev_position = None
             updated_positions = []
-            for position in positions:
+            for position in _positions:
                 if prev_position == position:
                     continue
 
                 prev_position = position
                 updated_positions.append(position)
 
+        print(updated_positions)
         start = updated_positions.pop(0)
         end = updated_positions.pop()
+        print(updated_positions, positions)
 
         path = []
         path.append(f"Start at position {start}!")
@@ -1567,7 +1592,12 @@ class ItemRoutingSystem:
             # At Access Point for target position
             for target in targets:
                 if is_at_access_point_to_target(position, target):
-                    path.append(f"Pickup item at {target}.")
+                    if _products:
+                        for product in _products:
+                            if self.product_info[product] == target:
+                                path.append(f"Pickup item {product} at {self.product_info[product]}.")
+                    else:
+                        path.append(f"Pickup item at {target}.")
                     break
 
         back_to_start, steps = self.move_to_target(current_position, end)
@@ -2253,7 +2283,7 @@ class ItemRoutingSystem:
                             if location:
                                 target_locations.append(location)
 
-                        steps = self.get_descriptive_steps(path, target_locations, collapse=False)
+                        steps = self.get_descriptive_steps(path, target_locations, products=self.order, collapse=False)
 
                         if steps:
                             self.display_path_in_map(steps)
@@ -2836,7 +2866,7 @@ class ItemRoutingSystem:
                                                         if location:
                                                             target_locations.append(location)
 
-                                                    steps = self.get_descriptive_steps(path, target_locations, collapse=False)
+                                                    steps = self.get_descriptive_steps(path, target_locations, products=grouped_items, collapse=False)
 
                                                     if steps:
                                                         self.display_path_in_map(steps, map_layout=test_map, map_only=True)
