@@ -2841,6 +2841,8 @@ class ItemRoutingSystem:
                                                     if steps:
                                                         self.display_path_in_map(steps, map_layout=test_map, map_only=True)
 
+                                                    passed += 1
+
                                                     self.log("-------------------" + ('-' * len(str(algo))))
                                                     self.log(f"Completed {algo}!")
                                                     self.log("-------------------" + ('-' * len(str(algo))))
