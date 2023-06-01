@@ -1571,10 +1571,8 @@ class ItemRoutingSystem:
                 prev_position = position
                 updated_positions.append(position)
 
-        print(updated_positions)
         start = updated_positions.pop(0)
         end = updated_positions.pop()
-        print(updated_positions, positions)
 
         path = []
         path.append(f"Start at position {start}!")
