@@ -76,7 +76,7 @@ class ItemRoutingSystem:
         self.gathering_algo = AlgoMethod.DIJKSTRA
         self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
         self.maximum_routing_time = 60
-        self.bnb_access_type = AccessType.MULTI_ACCESS
+        self.bnb_access_type = AccessType.SINGLE_ACCESS
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
@@ -971,7 +971,7 @@ class ItemRoutingSystem:
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS:
                             # Filter for minimum Single Access Point
-                            if chosen_start is None or reduction + cost < highest_reduction:
+                            if chosen_start is None or (reduction + cost) < highest_reduction:
                                 chosen_start = dest
                                 chosen_direc = direc
                                 highest_reduction = reduction + cost
@@ -1043,6 +1043,7 @@ class ItemRoutingSystem:
             if n == 0:
                 sorted_order.append(product_id)
             else:
+                index = -1
                 for i in range(n):
                     compared_node = sorted_order[i]
                     compared_minimum_cost = float('inf')
@@ -2055,7 +2056,7 @@ class ItemRoutingSystem:
                                         for product_id in order_list:
                                             if int(product_id) in self.product_info:
                                                 product_ids.append(int(product_id))
-                                                success = Ture
+                                                success = True
 
                                             else:
                                                 success = False
@@ -2182,7 +2183,7 @@ class ItemRoutingSystem:
 
                         # Algo Timed Out
                         if run_time == self.maximum_routing_time:
-                            cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.LOCALIZED_MIN_PATH)
+                            cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR)
 
 
                         target_locations = []
@@ -2777,7 +2778,7 @@ class ItemRoutingSystem:
 
                                                         location = self.product_info.get(product)
 
-                                                    steps = self.get_descriptive_steps(path, target_locations, collapse=False)
+                                                    steps = self.get_descriptive_steps(path, target_locations)
 
                                                     if steps:
                                                         self.display_path_in_map(steps, map_layout=test_map, map_only=True)
