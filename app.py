@@ -2772,13 +2772,15 @@ class ItemRoutingSystem:
                                                     test_map = deepcopy(self.map)
 
                                                     target_locations = []
-                                                    for product in self.order:
+                                                    for product in grouped_items:
                                                         if product == 'Start' or product == 'End':
                                                             continue
 
                                                         location = self.product_info.get(product)
+                                                        if location:
+                                                            target_locations.append(location)
 
-                                                    steps = self.get_descriptive_steps(path, target_locations)
+                                                    steps = self.get_descriptive_steps(path, target_locations, collapse=False)
 
                                                     if steps:
                                                         self.display_path_in_map(steps, map_layout=test_map, map_only=True)
