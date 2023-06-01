@@ -26,15 +26,16 @@ make clean
 ```
 
 # Known Issues
-1. Current Branch and Bound Implementation is Single Access and always begins traversal from Start node
-2. Current Branch and Bound Implementation may be slower than intended as size 7 and higher input sizes take longer than 15 seconds
-3. Some invalid user inputs will crash the program due to unexpected values that are not handled.
-4. On Windows, `SIGALRM` is an unknown signal, so any algorithm with a timeout exception will crash.
+1. Current Branch and Bound Implementation for Single Access does not guarantee optimal path due to random starting node access point chosen (The optimal access point may be excluded from consideration)
+2. Single Access and Multi-Access Branch and Bound Implementation is slower than intended as Matrix Reduction takes time due to data structure.
+3. On Windows, `SIGALRM` is an unknown signal, so any algorithm with a timeout exception will crash.
+4. On Windows, some ASCII values in the menu may be unknown and appear as Question Blocks.
 
-# Completed Tasks (For Beta Release 1: 1.2.0)
+# Completed Tasks (For Beta Release 1: 1.3.0)
 
 Justin Sung
 
+	Repetitive Nearest Neighbor Algorithm
 	Matrix Reduction
 
 
@@ -49,6 +50,8 @@ Joseph Abero
 	Map Behavior
 		Path to Order
 		Create Order
+			Individual
+			Orders from File
 	Menu Interface
 	Settings
 		Maximum Run Time
