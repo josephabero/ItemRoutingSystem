@@ -141,9 +141,12 @@ class ItemRoutingSystem:
 
     def load_order_file(self, order_file_name):
         success = True
+        original_order_info = deepcopy(self.order_info)
 
         try:
             self.order_file = order_file_name
+            self.order_info = []
+
             f = open(order_file_name, 'r')
 
             for line in f:
@@ -152,6 +155,7 @@ class ItemRoutingSystem:
             f.close()
         except FileNotFoundError:
             self.order_file = None
+            self.order_info = original_order_info
             success = False
 
         return success
@@ -1600,7 +1604,7 @@ class ItemRoutingSystem:
             # At Access Point for target position
             for target in targets:
                 if is_at_access_point_to_target(position, target):
-                    if _products:
+                    if products:
                         for product in _products:
                             if self.product_info[product] == target:
                                 path.append(f"Pickup item {product} at {self.product_info[product]}.")
@@ -2291,7 +2295,7 @@ class ItemRoutingSystem:
                             if location:
                                 target_locations.append(location)
 
-                        steps = self.get_descriptive_steps(path, target_locations, products=id_path, collapse=False)
+                        steps = self.get_descriptive_steps(path, target_locations, products=self.order, collapse=False)
 
                         if steps:
                             self.display_path_in_map(steps)
