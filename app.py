@@ -1101,7 +1101,6 @@ class ItemRoutingSystem:
             # adds the cost of the the last edge
             last_node = queue[-1]
             beginning_node = queue[0]
-            print(first_node, last_node)
             total_cost += graph[ ( last_node[0], beginning_node[0], last_node[1] ) ][ beginning_node[1] ][ 'cost' ]
             
             # a path completed, save it as a path based on least cost
