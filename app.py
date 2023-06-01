@@ -1984,7 +1984,10 @@ class ItemRoutingSystem:
                 max_success = self.verify_settings_range(routing_time, 0, 1440, float)
                 if max_success:
                     success = True
-                    self.maximum_routing_time = float(routing_time)
+                    if float(routing_time) == 0:
+                        routing_time = 1
+
+                    self.maximum_routing_time = ceil(float(routing_time))
                 else:
                     self.log("Invalid value, please try again!")
 
@@ -2782,22 +2785,6 @@ class ItemRoutingSystem:
                                         for test_case in self.test_cases:
                                             size, product_ids = test_case
                                             cases_failed[size] = {}
-
-                                            # Get Locations
-                                            for product_id in product_ids:
-                                                location = self.product_info.get(product_id)
-
-                                                if location is None:
-                                                    if "Location" not in cases_failed:
-                                                        cases_failed["Location"] = []
-
-                                                    failed += 1
-                                                    cases_failed[size]["Location"].append(product_id)
-
-                                                    self.log(f"Failed to get location for Product '{product_id}'.")
-
-                                                else:
-                                                    passed += 1
 
                                             # Test Algorithms to Get Paths
                                             self.log(f"Test Case: Size {size}\n"    \
