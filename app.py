@@ -22,6 +22,9 @@ import signal
 import sys
 import time
 
+def timeout_handler(signum, frame):
+    raise TimeoutError
+
 class ItemRoutingSystem:
     """
     Main application for providing directions for a single worker to gather items.
@@ -74,9 +77,9 @@ class ItemRoutingSystem:
 
         # Default algorithm
         self.gathering_algo = AlgoMethod.DIJKSTRA
-        self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+        self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
         self.maximum_routing_time = 60
-        self.bnb_access_type = AccessType.MULTI_ACCESS
+        self.bnb_access_type = AccessType.SINGLE_ACCESS
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
@@ -138,9 +141,12 @@ class ItemRoutingSystem:
 
     def load_order_file(self, order_file_name):
         success = True
+        original_order_info = deepcopy(self.order_info)
 
         try:
             self.order_file = order_file_name
+            self.order_info = []
+
             f = open(order_file_name, 'r')
 
             for line in f:
@@ -149,6 +155,7 @@ class ItemRoutingSystem:
             f.close()
         except FileNotFoundError:
             self.order_file = None
+            self.order_info = original_order_info
             success = False
 
         return success
@@ -247,7 +254,7 @@ class ItemRoutingSystem:
             menu.add_option(2, "Set Worker Starting Position Mode")
             menu.add_option(3, "Set Worker Ending Position Mode")
             menu.add_option(4, "Set Maximum Items Ordered")
-            menu.add_option(5, "Set Routing Time Maximum")
+            menu.add_option(5, "Set Maximum Routing Time")
             menu.add_option(6, "Toggle Debug Mode")
 
             if self.debug:
@@ -424,7 +431,7 @@ class ItemRoutingSystem:
 
         return grid, inserted_order
 
-    def display_map(self):
+    def display_map(self, map_layout=None, map_only=False):
         """
         Prints map to screen with a legend. Map will be centered within the
         banner.
@@ -458,12 +465,16 @@ class ItemRoutingSystem:
         banner.display()
 
         grid = []
-        for y in reversed(range(len(self.map[0]))):
+
+        if map_layout is None:
+            map_layout = self.map
+
+        for y in reversed(range(len(map_layout[0]))):
             col = []
-            for x in range(len(self.map)):
+            for x in range(len(map_layout)):
                 # Only display item if its position is within defined grid
                 if x < self.map_x and y < self.map_y:
-                    col.append(self.map[x][y])
+                    col.append(map_layout[x][y])
             grid.append(col)
 
         for i, col in zip(reversed(range(len(grid))), grid):
@@ -475,31 +486,46 @@ class ItemRoutingSystem:
             self.log(row_string.center(banner_length))
 
         left_spacing = len(str(i)) + 2
-        self.log(f"{' ':{left_spacing}}" + " ".join(str(i) for i in range(len(self.map))).center(banner_length))
+        self.log(f"{' ':{left_spacing}}" + " ".join(str(i) for i in range(len(map_layout))).center(banner_length))
 
-        self.log("")
-        self.log("LEGEND:".center(banner_length))
-        self.log(f"{ItemRoutingSystem.WORKER_START_SYMBOL}: Worker Starting Spot".center(banner_length))
-        self.log(f"{ItemRoutingSystem.WORKER_END_SYMBOL}: Worker Ending Spot".center(banner_length))
-        self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
-        self.log(f"{ItemRoutingSystem.ORDERED_ITEM_SYMBOL}: Ordered Item".center(banner_length))
-        self.log("Positions are labeled as (X, Y)".center(banner_length))
-        self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
-        self.log("")
-        self.log("Missing Worker Ending Spot means it overlaps with Starting Spot")
-        self.log("")
+        if not map_only:
 
-        settings_info = "Current Settings:\n" \
-                        f"  Worker Position: {self.starting_position}\n" \
-                        f"  Ordered Item Maximum: {self.maximum_items}\n" \
-                        f"  Algorithm: {self.tsp_algorithm}\n" \
-                        f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
-                        f"  Debug Mode: {self.debug}\n"
+            self.log("")
+            self.log("LEGEND:".center(banner_length))
+            self.log(f"{ItemRoutingSystem.WORKER_START_SYMBOL}: Worker Starting Spot".center(banner_length))
+            self.log(f"{ItemRoutingSystem.WORKER_END_SYMBOL}: Worker Ending Spot".center(banner_length))
+            self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
+            self.log(f"{ItemRoutingSystem.ORDERED_ITEM_SYMBOL}: Ordered Item".center(banner_length))
+            self.log("Positions are labeled as (X, Y)".center(banner_length))
+            self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
+            self.log("")
+            self.log("Missing Worker Ending Spot means it overlaps with Starting Spot")
+            self.log("")
 
-        self.log(settings_info)
+            settings_info = "Current Settings:\n" \
+                            f"  Worker Position: {self.starting_position}\n" \
+                            f"  Ordered Item Maximum: {self.maximum_items}\n" \
+                            f"  Algorithm: {self.tsp_algorithm}\n" \
+                            f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
+                            f"  Debug Mode: {self.debug}\n"
 
-    def display_path_in_map(self, steps):
+            if self.tsp_algorithm == AlgoMethod.BRANCH_AND_BOUND:
+                settings_info = "Current Settings:\n" \
+                            f"  Worker Position: {self.starting_position}\n" \
+                            f"  Ordered Item Maximum: {self.maximum_items}\n" \
+                            f"  Algorithm: {self.tsp_algorithm}\n" \
+                            f"    Item Access Type: {self.bnb_access_type}\n" \
+                            f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
+                            f"  Debug Mode: {self.debug}\n"
+
+            self.log(settings_info)
+
+    def display_path_in_map(self, steps, map_layout=None, map_only=False):
         path = []
+
+        if map_layout is None:
+            map_layout = self.map
+
         original_map = deepcopy(self.map)
 
         for step in steps:
@@ -529,11 +555,25 @@ class ItemRoutingSystem:
 
                         path.append(step_values)
 
-            elif step.startswith("Pickup item"):
+            elif step.startswith("Pickup item at"):
                 parsed = step.split(" ")
 
                 end_x = int(parsed[3][1:-1])
                 end_y = int(parsed[4][:-2])
+
+                step_values = {
+                    "type": "pickup",
+                    "end": (end_x, end_y)
+                }
+
+                path.append(step_values)
+
+            elif step.startswith("Pickup item"):
+                parsed = step.split(" ")
+
+
+                end_x = int(parsed[4][1:-1])
+                end_y = int(parsed[5][:-2])
 
                 step_values = {
                     "type": "pickup",
@@ -569,24 +609,24 @@ class ItemRoutingSystem:
                     elif step["direction"] == "right":
                         x += i
 
-                    if self.map[x][y] == ItemRoutingSystem.WORKER_START_SYMBOL or \
-                       self.map[x][y] == ItemRoutingSystem.WORKER_END_SYMBOL:
+                    if map_layout[x][y] == ItemRoutingSystem.WORKER_START_SYMBOL or \
+                       map_layout[x][y] == ItemRoutingSystem.WORKER_END_SYMBOL:
                         continue
 
-                    elif self.map[x][y] == '_':
-                        self.map[x][y] = arrows[step["direction"]]
+                    elif map_layout[x][y] == '_':
+                        map_layout[x][y] = arrows[step["direction"]]
 
-                    elif self.map[x][y] in [arrows["up"], arrows["down"]]:
-                        self.map[x][y] = arrows["up_down"]
+                    elif map_layout[x][y] in [arrows["up"], arrows["down"]]:
+                        map_layout[x][y] = arrows["up_down"]
 
-                    elif self.map[x][y] in [arrows["left"], arrows["right"]]:
-                        self.map[x][y] = arrows["left_right"]
+                    elif map_layout[x][y] in [arrows["left"], arrows["right"]]:
+                        map_layout[x][y] = arrows["left_right"]
 
             elif step["type"] == "pickup":
                 x, y = step["end"]
-                self.map[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
+                map_layout[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
 
-        self.display_map()
+        self.display_map(map_layout=map_layout, map_only=map_only)
 
         # Restore Original Map
         self.map = deepcopy(original_map)
@@ -837,113 +877,174 @@ class ItemRoutingSystem:
         self.log(f"Reduction Cost: {reduction_cost}", print_type=PrintType.MINOR)
         return reduction_cost, temp_matrix
 
+
     def branch_and_bound(self, graph, order):
         """
         Applies the branch and bound algorithm to generate a path
         """
+        def binary_search(arr, low, high, target):
+            # Check base case
+            cost_index = 2
+
+            if high >= low:
+
+                mid = (high + low) // 2
+
+                # If element is present at the middle itself
+                if arr[mid][cost_index] == target:
+                    return mid
+
+                # If element is smaller than mid, then it can only
+                # be present in left subarray
+                elif arr[mid][cost_index] > target:
+                    return binary_search(arr, low, mid - 1, target)
+
+                # Else the element can only be present in right subarray
+                else:
+                    return binary_search(arr, mid + 1, high, target)
+
+            else:
+                # Element is not present in the array
+                return -1
+
+        # Setup timeout signal
+        signal.signal(signal.SIGALRM, timeout_handler) # seconds
+        signal.alarm(ceil(self.maximum_routing_time))
+
         queue = []
         final_path = []
 
-        # 1. Create Matrix
+        try:
+            # 1. Create Matrix
+            # 2. Reduction
+            # self.log("Parent Matrix", print_type=PrintType.MINOR)
+            reduced_cost, parent_matrix = self.matrix_reduction(graph)
+            child_matrix = deepcopy(parent_matrix)
 
-        # 2. Reduction
-        # self.log("Parent Matrix", print_type=PrintType.MINOR)
-        reduced_cost, parent_matrix = self.matrix_reduction(graph)
-        child_matrix = deepcopy(parent_matrix)
+            # 3. Choose Random Start
+            start_node, dest_node, start_dir = random.choice( list(graph) )
+            # self.log(start_node, dest_node, start_dir, print_type=PrintType.MINOR)
 
-        # 3. Choose Random Start
-        start_node, dest_node, start_dir = random.choice( list(graph) )
-        self.log(start_node, dest_node, start_dir, print_type=PrintType.MINOR)
+            # 4. Set Upper Bound
+            upper_bound = order
 
-        # 4. Set Upper Bound
-        upper_bound = order
+            # 5. Traversal
+            # (source, source_direction, cost, matrix, path)
 
-        # 5. Traversal
-        # (source, source_direction, cost, matrix, path)
+            # For first traversal, ignore start_dir, add all of surrounding access points to traverse
+            for (start, dest, src_dir), values in parent_matrix.items():
+                if start_node == start:
+                    child_path = [(start, src_dir)]
+                    # self.log(f"Will Visit: {start}, {dest}, {src_dir}", print_type=PrintType.MINOR)
+                    queue.append( (start, src_dir, reduced_cost, child_matrix, child_path) )
 
-        # For first traversal, ignore start_dir, add all of surrounding access points to traverse
-        for (start, dest, src_dir), values in parent_matrix.items():
-            if start_node == start:
-                child_path = [(start, src_dir)]
-                # self.log(f"Will Visit: {start}, {dest}, {src_dir}", print_type=PrintType.MINOR)
-                queue.append( (start, src_dir, reduced_cost, child_matrix, child_path) )
+            minimum_cost = INFINITY
+            while queue:
 
-        minimum_cost = INFINITY
-        while queue:
+                # Get lowest cost node
+                index = 0
+                if len(queue) > 1:
+                    lowest_cost_node = INFINITY
+                    for i, (source, source_direction, cost, matrix, src_path) in enumerate(queue):
+                        if cost < lowest_cost_node:
+                            index = i
 
-            # Get lowest cost node
-            index = 0
-            if len(queue) > 1:
-                lowest_cost_node = INFINITY
-                for i, (source, source_direction, cost, matrix, src_path) in enumerate(queue):
-                    if cost < lowest_cost_node:
-                        index = i
+                source, source_direction, cost, matrix, src_path = queue.pop(index)
+                # self.log(f"New Source: {source}", print_type=PrintType.MINOR)
+                # self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.DEBUG)
 
-            source, source_direction, cost, matrix, src_path = queue.pop(index)
-            # self.log(f"New Source: {source}", print_type=PrintType.MINOR)
-            # self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.MINOR)
+                # If cost is greater than minimum cost of already found path, ignore
+                if cost > minimum_cost:
+                    # self.log(f"Cost {cost} is bigger than {minimum_cost}, skipping.", print_type=PrintType.MINOR)
+                    continue
 
-            # If cost is greater than minimum cost of already found path, ignore
-            if cost > minimum_cost:
-                # self.log(f"Cost {cost} is bigger than {minimum_cost}, skipping.", print_type=PrintType.MINOR)
-                continue
+                # If all nodes have been visited
+                # self.log(len(src_path), len(order), print_type=PrintType.MINOR)
+                if len(src_path) == len(order):
+                    # self.log(f"Reached Level: {len(src_path)}, {src_path}", print_type=PrintType.MINOR)
 
-            # If all nodes have been visited
-            # self.log(len(src_path), len(order), print_type=PrintType.MINOR)
-            if len(src_path) == len(order):
-                self.log(f"Reached Level: {len(src_path)}, {src_path}", print_type=PrintType.MINOR)
+                    # Store path if minimum path
+                    if cost < minimum_cost:
+                        # self.log(f"New minimum cost: {cost}", print_type=PrintType.DEBUG)
+                        final_path = src_path
+                        minimum_cost = cost
 
-                # Store path if minimum path
-                if cost < minimum_cost:
-                    self.log(f"New minimum cost: {cost}", print_type=PrintType.DEBUG)
-                    final_path = src_path
-                    minimum_cost = cost
+                # if source == 'Start':
+                #     self.log(f"Beginning Traversal for '{source}', {cost}", print_type=PrintType.MINOR)
+                # else:
+                #     self.log(f"Beginning Traversal for '{source} {source_direction}', {cost}", print_type=PrintType.MINOR)
 
-            if source == 'Start':
-                self.log(f"Beginning Traversal for '{source}', {cost}", print_type=PrintType.MINOR)
-            else:
-                self.log(f"Beginning Traversal for '{source} {source_direction}', {cost}", print_type=PrintType.MINOR)
+                for (start, dest, src_dir), access_points in matrix.items():
+                    # Ignore other irrelevant entries
+                    if source == start and source_direction == src_dir:
 
-            for (start, dest, src_dir), access_points in matrix.items():
-                # Ignore other irrelevant entries
-                if source == start and source_direction == src_dir:
-                    # self.log(f"Traversal Info: {start}, {src_dir}, {dest}, {values.keys()}", print_type=PrintType.MINOR)
-                    child_path = []
+                        # Check if destination is already in path
+                        found = False
+                        for node in src_path:
+                            if dest == node[0]:
+                                found = True
+                                break
 
-                    if self.bnb_access_type == AccessType.SINGLE_ACCESS:
-                        highest_reduction = INFINITY
-                        chosen_start = chosen_direc = None
-                        chosen_matrix = None
-
-                    for direc in access_points:
-                        if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
-                            # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
+                        if found:
                             continue
 
-                        reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
+                        # self.log(f"Traversal Info: {start}, {src_dir}, {dest}, {values.keys()}", print_type=PrintType.MINOR)
+                        child_path = []
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS:
-                            # Filter for minimum Single Access Point
-                            if chosen_start is None or reduction + cost < highest_reduction:
-                                chosen_start = dest
-                                chosen_direc = direc
-                                highest_reduction = reduction + cost
-                                chosen_matrix = deepcopy(temp_matrix)
+                            highest_reduction = INFINITY
+                            chosen_start = chosen_direc = None
+                            chosen_matrix = None
 
-                                # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
-                                # self.log(f"{src_path}", print_type=PrintType.MINOR)
+
+                        for direc in access_points:
+                            if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
+                                # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
+                                continue
+
+                            reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
+
+                            if self.bnb_access_type == AccessType.SINGLE_ACCESS:
+                                # Filter for minimum Single Access Point
+                                if chosen_start is None or (reduction + cost) < highest_reduction:
+                                    chosen_start = dest
+                                    chosen_direc = direc
+                                    highest_reduction = reduction + cost
+                                    chosen_matrix = deepcopy(temp_matrix)
+
+                                    # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
+                                    # self.log(f"{src_path}", print_type=PrintType.MINOR)
+                                    child_path = src_path + [(dest, direc)]
+                                    # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
+
+                            elif self.bnb_access_type == AccessType.MULTI_ACCESS:
                                 child_path = src_path + [(dest, direc)]
-                                # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
+                                node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
 
-                        elif self.bnb_access_type == AccessType.MULTI_ACCESS:
-                            child_path = src_path + [(dest, direc)]
-                            node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
-                            queue.append(node_to_visit)
+                                if (cost + reduction) < minimum_cost:
 
-                    if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
-                        # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
-                        node_to_visit = (chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
-                        queue.append(node_to_visit)
+                                    index = binary_search(queue, 0, len(queue) - 1, cost + reduction)
+                                    queue.insert(index, node_to_visit)
+
+
+                        if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
+                            # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
+                            node_to_visit = (chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
+
+                            if (cost + reduction) < minimum_cost:
+                                index = binary_search(queue, 0, len(queue) - 1, cost + reduction)
+                                queue.insert(index, node_to_visit)
+
+        # Algorithm Timed out, return
+        except TimeoutError as exc:
+            # Algorithm timed out, return input order list
+            self.log(exc)
+            signal.alarm(0)
+
+            if final_path:
+                return minimum_cost, final_path
+            else:
+                return None, order
 
         return minimum_cost, final_path
 
@@ -960,83 +1061,100 @@ class ItemRoutingSystem:
             path: a list of the locations
         """
 
-        path = []
-        total_cost = 0
+        # Setup timeout signal
+        signal.signal(signal.SIGALRM, timeout_handler) # seconds
+        signal.alarm(ceil(self.maximum_routing_time))
 
-        sorted_order = []
+        try:
+            path = []
+            total_cost = 0
 
-        for product_id in order:
+            sorted_order = []
 
-            if product_id == 'Start':
-                continue
+            for product_id in order:
 
-            if product_id == 'End':
-                break
+                if product_id == 'Start':
+                    continue
 
-            node_minimum_cost = float('inf')
-
-            # calculate the node min cost in different directions
-            for direction, values in graph[('Start', product_id, None)].items():
-                cost = values["cost"]
-                if cost is None:
+                if product_id == 'End':
                     break
-                if cost < node_minimum_cost:
-                    node_minimum_cost = cost
 
-            # sort the node minimum cost with bubble sort
-            n = len(sorted_order)
-            if n == 0:
-                sorted_order.append(product_id)
-            else:
-                for i in range(n):
-                    compared_node = sorted_order[i]
-                    compared_minimum_cost = float('inf')
-                    # get the compared node minimum cost
-                    for direction, values in graph[('Start', compared_node, None)].items():
-                        cost = values["cost"]
-                        if cost is None:
-                            break
-                        if cost < compared_minimum_cost:
-                            compared_minimum_cost = cost
-                    # if current node cost is less, insert
-                    if node_minimum_cost < compared_minimum_cost:
-                        index = i
+                node_minimum_cost = float('inf')
+
+                # calculate the node min cost in different directions
+                for direction, values in graph[('Start', product_id, None)].items():
+                    cost = values["cost"]
+                    if cost is None:
                         break
-                sorted_order.insert(index, product_id)
+                    if cost < node_minimum_cost:
+                        node_minimum_cost = cost
 
-        sorted_order.insert(0, 'Start')
-        sorted_order.append('End')
-        #print(sorted_order)
+                # sort the node minimum cost with bubble sort
+                n = len(sorted_order)
+                if n == 0:
+                    sorted_order.append(product_id)
+                else:
+                    index = -1
+                    for i in range(n):
+                        compared_node = sorted_order[i]
+                        compared_minimum_cost = float('inf')
+                        # get the compared node minimum cost
+                        for direction, values in graph[('Start', compared_node, None)].items():
+                            cost = values["cost"]
+                            if cost is None:
+                                break
+                            if cost < compared_minimum_cost:
+                                compared_minimum_cost = cost
+                        # if current node cost is less, insert
+                        if node_minimum_cost < compared_minimum_cost:
+                            index = i
+                            break
+                    sorted_order.insert(index, product_id)
 
-        pre_node = None
-        access_direction = None
+            sorted_order.insert(0, 'Start')
+            sorted_order.append('End')
 
-        for product_id in sorted_order:
-            # start position
-            if product_id == 'Start':
+
+            pre_node = None
+            access_direction = None
+
+            for product_id in sorted_order:
+                # start position
+                if product_id == 'Start':
+                    pre_node = product_id
+                    access_direction = None
+                    path += [('Start', None)]
+                    continue
+
+                min_cost = float('inf')
+                shortest_path = []
+
+                # Choose one of the access points, and get the shortest path
+                for access_point, val in graph[(pre_node, product_id, access_direction)].items():
+                    if val['cost'] is None:
+                        break
+                    if min_cost is None or val['cost'] < min_cost:
+                        min_cost = val['cost']
+                        access_direction = access_point
+                        shortest_path = [(product_id, access_point)]
+
+                if min_cost != float('inf'):
+                    total_cost += min_cost
+                path += shortest_path
                 pre_node = product_id
-                access_direction = None
-                path += [('Start', None)]
-                continue
 
-            min_cost = float('inf')
-            shortest_path = []
+            self.log(f"Minimum Path: {path}", print_type=PrintType.MINOR)
 
-            # Choose one of the access points, and get the shortest path
-            for access_point, val in graph[(pre_node, product_id, access_direction)].items():
-                if val['cost'] is None:
-                    break
-                if min_cost is None or val['cost'] < min_cost:
-                    min_cost = val['cost']
-                    access_direction = access_point
-                    shortest_path = [(product_id, access_point)]
+        # Algorithm Timed out, return
+        except TimeoutError as exc:
+            # Algorithm timed out, return input order list
+            self.log(exc)
+            signal.alarm(0)
 
-            if min_cost != float('inf'):
-                total_cost += min_cost
-            path += shortest_path
-            pre_node = product_id
-
-        self.log(f"Minimum Path: {path}", print_type=PrintType.MINOR)
+            if path:
+                return total_cost, path
+            else:
+                return None, order
 
         return total_cost, path
 
@@ -1074,14 +1192,6 @@ class ItemRoutingSystem:
             return path
 
     def run_tsp_algorithm(self, graph, order, algorithm=None):
-        def timeout_handler(signum, frame):
-            self.log("Function timed out!")
-            raise Exception("Function Timeout")
-
-        # Setup timeout signal
-        signal.signal(signal.SIGALRM, timeout_handler) # seconds
-        signal.alarm(ceil(self.maximum_routing_time))
-
         if algorithm is None:
             algorithm = self.tsp_algorithm
 
@@ -1099,25 +1209,32 @@ class ItemRoutingSystem:
         start_time = time.time()
 
         # Run Algorithm
-        try:
-            cost, algo_path = algo_func(graph, order)
-            algo_path = self.rotate_path(algo_path)
-            path = self.get_locations_for_path(graph, algo_path)
+        cost, algo_path = algo_func(graph, order)
+        rotated_path = self.rotate_path(algo_path)
 
-        except Exception as exc:
-            # Algorithm timed out, return input order list
-            self.log(exc)
-            return None, order, self.maximum_routing_time
+        # Returned the default path, so choose an access point
+        if rotated_path == order:
+            rotated_path = []
+            for node in order:
+                if node == "Start" or node == "End":
+                    rotated_path.append((node, None))
+                else:
+                    rotated_path.append((node, 'N'))
+
+        path = self.get_locations_for_path(graph, rotated_path)
 
         # End Time for timing algorithm run time
         end_time = time.time()
         total_time = end_time - start_time
         self.log(f"Total Time: {(end_time - start_time):.4f}", print_type=PrintType.MINOR)
 
+        if ceil(total_time) > self.maximum_routing_time:
+            total_time = self.maximum_routing_time
+
         # Stop timeout signal
         signal.alarm(0)
 
-        return cost, path, total_time
+        return cost, rotated_path, path, total_time
 
     def nearest_neighbor(self, graph, order):
         """
@@ -1126,67 +1243,84 @@ class ItemRoutingSystem:
         final_path = None
         final_cost = INFINITY
 
-        # create a path for every single starting node
-        for key in graph.keys():
-            first_time_thru = True
-            queue = []
-            item_list = order.copy()
-            first_node = (key[0], key[2])
-            queue.append(first_node)
-            total_cost = 0;
+        # Setup timeout signal
+        signal.signal(signal.SIGALRM, timeout_handler) # seconds
+        signal.alarm(ceil(self.maximum_routing_time))
 
-            while item_list:
-                popped_node = queue[-1:]
+        try:
+            # create a path for every single starting node
+            for key in graph.keys():
+                first_time_thru = True
+                queue = []
+                item_list = order.copy()
+                first_node = (key[0], key[2])
+                queue.append(first_node)
+                total_cost = 0;
 
-                # first time through, set the starting node as unvisited, used for cycling
-                if (first_time_thru):
-                    first_time_thru = False
-                    queue.pop()
-                min_cost = INFINITY
-                visited_min_cost = INFINITY
-                next_node = None
-                visited_next_node = None
+                while item_list:
+                    popped_node = queue[-1:]
 
-                for (curr_node, dest_node, curr_dir), values in graph.items():
+                    # first time through, set the starting node as unvisited, used for cycling
+                    if (first_time_thru):
+                        first_time_thru = False
+                        queue.pop()
+                    min_cost = INFINITY
+                    visited_min_cost = INFINITY
+                    next_node = None
+                    visited_next_node = None
 
-                    # there exists an unvisited node, prioritize it
-                    if ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir and (dest_node in item_list) ):
-                        for direc in values:
-                            if (values[direc]['cost'] is None):
-                                continue
-                            elif (min_cost > values[direc]['cost']):
-                                min_cost = values[direc]['cost']
-                                next_node = (dest_node, direc)
+                    for (curr_node, dest_node, curr_dir), values in graph.items():
 
-                    # all nodes are visited, choose the least cost of the visited nodes
-                    elif ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir ):
-                        for direc in values:
-                            if (values[direc]['cost'] is None):
-                                continue
-                            elif (visited_min_cost > values[direc]['cost']):
-                                visited_min_cost = values[direc]['cost']
-                                visited_next_node = (dest_node, direc)
+                        # there exists an unvisited node, prioritize it
+                        if ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir and (dest_node in item_list) ):
+                            for direc in values:
+                                if (values[direc]['cost'] is None):
+                                    continue
+                                elif (min_cost > values[direc]['cost']):
+                                    min_cost = values[direc]['cost']
+                                    next_node = (dest_node, direc)
 
-                # is there exists a path to a unvisited node, prioritize by adding it
-                # else, add the least cost path to a visited node
-                if (next_node is not None):
-                    total_cost += min_cost
-                    queue.append(next_node)
-                    if next_node[0] in item_list:
-                        item_list.remove(next_node[0])
-                else:
-                    total_cost += visited_min_cost
-                    queue.append(visited_next_node)
-            
-            # adds the cost of the the last edge
-            last_node = queue[-1]
-            beginning_node = queue[0]
-            total_cost += graph[ ( last_node[0], beginning_node[0], last_node[1] ) ][ beginning_node[1] ][ 'cost' ]
-            
-            # a path completed, save it as a path based on least cost
-            if (final_cost > total_cost):
-                final_path = queue.copy()
-                final_cost = total_cost
+                        # all nodes are visited, choose the least cost of the visited nodes
+                        elif ( popped_node[0][0] == curr_node and popped_node[0][1] == curr_dir ):
+                            for direc in values:
+                                if (values[direc]['cost'] is None):
+                                    continue
+                                elif (visited_min_cost > values[direc]['cost']):
+                                    visited_min_cost = values[direc]['cost']
+                                    visited_next_node = (dest_node, direc)
+
+                    # is there exists a path to a unvisited node, prioritize by adding it
+                    # else, add the least cost path to a visited node
+                    if (next_node is not None):
+                        total_cost += min_cost
+                        queue.append(next_node)
+                        if next_node[0] in item_list:
+                            item_list.remove(next_node[0])
+                    else:
+                        total_cost += visited_min_cost
+                        queue.append(visited_next_node)
+
+                # adds the cost of the the last edge
+                last_node = queue[-1]
+                beginning_node = queue[0]
+                if beginning_node[0] != "Start":
+                    total_cost += graph[ ( last_node[0], beginning_node[0], last_node[1] ) ][ beginning_node[1] ][ 'cost' ]
+
+                # a path completed, save it as a path based on least cost
+                if (final_cost > total_cost):
+                    final_path = queue.copy()
+                    final_cost = total_cost
+
+        # Algorithm Timed out, return
+        except TimeoutError as exc:
+            # Algorithm timed out, return input order list
+            self.log(exc)
+            signal.alarm(0)
+
+            if path:
+                return final_cost, final_path
+            else:
+                return None, order
 
         # least cost path found, return
         return final_cost, final_path
@@ -1400,7 +1534,7 @@ class ItemRoutingSystem:
 
         return result
 
-    def get_descriptive_steps(self, positions, targets, collapse=True):
+    def get_descriptive_steps(self, positions, targets, products=[], collapse=True):
         """
         Gets a list of directions to gather all items beginning from the
         internal starting position and returning to the starting position.
@@ -1429,14 +1563,22 @@ class ItemRoutingSystem:
 
             return is_right or is_left or is_above or is_below
 
-        if collapse:
-            updated_positions = self.collapse_directions(positions)
+        if products:
+            _products = deepcopy(products)
+            if "Start" in _products:
+                _products.remove("Start")
+            if "End" in _products:
+                _products.remove("End")
 
+        _positions = deepcopy(positions)
+
+        if collapse:
+            updated_positions = self.collapse_directions(_positions)
         # Manually remove duplicates
         else:
             prev_position = None
             updated_positions = []
-            for position in positions:
+            for position in _positions:
                 if prev_position == position:
                     continue
 
@@ -1462,15 +1604,21 @@ class ItemRoutingSystem:
             # At Access Point for target position
             for target in targets:
                 if is_at_access_point_to_target(position, target):
-                    path.append(f"Pickup item at {target}.")
+                    if products:
+                        for product in _products:
+                            if self.product_info[product] == target:
+                                path.append(f"Pickup item {product} at {self.product_info[product]}.")
+                    else:
+                        path.append(f"Pickup item at {target}.")
                     break
 
         back_to_start, steps = self.move_to_target(current_position, end)
         total_steps += steps
         path.append(back_to_start)
         path.append("Pickup completed.")
+        path.append(f"Total Steps: {total_steps}")
 
-        self.log(f"Total Steps: {total_steps}", print_type=PrintType.DEBUG)
+        self.log(f"Total Steps: {total_steps}", print_type=PrintType.MINOR)
 
         return path
 
@@ -1871,7 +2019,7 @@ class ItemRoutingSystem:
 
     def set_maximum_routing_time(self):
 
-        banner = Menu("Set Routing Time Maximum")
+        banner = Menu("Set Maximum Routing Time")
         banner.display()
 
         success = False
@@ -1883,7 +2031,10 @@ class ItemRoutingSystem:
                 max_success = self.verify_settings_range(routing_time, 0, 1440, float)
                 if max_success:
                     success = True
-                    self.maximum_routing_time = float(routing_time)
+                    if float(routing_time) == 0:
+                        routing_time = 1
+
+                    self.maximum_routing_time = ceil(float(routing_time))
                 else:
                     self.log("Invalid value, please try again!")
 
@@ -2005,7 +2156,7 @@ class ItemRoutingSystem:
                                         for product_id in order_list:
                                             if int(product_id) in self.product_info:
                                                 product_ids.append(int(product_id))
-                                                success = Ture
+                                                success = True
 
                                             else:
                                                 success = False
@@ -2128,11 +2279,11 @@ class ItemRoutingSystem:
                         if self.graph is None:
                             self.graph = self.build_graph_for_order(self.order)
 
-                        cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order)
+                        cost, id_path, path, run_time = self.run_tsp_algorithm(self.graph, self.order)
 
                         # Algo Timed Out
                         if run_time == self.maximum_routing_time:
-                            cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.LOCALIZED_MIN_PATH)
+                            cost, id_path, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR)
 
 
                         target_locations = []
@@ -2144,7 +2295,7 @@ class ItemRoutingSystem:
                             if location:
                                 target_locations.append(location)
 
-                        steps = self.get_descriptive_steps(path, target_locations, collapse=False)
+                        steps = self.get_descriptive_steps(path, target_locations, products=self.order, collapse=False)
 
                         if steps:
                             self.display_path_in_map(steps)
@@ -2152,7 +2303,10 @@ class ItemRoutingSystem:
                             self.log("Directions:")
                             self.log("-----------")
                             for step, action in enumerate(steps, 1):
-                                self.log(f"{step}. {action}")
+                                if "Total Steps" in action:
+                                    self.log(action)
+                                else:
+                                    self.log(f"{step}. {action}")
 
                         else:
                             self.log(f"Path to {product_id} was not found!")
@@ -2194,7 +2348,10 @@ class ItemRoutingSystem:
                         self.log("Directions:")
                         self.log("-----------")
                         for step, action in enumerate(steps, 1):
-                            self.log(f"{step}. {action}")
+                                if "Total Steps" in action:
+                                    self.log(action)
+                                else:
+                                    self.log(f"{step}. {action}")
                     else:
                         self.log(f"Path to {product_id} was not found!")
 
@@ -2676,22 +2833,6 @@ class ItemRoutingSystem:
                                             size, product_ids = test_case
                                             cases_failed[size] = {}
 
-                                            # Get Locations
-                                            for product_id in product_ids:
-                                                location = self.product_info.get(product_id)
-
-                                                if location is None:
-                                                    if "Location" not in cases_failed:
-                                                        cases_failed["Location"] = []
-
-                                                    failed += 1
-                                                    cases_failed[size]["Location"].append(product_id)
-
-                                                    self.log(f"Failed to get location for Product '{product_id}'.")
-
-                                                else:
-                                                    passed += 1
-
                                             # Test Algorithms to Get Paths
                                             self.log(f"Test Case: Size {size}\n"    \
                                                       "----------------------")
@@ -2701,26 +2842,64 @@ class ItemRoutingSystem:
 
                                             # Run Test Case against desired algorithms
                                             algorithms_to_test = [
-                                                AlgoMethod.LOCALIZED_MIN_PATH,
-                                                AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
-                                                # AlgoMethod.BRANCH_AND_BOUND
+                                                # AlgoMethod.LOCALIZED_MIN_PATH,
+                                                # AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
+                                                AlgoMethod.BRANCH_AND_BOUND
                                             ]
 
                                             for algo in algorithms_to_test:
-                                                # Run Branch and Bound
-                                                cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, algo)
+
+                                                algo_str = f"Running {algo}....."
+                                                if algo == AlgoMethod.BRANCH_AND_BOUND:
+                                                    algo_str = f"Running {self.bnb_access_type} {algo}....."
+
+                                                # Run Algorithm
+                                                self.log("-------------------" + ('-' * len(algo_str)))
+                                                self.log(algo_str)
+                                                self.log("-------------------" + ('-' * len(algo_str)))
+                                                cost, id_path, path, run_time = self.run_tsp_algorithm(graph, grouped_items, algo)
 
                                                 # Algorithm Timed Out
-                                                if cost is None:
+                                                if run_time == self.maximum_routing_time:
                                                     failed += 1
-                                                    cases_failed[size][str(algo)] = "Timeout"
+                                                    cases_failed[size][str(algo)] = f"Timeout: {path}"
                                                     self.log(f"Failed {algo}!")
 
                                                 else:
+                                                    # Test Case Finished
+                                                    test_map = deepcopy(self.map)
+
+                                                    target_locations = []
+                                                    for product in grouped_items:
+                                                        if product == 'Start' or product == 'End':
+                                                            continue
+
+                                                        location = self.product_info.get(product)
+                                                        if location:
+                                                            target_locations.append(location)
+
+                                                    steps = self.get_descriptive_steps(path, target_locations, products=grouped_items, collapse=False)
+
+                                                    if steps:
+                                                        self.display_path_in_map(steps, map_layout=test_map, map_only=True)
+
+                                                        self.log("Directions:")
+                                                        self.log("-----------")
+                                                        for step, action in enumerate(steps, 1):
+                                                            if "Total Steps" in action:
+                                                                self.log(action)
+                                                            else:
+                                                                self.log(f"{step}. {action}")
+
+                                                    passed += 1
+
+                                                    self.log("-------------------" + ('-' * len(str(algo))))
                                                     self.log(f"Completed {algo}!")
+                                                    self.log("-------------------" + ('-' * len(str(algo))))
 
                                                 self.log(f"    Time: {run_time:.6f}")
                                                 self.log(f"    Cost: {cost}")
+                                                self.log(f"     IDs: {id_path}")
                                                 self.log(f"    Path: {path}")
                                                 self.log("")
 
@@ -2739,7 +2918,8 @@ class ItemRoutingSystem:
                                                 if fails:
                                                     self.log(f"{size}: ")
                                                     for case, reason in fails.items():
-                                                        self.log(f"    {case}: {reason}")
+                                                        self.log(f"    {case}:")
+                                                        self.log(f"        {reason}")
 
                                 else:
                                     self.log("No test cases to run! Must load test case file first!")
