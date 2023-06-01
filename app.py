@@ -77,7 +77,7 @@ class ItemRoutingSystem:
 
         # Default algorithm
         self.gathering_algo = AlgoMethod.DIJKSTRA
-        self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+        self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
         self.maximum_routing_time = 60
         self.bnb_access_type = AccessType.SINGLE_ACCESS
 
