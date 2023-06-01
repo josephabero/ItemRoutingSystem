@@ -1272,6 +1272,11 @@ class ItemRoutingSystem:
                         total_cost += visited_min_cost
                         queue.append(visited_next_node)
 
+                # adds the cost of the the last edge
+                last_node = queue[-1]
+                beginning_node = queue[0]
+                total_cost += graph[ ( last_node[0], beginning_node[0], last_node[1] ) ][ beginning_node[1] ][ 'cost' ]
+
                 # a path completed, save it as a path based on least cost
                 if (final_cost > total_cost):
                     final_path = queue.copy()
