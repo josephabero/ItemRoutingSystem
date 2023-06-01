@@ -424,7 +424,7 @@ class ItemRoutingSystem:
 
         return grid, inserted_order
 
-    def display_map(self):
+    def display_map(self, map_layout=None, map_only=False):
         """
         Prints map to screen with a legend. Map will be centered within the
         banner.
@@ -458,12 +458,16 @@ class ItemRoutingSystem:
         banner.display()
 
         grid = []
-        for y in reversed(range(len(self.map[0]))):
+
+        if map_layout is None:
+            map_layout = self.map
+
+        for y in reversed(range(len(map_layout[0]))):
             col = []
-            for x in range(len(self.map)):
+            for x in range(len(map_layout)):
                 # Only display item if its position is within defined grid
                 if x < self.map_x and y < self.map_y:
-                    col.append(self.map[x][y])
+                    col.append(map_layout[x][y])
             grid.append(col)
 
         for i, col in zip(reversed(range(len(grid))), grid):
@@ -475,31 +479,37 @@ class ItemRoutingSystem:
             self.log(row_string.center(banner_length))
 
         left_spacing = len(str(i)) + 2
-        self.log(f"{' ':{left_spacing}}" + " ".join(str(i) for i in range(len(self.map))).center(banner_length))
+        self.log(f"{' ':{left_spacing}}" + " ".join(str(i) for i in range(len(map_layout))).center(banner_length))
 
-        self.log("")
-        self.log("LEGEND:".center(banner_length))
-        self.log(f"{ItemRoutingSystem.WORKER_START_SYMBOL}: Worker Starting Spot".center(banner_length))
-        self.log(f"{ItemRoutingSystem.WORKER_END_SYMBOL}: Worker Ending Spot".center(banner_length))
-        self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
-        self.log(f"{ItemRoutingSystem.ORDERED_ITEM_SYMBOL}: Ordered Item".center(banner_length))
-        self.log("Positions are labeled as (X, Y)".center(banner_length))
-        self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
-        self.log("")
-        self.log("Missing Worker Ending Spot means it overlaps with Starting Spot")
-        self.log("")
+        if not map_only:
 
-        settings_info = "Current Settings:\n" \
-                        f"  Worker Position: {self.starting_position}\n" \
-                        f"  Ordered Item Maximum: {self.maximum_items}\n" \
-                        f"  Algorithm: {self.tsp_algorithm}\n" \
-                        f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
-                        f"  Debug Mode: {self.debug}\n"
+            self.log("")
+            self.log("LEGEND:".center(banner_length))
+            self.log(f"{ItemRoutingSystem.WORKER_START_SYMBOL}: Worker Starting Spot".center(banner_length))
+            self.log(f"{ItemRoutingSystem.WORKER_END_SYMBOL}: Worker Ending Spot".center(banner_length))
+            self.log(f"{ItemRoutingSystem.ITEM_SYMBOL}: Item".center(banner_length))
+            self.log(f"{ItemRoutingSystem.ORDERED_ITEM_SYMBOL}: Ordered Item".center(banner_length))
+            self.log("Positions are labeled as (X, Y)".center(banner_length))
+            self.log("X is the horizontal axis, Y is the vertical axis".center(banner_length))
+            self.log("")
+            self.log("Missing Worker Ending Spot means it overlaps with Starting Spot")
+            self.log("")
 
-        self.log(settings_info)
+            settings_info = "Current Settings:\n" \
+                            f"  Worker Position: {self.starting_position}\n" \
+                            f"  Ordered Item Maximum: {self.maximum_items}\n" \
+                            f"  Algorithm: {self.tsp_algorithm}\n" \
+                            f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
+                            f"  Debug Mode: {self.debug}\n"
 
-    def display_path_in_map(self, steps):
+            self.log(settings_info)
+
+    def display_path_in_map(self, steps, map_layout=None, map_only=False):
         path = []
+
+        if map_layout is None:
+            map_layout = self.map
+
         original_map = deepcopy(self.map)
 
         for step in steps:
@@ -569,24 +579,24 @@ class ItemRoutingSystem:
                     elif step["direction"] == "right":
                         x += i
 
-                    if self.map[x][y] == ItemRoutingSystem.WORKER_START_SYMBOL or \
-                       self.map[x][y] == ItemRoutingSystem.WORKER_END_SYMBOL:
+                    if map_layout[x][y] == ItemRoutingSystem.WORKER_START_SYMBOL or \
+                       map_layout[x][y] == ItemRoutingSystem.WORKER_END_SYMBOL:
                         continue
 
-                    elif self.map[x][y] == '_':
-                        self.map[x][y] = arrows[step["direction"]]
+                    elif map_layout[x][y] == '_':
+                        map_layout[x][y] = arrows[step["direction"]]
 
-                    elif self.map[x][y] in [arrows["up"], arrows["down"]]:
-                        self.map[x][y] = arrows["up_down"]
+                    elif map_layout[x][y] in [arrows["up"], arrows["down"]]:
+                        map_layout[x][y] = arrows["up_down"]
 
-                    elif self.map[x][y] in [arrows["left"], arrows["right"]]:
-                        self.map[x][y] = arrows["left_right"]
+                    elif map_layout[x][y] in [arrows["left"], arrows["right"]]:
+                        map_layout[x][y] = arrows["left_right"]
 
             elif step["type"] == "pickup":
                 x, y = step["end"]
-                self.map[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
+                map_layout[x][y] = ItemRoutingSystem.ORDERED_ITEM_SYMBOL
 
-        self.display_map()
+        self.display_map(map_layout=map_layout, map_only=map_only)
 
         # Restore Original Map
         self.map = deepcopy(original_map)
@@ -837,15 +847,40 @@ class ItemRoutingSystem:
         self.log(f"Reduction Cost: {reduction_cost}", print_type=PrintType.MINOR)
         return reduction_cost, temp_matrix
 
+
     def branch_and_bound(self, graph, order):
         """
         Applies the branch and bound algorithm to generate a path
         """
+        def binary_search(arr, low, high, target):
+            # Check base case
+            cost_index = 2
+
+            if high >= low:
+
+                mid = (high + low) // 2
+
+                # If element is present at the middle itself
+                if arr[mid][cost_index] == target:
+                    return mid
+
+                # If element is smaller than mid, then it can only
+                # be present in left subarray
+                elif arr[mid][cost_index] > target:
+                    return binary_search(arr, low, mid - 1, target)
+
+                # Else the element can only be present in right subarray
+                else:
+                    return binary_search(arr, mid + 1, high, target)
+
+            else:
+                # Element is not present in the array
+                return -1
+
         queue = []
         final_path = []
 
         # 1. Create Matrix
-
         # 2. Reduction
         # self.log("Parent Matrix", print_type=PrintType.MINOR)
         reduced_cost, parent_matrix = self.matrix_reduction(graph)
@@ -853,7 +888,7 @@ class ItemRoutingSystem:
 
         # 3. Choose Random Start
         start_node, dest_node, start_dir = random.choice( list(graph) )
-        self.log(start_node, dest_node, start_dir, print_type=PrintType.MINOR)
+        # self.log(start_node, dest_node, start_dir, print_type=PrintType.MINOR)
 
         # 4. Set Upper Bound
         upper_bound = order
@@ -881,7 +916,7 @@ class ItemRoutingSystem:
 
             source, source_direction, cost, matrix, src_path = queue.pop(index)
             # self.log(f"New Source: {source}", print_type=PrintType.MINOR)
-            # self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.MINOR)
+            # self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.DEBUG)
 
             # If cost is greater than minimum cost of already found path, ignore
             if cost > minimum_cost:
@@ -891,22 +926,33 @@ class ItemRoutingSystem:
             # If all nodes have been visited
             # self.log(len(src_path), len(order), print_type=PrintType.MINOR)
             if len(src_path) == len(order):
-                self.log(f"Reached Level: {len(src_path)}, {src_path}", print_type=PrintType.MINOR)
+                # self.log(f"Reached Level: {len(src_path)}, {src_path}", print_type=PrintType.MINOR)
 
                 # Store path if minimum path
                 if cost < minimum_cost:
-                    self.log(f"New minimum cost: {cost}", print_type=PrintType.DEBUG)
+                    # self.log(f"New minimum cost: {cost}", print_type=PrintType.DEBUG)
                     final_path = src_path
                     minimum_cost = cost
 
-            if source == 'Start':
-                self.log(f"Beginning Traversal for '{source}', {cost}", print_type=PrintType.MINOR)
-            else:
-                self.log(f"Beginning Traversal for '{source} {source_direction}', {cost}", print_type=PrintType.MINOR)
+            # if source == 'Start':
+            #     self.log(f"Beginning Traversal for '{source}', {cost}", print_type=PrintType.MINOR)
+            # else:
+            #     self.log(f"Beginning Traversal for '{source} {source_direction}', {cost}", print_type=PrintType.MINOR)
 
             for (start, dest, src_dir), access_points in matrix.items():
                 # Ignore other irrelevant entries
                 if source == start and source_direction == src_dir:
+
+                    # Check if destination is already in path
+                    found = False
+                    for node in src_path:
+                        if dest == node[0]:
+                            found = True
+                            break
+
+                    if found:
+                        continue
+
                     # self.log(f"Traversal Info: {start}, {src_dir}, {dest}, {values.keys()}", print_type=PrintType.MINOR)
                     child_path = []
 
@@ -914,6 +960,7 @@ class ItemRoutingSystem:
                         highest_reduction = INFINITY
                         chosen_start = chosen_direc = None
                         chosen_matrix = None
+
 
                     for direc in access_points:
                         if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
@@ -938,12 +985,20 @@ class ItemRoutingSystem:
                         elif self.bnb_access_type == AccessType.MULTI_ACCESS:
                             child_path = src_path + [(dest, direc)]
                             node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
-                            queue.append(node_to_visit)
+
+                            if (cost + reduction) < minimum_cost:
+
+                                index = binary_search(queue, 0, len(queue) - 1, cost + reduction)
+                                queue.insert(index, node_to_visit)
+
 
                     if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
                         # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
                         node_to_visit = (chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
-                        queue.append(node_to_visit)
+
+                        if (cost + reduction) < minimum_cost:
+                            index = binary_search(queue, 0, len(queue) - 1, cost + reduction)
+                            queue.insert(index, node_to_visit)
 
         return minimum_cost, final_path
 
@@ -1006,7 +1061,7 @@ class ItemRoutingSystem:
 
         sorted_order.insert(0, 'Start')
         sorted_order.append('End')
-        #print(sorted_order)
+
 
         pre_node = None
         access_direction = None
@@ -1101,8 +1156,8 @@ class ItemRoutingSystem:
         # Run Algorithm
         try:
             cost, algo_path = algo_func(graph, order)
-            algo_path = self.rotate_path(algo_path)
-            path = self.get_locations_for_path(graph, algo_path)
+            rotated_path = self.rotate_path(algo_path)
+            path = self.get_locations_for_path(graph, rotated_path)
 
         except Exception as exc:
             # Algorithm timed out, return input order list
@@ -2698,7 +2753,7 @@ class ItemRoutingSystem:
                                             algorithms_to_test = [
                                                 AlgoMethod.LOCALIZED_MIN_PATH,
                                                 AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
-                                                # AlgoMethod.BRANCH_AND_BOUND
+                                                AlgoMethod.BRANCH_AND_BOUND
                                             ]
 
                                             for algo in algorithms_to_test:
@@ -2708,11 +2763,28 @@ class ItemRoutingSystem:
                                                 # Algorithm Timed Out
                                                 if cost is None:
                                                     failed += 1
-                                                    cases_failed[size][str(algo)] = "Timeout"
+                                                    cases_failed[size][str(algo)] = f"Failed: {path}"
                                                     self.log(f"Failed {algo}!")
 
                                                 else:
+                                                    # Test Case Finished
+                                                    test_map = deepcopy(self.map)
+
+                                                    target_locations = []
+                                                    for product in self.order:
+                                                        if product == 'Start' or product == 'End':
+                                                            continue
+
+                                                        location = self.product_info.get(product)
+
+                                                    steps = self.get_descriptive_steps(path, target_locations, collapse=False)
+
+                                                    if steps:
+                                                        self.display_path_in_map(steps, map_layout=test_map, map_only=True)
+
+                                                    self.log("-------------------" + ('-' * len(str(algo))))
                                                     self.log(f"Completed {algo}!")
+                                                    self.log("-------------------" + ('-' * len(str(algo))))
 
                                                 self.log(f"    Time: {run_time:.6f}")
                                                 self.log(f"    Cost: {cost}")
