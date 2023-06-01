@@ -250,7 +250,7 @@ class ItemRoutingSystem:
             menu.add_option(2, "Set Worker Starting Position Mode")
             menu.add_option(3, "Set Worker Ending Position Mode")
             menu.add_option(4, "Set Maximum Items Ordered")
-            menu.add_option(5, "Set Routing Time Maximum")
+            menu.add_option(5, "Set Maximum Routing Time")
             menu.add_option(6, "Toggle Debug Mode")
 
             if self.debug:
@@ -526,7 +526,6 @@ class ItemRoutingSystem:
 
         for step in steps:
             # From (0, 5), move right 10 to (10, 5).
-            print(step)
             if step.startswith("From"):
                 for direction in ["right", "left", "up", "down"]:
                     if direction in step:
@@ -567,7 +566,7 @@ class ItemRoutingSystem:
 
             elif step.startswith("Pickup item"):
                 parsed = step.split(" ")
-                print(parsed)
+
 
                 end_x = int(parsed[4][1:-1])
                 end_y = int(parsed[5][:-2])
@@ -1208,6 +1207,16 @@ class ItemRoutingSystem:
         # Run Algorithm
         cost, algo_path = algo_func(graph, order)
         rotated_path = self.rotate_path(algo_path)
+
+        # Returned the default path, so choose an access point
+        if rotated_path == order:
+            rotated_path = []
+            for node in order:
+                if node == "Start" or node == "End":
+                    rotated_path.append((node, None))
+                else:
+                    rotated_path.append((node, 'N'))
+
         path = self.get_locations_for_path(graph, rotated_path)
 
         # End Time for timing algorithm run time
@@ -1221,7 +1230,7 @@ class ItemRoutingSystem:
         # Stop timeout signal
         signal.alarm(0)
 
-        return cost, path, total_time
+        return cost, rotated_path, path, total_time
 
     def nearest_neighbor(self, graph, order):
         """
@@ -1290,7 +1299,8 @@ class ItemRoutingSystem:
                 # adds the cost of the the last edge
                 last_node = queue[-1]
                 beginning_node = queue[0]
-                total_cost += graph[ ( last_node[0], beginning_node[0], last_node[1] ) ][ beginning_node[1] ][ 'cost' ]
+                if beginning_node[0] != "Start":
+                    total_cost += graph[ ( last_node[0], beginning_node[0], last_node[1] ) ][ beginning_node[1] ][ 'cost' ]
 
                 # a path completed, save it as a path based on least cost
                 if (final_cost > total_cost):
@@ -2005,7 +2015,7 @@ class ItemRoutingSystem:
 
     def set_maximum_routing_time(self):
 
-        banner = Menu("Set Routing Time Maximum")
+        banner = Menu("Set Maximum Routing Time")
         banner.display()
 
         success = False
@@ -2265,11 +2275,11 @@ class ItemRoutingSystem:
                         if self.graph is None:
                             self.graph = self.build_graph_for_order(self.order)
 
-                        cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order)
+                        cost, id_path, path, run_time = self.run_tsp_algorithm(self.graph, self.order)
 
                         # Algo Timed Out
                         if run_time == self.maximum_routing_time:
-                            cost, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR)
+                            cost, id_path, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR)
 
 
                         target_locations = []
@@ -2281,7 +2291,7 @@ class ItemRoutingSystem:
                             if location:
                                 target_locations.append(location)
 
-                        steps = self.get_descriptive_steps(path, target_locations, products=self.order, collapse=False)
+                        steps = self.get_descriptive_steps(path, target_locations, products=id_path, collapse=False)
 
                         if steps:
                             self.display_path_in_map(steps)
@@ -2828,8 +2838,8 @@ class ItemRoutingSystem:
 
                                             # Run Test Case against desired algorithms
                                             algorithms_to_test = [
-                                                AlgoMethod.LOCALIZED_MIN_PATH,
-                                                AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
+                                                # AlgoMethod.LOCALIZED_MIN_PATH,
+                                                # AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
                                                 AlgoMethod.BRANCH_AND_BOUND
                                             ]
 
@@ -2843,7 +2853,7 @@ class ItemRoutingSystem:
                                                 self.log("-------------------" + ('-' * len(algo_str)))
                                                 self.log(algo_str)
                                                 self.log("-------------------" + ('-' * len(algo_str)))
-                                                cost, path, run_time = self.run_tsp_algorithm(graph, grouped_items, algo)
+                                                cost, id_path, path, run_time = self.run_tsp_algorithm(graph, grouped_items, algo)
 
                                                 # Algorithm Timed Out
                                                 if run_time == self.maximum_routing_time:
@@ -2869,6 +2879,14 @@ class ItemRoutingSystem:
                                                     if steps:
                                                         self.display_path_in_map(steps, map_layout=test_map, map_only=True)
 
+                                                        self.log("Directions:")
+                                                        self.log("-----------")
+                                                        for step, action in enumerate(steps, 1):
+                                                            if "Total Steps" in action:
+                                                                self.log(action)
+                                                            else:
+                                                                self.log(f"{step}. {action}")
+
                                                     passed += 1
 
                                                     self.log("-------------------" + ('-' * len(str(algo))))
@@ -2877,6 +2895,7 @@ class ItemRoutingSystem:
 
                                                 self.log(f"    Time: {run_time:.6f}")
                                                 self.log(f"    Cost: {cost}")
+                                                self.log(f"     IDs: {id_path}")
                                                 self.log(f"    Path: {path}")
                                                 self.log("")
 
