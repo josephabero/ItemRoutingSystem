@@ -848,23 +848,23 @@ class ItemRoutingSystem:
         # Finds the minimum value to make a row have a zero
         for key in temp_matrix.keys():
             row_cost = INFINITY
-			zero_col_cost = INFINITY
+            zero_col_cost = INFINITY
 			
             for k,v in temp_matrix.items():
                 if (key[0] == k[0]):
                     for direc in v:
                         direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
                         row_cost = min(row_cost, direc_cost)
-				# minimum zero col
-				if ('End' == k[1]):
-					for direc in v:
-						zero_direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
-						zero_col_cost = min(row_cost, zero_direc_cost)
+                # minimum zero col
+                if ('End' == k[1]):
+                    for direc in v:
+                        zero_direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
+                        zero_col_cost = min(zero_col_cost, zero_direc_cost)
 				
             if (row_cost == INFINITY):
                 row_cost = 0;
-			if (zero_col_cost == INFINITY):
-				zero_col_cost = 0;
+            if (zero_col_cost == INFINITY):
+                zero_col_cost = 0;
 
             # reduces the values in the matrix
             for k,v in temp_matrix.items():
@@ -874,13 +874,14 @@ class ItemRoutingSystem:
                             v[direc]['cost'] = INFINITY
                         else:
                             v[direc]['cost'] = (v.get(direc).get('cost') - row_cost)
-				# zero col zeroing
-				if ('End' == k[1]):
-					for direc in v:
-						if (v.get(direc).get('cost') is None or v.get(direc).get('cost') == INFINITY):
-							v[direc]['cost'] = INFINITY
-						else:
-							v[direc]['cost'] = (v.get(direc).get('cost') - zero_col_cost)
+							
+                # zero col zeroing
+                if ('End' == k[1]):
+                    for direc in v:
+                        if (v.get(direc).get('cost') is None or v.get(direc).get('cost') == INFINITY):
+                            v[direc]['cost'] = INFINITY
+                        else:
+                            v[direc]['cost'] = (v.get(direc).get('cost') - zero_col_cost)
 
             if (row_cost != 0):
                 self.log(f"Row: {row_cost}", print_type=PrintType.MINOR)
