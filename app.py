@@ -14,6 +14,7 @@ from queue import PriorityQueue
 from copy import deepcopy
 import heapq
 import itertools
+import json
 from math import ceil
 import os
 import platform
@@ -21,6 +22,8 @@ import random
 import signal
 import sys
 import time
+
+INCREMENT = 0
 
 def timeout_handler(signum, frame):
     raise TimeoutError
@@ -816,20 +819,20 @@ class ItemRoutingSystem:
                     v.pop("path")
                 # v.pop()
             print_matrix[str(key)] = temp_val
-        self.log(print_matrix)
+        # self.log(print_matrix)
+        return print_matrix
 
     def matrix_reduction(self, matrix, source=None, dest=None):
         """
         Performs the matrix reduction for branch-and-bound
         Returns a reduced matrix
         """
+        global INCREMENT
         temp_matrix = deepcopy(matrix)
         reduction_cost = 0
 
         # when taking a path, set the corresponding row nad column to inf
         if source:
-            reduction_cost += temp_matrix[ (source[0], source[1], source[2]) ][dest].get('cost')
-
             if (reduction_cost == INFINITY):
                 return 0, temp_matrix
 
@@ -856,7 +859,7 @@ class ItemRoutingSystem:
                         direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
                         row_cost = min(row_cost, direc_cost)
                 # minimum zero col
-                if ('End' == k[1]):
+                elif ('End' == k[1]):
                     for direc in v:
                         zero_direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
                         zero_col_cost = min(zero_col_cost, zero_direc_cost)
@@ -876,7 +879,7 @@ class ItemRoutingSystem:
                             v[direc]['cost'] = (v.get(direc).get('cost') - row_cost)
 							
                 # zero col zeroing
-                if ('End' == k[1]):
+                elif ('End' == k[1]):
                     for direc in v:
                         if (v.get(direc).get('cost') is None or v.get(direc).get('cost') == INFINITY):
                             v[direc]['cost'] = INFINITY
@@ -889,7 +892,11 @@ class ItemRoutingSystem:
             reduction_cost += row_cost + zero_col_cost
 
         self.log("Final Child", print_type=PrintType.MINOR)
-        # print_matrix(temp_matrix)
+        print_matrix = self.print_matrix(temp_matrix)
+        with open(f"{INCREMENT}_{source}.txt", "w+") as f:
+            f.write(f"Reduction Cost: {reduction_cost}\n")
+            f.write(json.dumps(print_matrix, indent=4))
+            INCREMENT += 1
         self.log(f"Reduction Cost: {reduction_cost}", print_type=PrintType.MINOR)
         return reduction_cost, temp_matrix
 
@@ -934,7 +941,18 @@ class ItemRoutingSystem:
             # 1. Create Matrix
             # 2. Reduction
             # self.log("Parent Matrix", print_type=PrintType.MINOR)
+            global INCREMENT
+            print_matrix = self.print_matrix(graph)
+            with open(f"0_parent.txt", "w+") as f:
+                f.write(json.dumps(print_matrix, indent=4))
+                INCREMENT += 1
             reduced_cost, parent_matrix = self.matrix_reduction(graph)
+
+            print_matrix = self.print_matrix(parent_matrix)
+            with open(f"{INCREMENT}_parent.txt", "w+") as f:
+                f.write(f"Reduction Cost: {reduced_cost}\n")
+                f.write(json.dumps(print_matrix, indent=4))
+                INCREMENT += 1
             child_matrix = deepcopy(parent_matrix)
 
             # 3. Choose Random Start
@@ -1013,7 +1031,7 @@ class ItemRoutingSystem:
                             chosen_start = chosen_direc = None
                             chosen_matrix = None
 
-
+                        dest_reduction = 0
                         for direc in access_points:
                             if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
                                 # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
@@ -1027,12 +1045,16 @@ class ItemRoutingSystem:
                                 reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
                                 cached_matrices[(str(src_path), dest)] = (reduction, temp_matrix)
 
+                            dest_reduction = reduction + access_points[direc].get('cost')
+                            total_reduction = cost + access_points[direc].get('cost') + reduction
+                            # print(start, src_dir, dest, total_reduction)
+
                             if self.bnb_access_type == AccessType.SINGLE_ACCESS:
                                 # Filter for minimum Single Access Point
-                                if chosen_start is None or (reduction + cost) < highest_reduction:
+                                if chosen_start is None or total_reduction < highest_reduction:
                                     chosen_start = dest
                                     chosen_direc = direc
-                                    highest_reduction = reduction + cost
+                                    highest_reduction = total_reduction
                                     chosen_matrix = deepcopy(temp_matrix)
 
                                     # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
@@ -1042,20 +1064,20 @@ class ItemRoutingSystem:
 
                             elif self.bnb_access_type == AccessType.MULTI_ACCESS:
                                 child_path = src_path + [(dest, direc)]
-                                node_to_visit = (dest, direc, cost + reduction, deepcopy(temp_matrix), child_path)
+                                node_to_visit = (dest, direc, total_reduction, deepcopy(temp_matrix), child_path)
 
-                                if (cost + reduction) < minimum_cost:
+                                if (total_reduction) < minimum_cost:
 
-                                    index = binary_search(queue, 0, len(queue) - 1, cost + reduction)
+                                    index = binary_search(queue, 0, len(queue) - 1, total_reduction)
                                     queue.insert(index, node_to_visit)
 
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
                             # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
-                            node_to_visit = (chosen_start, chosen_direc, cost + reduction, chosen_matrix, child_path)
+                            node_to_visit = (chosen_start, chosen_direc, total_reduction, chosen_matrix, child_path)
 
-                            if (cost + reduction) < minimum_cost:
-                                index = binary_search(queue, 0, len(queue) - 1, cost + reduction)
+                            if (total_reduction) < minimum_cost:
+                                index = binary_search(queue, 0, len(queue) - 1, total_reduction)
                                 queue.insert(index, node_to_visit)
 
         # Algorithm Timed out, return
@@ -2851,6 +2873,8 @@ class ItemRoutingSystem:
                                             self.log(f"{k}: \n\t{v}")
                                         self.log("")
 
+                                        global INCREMENT
+
                                         # Run All Test Cases
                                         for test_case in self.test_cases:
                                             size, product_ids = test_case
@@ -2865,12 +2889,13 @@ class ItemRoutingSystem:
 
                                             # Run Test Case against desired algorithms
                                             algorithms_to_test = [
-                                                AlgoMethod.LOCALIZED_MIN_PATH,
+                                                # AlgoMethod.LOCALIZED_MIN_PATH,
                                                 AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
                                                 AlgoMethod.BRANCH_AND_BOUND
                                             ]
 
                                             for algo in algorithms_to_test:
+                                                INCREMENT = 0
 
                                                 algo_str = f"Running {algo}....."
                                                 if algo == AlgoMethod.BRANCH_AND_BOUND:
