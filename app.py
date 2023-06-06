@@ -954,6 +954,7 @@ class ItemRoutingSystem:
                     queue.append( (start, src_dir, reduced_cost, child_matrix, child_path) )
 
             minimum_cost = INFINITY
+            cached_matrices = {}
             while queue:
 
                 # Get lowest cost node
@@ -1017,7 +1018,13 @@ class ItemRoutingSystem:
                                 # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
                                 continue
 
-                            reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
+                            if (str(src_path), dest) in cached_matrices:
+                                # print(f"Using cached matrix for ({start} {src_dir} -> {dest} {direc})")
+                                reduction, temp_matrix = cached_matrices[(str(src_path), dest)]
+
+                            else:
+                                reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
+                                cached_matrices[(str(src_path), dest)] = (reduction, temp_matrix)
 
                             if self.bnb_access_type == AccessType.SINGLE_ACCESS:
                                 # Filter for minimum Single Access Point
@@ -2857,8 +2864,8 @@ class ItemRoutingSystem:
 
                                             # Run Test Case against desired algorithms
                                             algorithms_to_test = [
-                                                # AlgoMethod.LOCALIZED_MIN_PATH,
-                                                # AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
+                                                AlgoMethod.LOCALIZED_MIN_PATH,
+                                                AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
                                                 AlgoMethod.BRANCH_AND_BOUND
                                             ]
 
