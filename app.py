@@ -124,6 +124,7 @@ class ItemRoutingSystem:
             success (bool): Status of whether opening and parsing of file was successful.
         """
         success = True
+        reason = None
 
         try:
             self.product_file = product_file_name
@@ -134,13 +135,24 @@ class ItemRoutingSystem:
                 fields = line.strip().split()
                 self.product_info[int(fields[0])] = int(float(fields[1])), int(float(fields[2]))
             f.close()
+
         except FileNotFoundError:
+            reason = FileNotFoundError
             success = False
 
-        return success
+        except ValueError:
+            reason = ValueError
+            success = False
+
+        except Exception as e:
+            reason = e
+            success = False
+
+        return success, reason
 
     def load_order_file(self, order_file_name):
         success = True
+        reason = None
         original_order_info = deepcopy(self.order_info)
 
         try:
@@ -153,12 +165,24 @@ class ItemRoutingSystem:
                 formatted_line = [ int(l.lstrip()) for l in line.rstrip().split(",") ]
                 self.order_info.append(formatted_line)
             f.close()
+
         except FileNotFoundError:
-            self.order_file = None
-            self.order_info = original_order_info
+            reason = FileNotFoundError
             success = False
 
-        return success
+        except ValueError:
+            reason = ValueError
+            success = False
+
+        except Exception as e:
+            reason = e
+            success = False
+
+        if not success:
+            self.order_file = None
+            self.order_info = original_order_info
+
+        return success, reason
 
     def load_test_case_file(self, test_case_filename):
         cases = []
@@ -2083,15 +2107,19 @@ class ItemRoutingSystem:
                 while not success:
                     product_file = input("Enter product filename: ")
 
-                    success = self.load_product_file(product_file.rstrip())
+                    success, reason = self.load_product_file(product_file.rstrip())
 
                     if success:
                         self.item_mode = GenerateMode.LOADED_FILE
                         self.items = self.get_item_positions()
                         self.map, self.inserted_order = self.generate_map()
 
+                    elif reason == FileNotFoundError:
+                        self.log(f"File '{product_file}' was not found, please try entering full path to file!\n")
+                    elif reason == ValueError:
+                        self.log(f"File '{product_file}' is the incorrect format, please try changing the format or try a new file!\n")
                     else:
-                        self.log(f"File '{product_file}' was not found, please try entering full path to file!")
+                        self.log(f"Something went wrong with '{product_file}', please try again!\n")
 
             # Display map after file is loaded
             if update:
@@ -2116,6 +2144,8 @@ class ItemRoutingSystem:
                 # Create Order
                 if suboption == '1':
                     clear = True
+                    order_success = True
+
                     while True:
                         if update:
                             self.display_menu(MenuType.CREATE_ORDER, clear=clear)
@@ -2188,12 +2218,16 @@ class ItemRoutingSystem:
                                 while not success:
                                     order_file = input("Enter order filename: ")
 
-                                    success = self.load_order_file(order_file)
+                                    success, reason = self.load_order_file(order_file)
 
                                     if success:
                                         self.log(f"Successfully loaded orders from file '{order_file}'!")
+                                    elif reason == FileNotFoundError:
+                                        self.log(f"File '{order_file}' was not found, please try entering full path to file!\n")
+                                    elif reason == ValueError:
+                                        self.log(f"File '{order_file}' is the incorrect format, please try changing the format or try a new file!\n")
                                     else:
-                                        self.log(f"Invalid order file '{order_file}'! Please try again.")
+                                        self.log(f"Something went wrong with '{order_file}', please try again!\n")
 
                             self.display_menu(MenuType.MULTIPLE_ORDERS, clear=clear)
 
@@ -2209,12 +2243,16 @@ class ItemRoutingSystem:
                                     while not success:
                                         order_file = input("Enter order filename: ")
 
-                                        success = self.load_order_file(order_file)
+                                        success, reason = self.load_order_file(order_file)
 
                                         if success:
                                             self.log(f"Successfully loaded orders from file '{order_file}'!")
+                                        elif reason == FileNotFoundError:
+                                            self.log(f"File '{order_file}' was not found, please try entering full path to file!\n")
+                                        elif reason == ValueError:
+                                            self.log(f"File '{order_file}' is the incorrect format, please try changing the format or try a new file!\n")
                                         else:
-                                            self.log(f"Invalid order file '{order_file}'! Please try again.")
+                                            self.log(f"Something went wrong with '{order_file}', please try again!\n")
 
                                 elif mult_option == "2":
                                     self.log(f"Current Order is #{self.order_number}, continuing to next order.")
@@ -2244,7 +2282,7 @@ class ItemRoutingSystem:
                                     continue
 
                                 else:
-                                    self.log(f"Invalid option '{mult_option}'! Please try again.")
+                                    self.log(f"Invalid option '{mult_option}'! Please try again.\n")
                                     ordering = True
 
                         # Back
@@ -2253,7 +2291,8 @@ class ItemRoutingSystem:
                             break
 
                         else:
-                            self.log(f"Invalid option '{order_option}. Please try again.")
+                            self.log(f"Invalid option '{order_option}'. Please try again.\n")
+                            order_success = False
                             clear = False
 
                         if product_ids:
@@ -2283,8 +2322,9 @@ class ItemRoutingSystem:
 
                         # Go back to View Map Menu
                         clear = False
-                        break
 
+                        if order_success:
+                            break
 
                 # Get Path for Order
                 elif suboption == '2':
@@ -2334,6 +2374,7 @@ class ItemRoutingSystem:
 
                     # Request Product ID to find path for
                     complete = False
+                    success = True
                     while not complete:
                         try:
                             if self.debug:
@@ -2347,26 +2388,28 @@ class ItemRoutingSystem:
                             complete = True
 
                         except ValueError:
-                            self.log(f"Invalid Product ID '{product_id}', please try again!")
+                            self.log(f"Invalid Product ID '{product_id}', please try again!\n")
 
                         except KeyError:
-                            self.log("Product was not found!")
-                            complete = False
+                            self.log("Product was not found!\n")
+                            success = False
+                            complete = True
 
-                    steps = self.get_items(self.gathering_algo, item_position)
+                    if success:
+                        steps = self.get_items(self.gathering_algo, item_position)
 
-                    if steps:
-                        self.display_path_in_map(steps)
+                        if steps:
+                            self.display_path_in_map(steps)
 
-                        self.log("Directions:")
-                        self.log("-----------")
-                        for step, action in enumerate(steps, 1):
-                                if "Total Steps" in action:
-                                    self.log(action)
-                                else:
-                                    self.log(f"{step}. {action}")
-                    else:
-                        self.log(f"Path to {product_id} was not found!")
+                            self.log("Directions:")
+                            self.log("-----------")
+                            for step, action in enumerate(steps, 1):
+                                    if "Total Steps" in action:
+                                        self.log(action)
+                                    else:
+                                        self.log(f"{step}. {action}")
+                        else:
+                            self.log(f"Path to {product_id} was not found!")
 
                     clear = False
 
@@ -2389,10 +2432,10 @@ class ItemRoutingSystem:
                             complete = True
 
                         except ValueError:
-                            self.log(f"Invalid Product ID '{product_id}', please try again!")
+                            self.log(f"Invalid Product ID '{product_id}', please try again!\n")
 
                         except KeyError:
-                            self.log("Product was not found!")
+                            self.log("Product was not found!\n")
                             complete = True
 
                 # Back
@@ -2446,7 +2489,7 @@ class ItemRoutingSystem:
                     while not success:
                         product_file = input("Enter product filename: ")
 
-                        success = self.load_product_file(product_file)
+                        success, reason = self.load_product_file(product_file)
 
                         if success:
                             self.item_mode = GenerateMode.LOADED_FILE
@@ -2468,8 +2511,12 @@ class ItemRoutingSystem:
 
                             self.map, self.inserted_order = self.generate_map()
 
+                        elif reason == FileNotFoundError:
+                            self.log(f"File '{product_file}' was not found, please try entering full path to file!\n")
+                        elif reason == ValueError:
+                            self.log(f"File '{product_file}' is the incorrect format, please try changing the format or try a new file!\n")
                         else:
-                            self.log(f"File '{product_file}' was not found, please try entering full path to file!")
+                            self.log(f"Something went wrong with '{product_file}', please try again!\n")
 
                 # Set Worker Starting Position
                 elif suboption == '2':
@@ -2794,7 +2841,7 @@ class ItemRoutingSystem:
                             # Run Test Cases
                             elif adv_option == '8':
                                 if self.test_case_file and self.test_product_file:
-                                    success = self.load_product_file(self.test_product_file)
+                                    success, reason = self.load_product_file(self.test_product_file)
 
                                     if not success:
                                         self.log(f"Failed to load test case product file {self.test_product_file}!\n" \
