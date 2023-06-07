@@ -2222,6 +2222,10 @@ class ItemRoutingSystem:
 
                                     if success:
                                         self.log(f"Successfully loaded orders from file '{order_file}'!")
+                                        self.order_number = 0
+                                        product_ids = self.order_info[self.order_number]
+                                        self.log(f"Loaded Order #{self.order_number}!")
+
                                     elif reason == FileNotFoundError:
                                         self.log(f"File '{order_file}' was not found, please try entering full path to file!\n")
                                     elif reason == ValueError:
@@ -2247,6 +2251,10 @@ class ItemRoutingSystem:
 
                                         if success:
                                             self.log(f"Successfully loaded orders from file '{order_file}'!")
+                                            self.order_number = 0
+                                            product_ids = self.order_info[self.order_number]
+                                            self.log(f"Loaded Order #{self.order_number}!")
+
                                         elif reason == FileNotFoundError:
                                             self.log(f"File '{order_file}' was not found, please try entering full path to file!\n")
                                         elif reason == ValueError:
