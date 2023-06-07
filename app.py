@@ -1234,8 +1234,14 @@ class ItemRoutingSystem:
             return path
 
     def run_tsp_algorithm(self, graph, order, algorithm=None, rerun=False):
+        # If not specified, use length of order to determine algorithm to run
         if algorithm is None:
-            algorithm = self.tsp_algorithm
+            if len(order) <= 5:
+                algo_func = self.branch_and_bound
+                self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+            else:
+                algo_func = self.nearest_neighbor
+                self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
 
         # Choose algorithm to run
         if algorithm == AlgoMethod.BRANCH_AND_BOUND:
@@ -2151,6 +2157,16 @@ class ItemRoutingSystem:
                 # Create View Map menu
                 if update:
                     self.display_menu(MenuType.VIEW_MAP, clear=clear)
+
+                    if self.order:
+                        order = []
+                        for product in self.order:
+                            if product == "Start" or product == "End":
+                                continue
+                            else:
+                                order.append(str(product))
+
+                        self.log(f"Current Order is: {', '.join(order)}")
                 else:
                     update = True
                     clear = True
