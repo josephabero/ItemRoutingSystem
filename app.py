@@ -1881,7 +1881,7 @@ class ItemRoutingSystem:
                 except ValueError:
                     self.log("Invalid worker positions, please try again!\n")
 
-                self.log(f"Current Worker Starting Position: {self.starting_position}")
+                self.log(f"\nCurrent Worker Starting Position: {self.starting_position}")
         return success
 
 
@@ -1930,9 +1930,9 @@ class ItemRoutingSystem:
                             self.ending_position = (int(x), int(y))
                             success = True
                 except ValueError:
-                    self.log("Invalid worker positions, please try again!")
+                    self.log("Invalid worker positions, please try again!\n")
 
-                self.log(f"Current Worker Ending Position: {self.ending_position}")
+                self.log(f"\nCurrent Worker Ending Position: {self.ending_position}")
         return success
 
 
