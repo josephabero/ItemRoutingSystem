@@ -934,7 +934,6 @@ class ItemRoutingSystem:
 
             # 3. Choose Random Start
             start_node, dest_node, start_dir = random.choice( list(graph) )
-            self.log(start_node, dest_node, start_dir, print_type=PrintType.MINOR)
 
             # 4. Set Upper Bound
             upper_bound = order
@@ -946,7 +945,6 @@ class ItemRoutingSystem:
             for (start, dest, src_dir), values in parent_matrix.items():
                 if start_node == start:
                     child_path = [(start, src_dir)]
-                    self.log(f"Will Visit: {start}, {dest}, {src_dir}", print_type=PrintType.MINOR)
                     queue.append( (start, src_dir, reduced_cost, child_matrix, child_path) )
 
             minimum_cost = INFINITY
@@ -962,17 +960,13 @@ class ItemRoutingSystem:
                             index = i
 
                 source, source_direction, cost, matrix, src_path = queue.pop(index)
-                self.log(f"New Source: {source}", print_type=PrintType.MINOR)
-                self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.MINOR)
 
                 # If cost is greater than minimum cost of already found path, ignore
                 if cost > minimum_cost:
-                    self.log(f"Cost {cost} is bigger than {minimum_cost}, skipping.", print_type=PrintType.MINOR)
                     continue
 
                 # If all nodes have been visited
                 if len(src_path) == len(order):
-                    self.log(f"Reached Level: {len(src_path)}, {src_path}", print_type=PrintType.MINOR)
                     final_node, final_dir = src_path[0]
                     path_cost = matrix[(source, final_node, source_direction)][final_dir]["cost"]
                     final_reduction, final_matrix = self.matrix_reduction(matrix)
@@ -981,14 +975,8 @@ class ItemRoutingSystem:
 
                     # Store path if minimum path
                     if total_final_reduction <= minimum_cost:
-                        self.log(f"New minimum cost: {total_final_reduction}", print_type=PrintType.MINOR)
                         final_path = src_path
                         minimum_cost = total_final_reduction
-
-                if source == 'Start':
-                    self.log(f"Beginning Traversal for '{source}', {src_path}, {cost}", print_type=PrintType.MINOR)
-                else:
-                    self.log(f"Beginning Traversal for '{source}{source_direction}', {src_path}, {cost}", print_type=PrintType.MINOR)
 
                 for (start, dest, src_dir), access_points in matrix.items():
                     # Ignore other irrelevant entries
@@ -1004,7 +992,6 @@ class ItemRoutingSystem:
                         if found:
                             continue
 
-                        self.log(f"Traversal Info: {start}, {src_dir}, {dest}, {values.keys()}", print_type=PrintType.MINOR)
                         child_path = []
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS:
@@ -1013,13 +1000,10 @@ class ItemRoutingSystem:
                             chosen_matrix = None
 
                         for direc in access_points:
-                            self.log(f"Try '{source}{source_direction}' to '{dest}{direc}..'", print_type=PrintType.MINOR)
                             if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
-                                self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
                                 continue
 
                             if (str(src_path), dest) in cached_matrices:
-                                self.log(f"Using cached matrix for ({start} {src_dir} -> {dest} {direc})", print_type=PrintType.MINOR)
                                 reduction, temp_matrix = cached_matrices[(str(src_path), dest)]
 
                             else:
@@ -1037,8 +1021,6 @@ class ItemRoutingSystem:
                                     chosen_matrix = deepcopy(temp_matrix)
 
                                     child_path = src_path + [(dest, direc)]
-                                else:
-                                    self.log(f"{start}{src_dir} to {dest}{direc} not higher: {total_reduction} > {highest_reduction}")
 
                             elif self.bnb_access_type == AccessType.MULTI_ACCESS:
                                 child_path = src_path + [(dest, direc)]
@@ -1051,7 +1033,6 @@ class ItemRoutingSystem:
 
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
-                            self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}, {child_path}", print_type=PrintType.MINOR)
                             node_to_visit = (chosen_start, chosen_direc, total_reduction, chosen_matrix, child_path)
 
                             if (total_reduction) <= minimum_cost:
