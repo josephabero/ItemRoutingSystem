@@ -195,6 +195,7 @@ class ItemRoutingSystem:
     def load_test_case_file(self, test_case_filename):
         cases = []
         success = True
+        reason = None
 
         try:
             with open(test_case_filename, "r") as f:
@@ -217,14 +218,24 @@ class ItemRoutingSystem:
                     product_ids = [int(p_id) for p_id in product_ids]
 
                     cases.append((size, product_ids))
+
         except FileNotFoundError:
+            reason = FileNotFoundError
+            success = False
+
+        except ValueError:
+            reason = ValueError
+            success = False
+
+        except Exception as e:
+            reason = e
             success = False
 
         if success:
             self.test_cases = cases
             self.test_product_file = filename
 
-        return success
+        return success, reason
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -2096,12 +2107,12 @@ class ItemRoutingSystem:
 
                     self.maximum_routing_time = ceil(float(routing_time))
                 else:
-                    self.log("Invalid value, please try again!")
+                    self.log("Invalid value, please try again!\n")
 
             except ValueError:
-                self.log(f"Invalid value {routing_time}, please try again!")
+                self.log(f"Invalid value {routing_time}, please try again!\n")
 
-        self.log(f"Maximum Routing Time in Seconds: {self.maximum_routing_time:.2f}")
+        self.log(f"\nMaximum Routing Time in Seconds: {self.maximum_routing_time:.2f}")
 
         return success
 
@@ -2508,7 +2519,7 @@ class ItemRoutingSystem:
                     break
 
                 else:
-                    self.log("Invalid choice. Try again.")
+                    self.log("Invalid choice. Try again.\n")
                     update = False
 
         # Settings
@@ -2606,7 +2617,7 @@ class ItemRoutingSystem:
                                 break
 
                             else:
-                                self.log("Invalid choice. Try again.")
+                                self.log("Invalid choice. Try again.\n")
                                 update = False
                                 clear = False
 
@@ -2662,7 +2673,7 @@ class ItemRoutingSystem:
                                 break
 
                             else:
-                                self.log("Invalid choice. Try again.")
+                                self.log("Invalid choice. Try again.\n")
                                 update = False
                                 clear = False
 
@@ -2752,7 +2763,7 @@ class ItemRoutingSystem:
                                         break
 
                                     else:
-                                        self.log("Invalid choice. Try again.")
+                                        self.log("Invalid choice. Try again.\n")
                                         update = False
                                         clear = False
 
@@ -2793,7 +2804,7 @@ class ItemRoutingSystem:
                                         break
 
                                     else:
-                                        self.log("Invalid choice. Try again.")
+                                        self.log("Invalid choice. Try again.\n")
                                         update = False
                                         clear = False
 
@@ -2828,7 +2839,7 @@ class ItemRoutingSystem:
                                         break
 
                                     else:
-                                        self.log("Invalid choice. Try again.")
+                                        self.log("Invalid choice. Try again.\n")
                                         update = False
                                         clear = False
 
@@ -2858,7 +2869,7 @@ class ItemRoutingSystem:
                                         break
 
                                     else:
-                                        self.log("Invalid choice. Try again.")
+                                        self.log("Invalid choice. Try again.\n")
                                         update = False
                                         clear = False
 
@@ -2875,7 +2886,7 @@ class ItemRoutingSystem:
                                 while not success:
                                     test_case_file = input("Enter test case filename: ")
 
-                                    success = self.load_test_case_file(test_case_file)
+                                    success, reason = self.load_test_case_file(test_case_file)
 
                                     if success:
                                         self.test_case_file = test_case_file
@@ -2885,8 +2896,12 @@ class ItemRoutingSystem:
                                                 size, ids = test_case
                                                 self.log(size, ids, print_type=PrintType.MINOR)
 
+                                    elif reason == FileNotFoundError:
+                                        self.log(f"File '{test_case_file}' was not found, please try entering full path to file!\n")
+                                    elif reason == ValueError:
+                                        self.log(f"File '{test_case_file}' is the incorrect format, please try changing the format or try a new file!\n")
                                     else:
-                                        self.log(f"File '{test_case_file}' was not found, please try entering full path to file!")
+                                        self.log(f"Something went wrong with '{test_case_file}', please try again!\n")
 
                             # Run Test Cases
                             elif adv_option == '8':
@@ -3042,7 +3057,7 @@ class ItemRoutingSystem:
                                 break
 
                             else:
-                                self.log("Invalid choice. Try again.")
+                                self.log("Invalid choice. Try again.\n")
                                 update = False
                                 clear = False
 
@@ -3055,7 +3070,7 @@ class ItemRoutingSystem:
                     break
 
                 else:
-                    self.log("Invalid choice. Try again.")
+                    self.log("Invalid choice. Try again.\n")
                     update = False
 
         # Exit
@@ -3063,7 +3078,7 @@ class ItemRoutingSystem:
             self.log("Exiting...")
             sys.exit()
         else:
-            self.log("Invalid choice. Try again.")
+            self.log("Invalid choice. Try again.\n")
             update = False
 
     def run(self):
