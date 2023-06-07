@@ -72,7 +72,7 @@ class ItemRoutingSystem:
         # Default item settings
         self.item_mode = GenerateMode.RANDOM
         self.minimum_items = 0
-        self.maximum_items = 8
+        self.maximum_items = 20
         self.items = self.get_item_positions()
 
         # Default algorithm
@@ -2213,15 +2213,24 @@ class ItemRoutingSystem:
                                         else:
                                             order_list = [int(order)]
 
-                                        for product_id in order_list:
-                                            if int(product_id) in self.product_info:
-                                                product_ids.append(int(product_id))
-                                                success = True
+                                        # More items than maximum allowed
+                                        if len(order_list) > self.maximum_items:
+                                            self.log(f"{len(order_list)} is more than the maximum number of items allowed of {self.maximum_items}!\n")
+                                            success = False
+                                            clear = False
 
-                                            else:
-                                                success = False
-                                                clear = False
-                                                self.log(f"Product '{product_id}' is not within inventory. Not including in path.")
+                                        # Valid list, get IDs
+                                        else:
+                                            for product_id in order_list:
+                                                if int(product_id) in self.product_info:
+                                                    product_ids.append(int(product_id))
+                                                    success = True
+
+                                                else:
+                                                    success = False
+                                                    clear = False
+                                                    product_ids = []
+                                                    self.log(f"Product '{product_id}' is not within inventory. Not including in path.")
 
                                     except ValueError:
                                         self.log(f"Invalid order '{order}'! Please use the specified order format.")
