@@ -126,6 +126,9 @@ class ItemRoutingSystem:
         success = True
         reason = None
 
+        original_starting_worker = self.starting_position
+        original_ending_worker = self.ending_position
+
         try:
             self.product_file = product_file_name
             f = open(product_file_name, 'r')
@@ -135,6 +138,11 @@ class ItemRoutingSystem:
                 fields = line.strip().split()
                 self.product_info[int(fields[0])] = int(float(fields[1])), int(float(fields[2]))
             f.close()
+
+            # Successfully loaded, reset worker positions
+            self.log("Loaded product file, resetting worker positions!")
+            self.starting_position = (0, 0)
+            self.ending_position = (0, 0)
 
         except FileNotFoundError:
             reason = FileNotFoundError
@@ -478,7 +486,9 @@ class ItemRoutingSystem:
                           Positions are labeled as (X, Y)
 
             Current Settings:
-              Worker Position: (0, 0)
+              f"  Worker Settings:\n" \
+                   f"   Starting Position: {self.starting_position}\n" \
+                   f"   Ending Position: {self.ending_position}\n" \
               Ordered Item Maximum: 8
               Gathering Algorithm: Dijkstra
               Maximum Time To Process: 60
@@ -527,7 +537,9 @@ class ItemRoutingSystem:
             self.log("")
 
             settings_info = "Current Settings:\n" \
-                            f"  Worker Position: {self.starting_position}\n" \
+                            f"  Worker Settings:\n" \
+                            f"   Starting Position: {self.starting_position}\n" \
+                            f"   Ending Position: {self.ending_position}\n" \
                             f"  Ordered Item Maximum: {self.maximum_items}\n" \
                             f"  Algorithm: {self.tsp_algorithm}\n" \
                             f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
@@ -535,7 +547,9 @@ class ItemRoutingSystem:
 
             if self.tsp_algorithm == AlgoMethod.BRANCH_AND_BOUND:
                 settings_info = "Current Settings:\n" \
-                            f"  Worker Position: {self.starting_position}\n" \
+                            f"  Worker Settings:\n" \
+                            f"   Starting Position: {self.starting_position}\n" \
+                            f"   Ending Position: {self.ending_position}\n" \
                             f"  Ordered Item Maximum: {self.maximum_items}\n" \
                             f"  Algorithm: {self.tsp_algorithm}\n" \
                             f"    Item Access Type: {self.bnb_access_type}\n" \
@@ -1855,8 +1869,11 @@ class ItemRoutingSystem:
                             self.starting_position = (int(x), int(y))
                             success = True
 
+                    else:
+                        self.log("") # Newline for readability
+
                 except ValueError:
-                    self.log("Invalid worker positions, please try again!")
+                    self.log("Invalid worker positions, please try again!\n")
 
                 self.log(f"Current Worker Starting Position: {self.starting_position}")
         return success
