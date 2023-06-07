@@ -833,9 +833,6 @@ class ItemRoutingSystem:
 
         # when taking a path, set the corresponding row nad column to inf
         if source:
-            if (reduction_cost == INFINITY):
-                return 0, temp_matrix
-
             for k,v in temp_matrix.items():
                 if (source[0] == k[0]):
                     for direc in v:
@@ -997,17 +994,22 @@ class ItemRoutingSystem:
                 # self.log(len(src_path), len(order), print_type=PrintType.MINOR)
                 if len(src_path) == len(order):
                     # self.log(f"Reached Level: {len(src_path)}, {src_path}", print_type=PrintType.MINOR)
+                    final_node, final_dir = src_path[0]
+                    path_cost = matrix[(source, final_node, source_direction)][final_dir]["cost"]
+                    final_reduction, final_matrix = self.matrix_reduction(matrix)
+
+                    total_final_reduction = cost + path_cost + final_reduction
 
                     # Store path if minimum path
-                    if cost < minimum_cost:
-                        # self.log(f"New minimum cost: {cost}", print_type=PrintType.DEBUG)
+                    if total_final_reduction <= minimum_cost:
+                        # self.log(f"New minimum cost: {total_final_reduction}", print_type=PrintType.DEBUG)
                         final_path = src_path
-                        minimum_cost = cost
+                        minimum_cost = total_final_reduction
 
                 # if source == 'Start':
-                #     self.log(f"Beginning Traversal for '{source}', {cost}", print_type=PrintType.MINOR)
+                #     self.log(f"Beginning Traversal for '{source}', {src_path}, {cost}", print_type=PrintType.DEBUG)
                 # else:
-                #     self.log(f"Beginning Traversal for '{source} {source_direction}', {cost}", print_type=PrintType.MINOR)
+                #     self.log(f"Beginning Traversal for '{source}{source_direction}', {src_path}, {cost}", print_type=PrintType.DEBUG)
 
                 for (start, dest, src_dir), access_points in matrix.items():
                     # Ignore other irrelevant entries
@@ -1031,10 +1033,10 @@ class ItemRoutingSystem:
                             chosen_start = chosen_direc = None
                             chosen_matrix = None
 
-                        dest_reduction = 0
                         for direc in access_points:
+                            # self.log(f"Try '{source}{source_direction}' to '{dest}{direc}..'", print_type=PrintType.DEBUG)
                             if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
-                                # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
+                                # self.log("Cost is None or Infinity", print_type=PrintType.DEBUG)
                                 continue
 
                             if (str(src_path), dest) in cached_matrices:
@@ -1045,9 +1047,8 @@ class ItemRoutingSystem:
                                 reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
                                 cached_matrices[(str(src_path), dest)] = (reduction, temp_matrix)
 
-                            dest_reduction = reduction + access_points[direc].get('cost')
                             total_reduction = cost + access_points[direc].get('cost') + reduction
-                            # print(start, src_dir, dest, total_reduction)
+                            # print(start, src_dir, dest, src_path, total_reduction)
 
                             if self.bnb_access_type == AccessType.SINGLE_ACCESS:
                                 # Filter for minimum Single Access Point
@@ -1061,24 +1062,28 @@ class ItemRoutingSystem:
                                     # self.log(f"{src_path}", print_type=PrintType.MINOR)
                                     child_path = src_path + [(dest, direc)]
                                     # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
+                                # else:
+                                #     self.log(f"{start}{src_dir} to {dest}{direc} not higher: {total_reduction} > {highest_reduction}")
 
                             elif self.bnb_access_type == AccessType.MULTI_ACCESS:
                                 child_path = src_path + [(dest, direc)]
                                 node_to_visit = (dest, direc, total_reduction, deepcopy(temp_matrix), child_path)
 
-                                if (total_reduction) < minimum_cost:
+                                if (total_reduction) <= minimum_cost:
 
                                     index = binary_search(queue, 0, len(queue) - 1, total_reduction)
                                     queue.insert(index, node_to_visit)
 
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
-                            # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}", print_type=PrintType.MINOR)
+                            # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}, {child_path}", print_type=PrintType.DEBUG)
                             node_to_visit = (chosen_start, chosen_direc, total_reduction, chosen_matrix, child_path)
 
-                            if (total_reduction) < minimum_cost:
+                            if (total_reduction) <= minimum_cost:
                                 index = binary_search(queue, 0, len(queue) - 1, total_reduction)
                                 queue.insert(index, node_to_visit)
+                        else:
+                            self.log(f"No child path: {child_path}")
 
         # Algorithm Timed out, return
         except TimeoutError as exc:
