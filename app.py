@@ -1,7 +1,7 @@
 """
 Welcome to Item Routing System!
 
-Authors: Joseph Abero, ChatGPT
+Authors: Supa Dupa Logistics, ChatGPT
 
 ItemRoutingSystem is a text-based application used to provide store workers with
 directions to gather shopping items around a warehouse.
@@ -79,7 +79,7 @@ class ItemRoutingSystem:
         self.gathering_algo = AlgoMethod.DIJKSTRA
         self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
         self.maximum_routing_time = 60
-        self.bnb_access_type = AccessType.SINGLE_ACCESS
+        self.bnb_access_type = AccessType.MULTI_ACCESS
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
@@ -1195,7 +1195,7 @@ class ItemRoutingSystem:
         except ValueError:
             return path
 
-    def run_tsp_algorithm(self, graph, order, algorithm=None):
+    def run_tsp_algorithm(self, graph, order, algorithm=None, rerun=False):
         if algorithm is None:
             algorithm = self.tsp_algorithm
 
@@ -1213,6 +1213,8 @@ class ItemRoutingSystem:
         start_time = time.time()
 
         # Run Algorithm
+        if not rerun:
+            self.log("Getting path to your order...")
         cost, algo_path = algo_func(graph, order)
         rotated_path = self.rotate_path(algo_path)
 
@@ -2294,7 +2296,7 @@ class ItemRoutingSystem:
 
                         # Algo Timed Out
                         if run_time == self.maximum_routing_time:
-                            cost, id_path, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR)
+                            cost, id_path, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR, rerun=True)
 
 
                         target_locations = []
