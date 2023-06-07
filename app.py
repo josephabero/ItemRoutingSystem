@@ -889,11 +889,11 @@ class ItemRoutingSystem:
             reduction_cost += row_cost + zero_col_cost
 
         self.log("Final Child", print_type=PrintType.MINOR)
-        print_matrix = self.print_matrix(temp_matrix)
-        with open(f"{INCREMENT}_{source}.txt", "w+") as f:
-            f.write(f"Reduction Cost: {reduction_cost}\n")
-            f.write(json.dumps(print_matrix, indent=4))
-            INCREMENT += 1
+        # print_matrix = self.print_matrix(temp_matrix)
+        # with open(f"{INCREMENT}_{source}.txt", "w+") as f:
+        #     f.write(f"Reduction Cost: {reduction_cost}\n")
+        #     f.write(json.dumps(print_matrix, indent=4))
+        #     INCREMENT += 1
         self.log(f"Reduction Cost: {reduction_cost}", print_type=PrintType.MINOR)
         return reduction_cost, temp_matrix
 
@@ -939,17 +939,17 @@ class ItemRoutingSystem:
             # 2. Reduction
             # self.log("Parent Matrix", print_type=PrintType.MINOR)
             global INCREMENT
-            print_matrix = self.print_matrix(graph)
-            with open(f"0_parent.txt", "w+") as f:
-                f.write(json.dumps(print_matrix, indent=4))
-                INCREMENT += 1
+            # print_matrix = self.print_matrix(graph)
+            # with open(f"0_parent.txt", "w+") as f:
+            #     f.write(json.dumps(print_matrix, indent=4))
+            #     INCREMENT += 1
             reduced_cost, parent_matrix = self.matrix_reduction(graph)
 
             print_matrix = self.print_matrix(parent_matrix)
-            with open(f"{INCREMENT}_parent.txt", "w+") as f:
-                f.write(f"Reduction Cost: {reduced_cost}\n")
-                f.write(json.dumps(print_matrix, indent=4))
-                INCREMENT += 1
+            # with open(f"{INCREMENT}_parent.txt", "w+") as f:
+            #     f.write(f"Reduction Cost: {reduced_cost}\n")
+            #     f.write(json.dumps(print_matrix, indent=4))
+            #     INCREMENT += 1
             child_matrix = deepcopy(parent_matrix)
 
             # 3. Choose Random Start
@@ -1082,8 +1082,8 @@ class ItemRoutingSystem:
                             if (total_reduction) <= minimum_cost:
                                 index = binary_search(queue, 0, len(queue) - 1, total_reduction)
                                 queue.insert(index, node_to_visit)
-                        else:
-                            self.log(f"No child path: {child_path}")
+                        # else:
+                        #     self.log(f"No child path: {child_path}")
 
         # Algorithm Timed out, return
         except TimeoutError as exc:
