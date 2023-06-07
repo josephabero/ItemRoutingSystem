@@ -1356,6 +1356,13 @@ class ItemRoutingSystem:
                 if beginning_node[0] != "Start":
                     total_cost += graph[ ( last_node[0], beginning_node[0], last_node[1] ) ][ beginning_node[1] ][ 'cost' ]
 
+                elif beginning_node[0] == "Start" and last_node[0] != "End":
+                    total_cost += graph[ ( last_node[0], "End", last_node[1])][ beginning_node[1] ][ 'cost' ]
+
+                else:
+                    # Invalid path
+                    total_cost = INFINITY
+
                 # a path completed, save it as a path based on least cost
                 if (final_cost > total_cost):
                     final_path = queue.copy()
