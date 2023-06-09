@@ -2260,6 +2260,14 @@ class ItemRoutingSystem:
                                                     product_ids = []
                                                     self.log(f"Product '{product_id}' is not within inventory. Not including in path.")
 
+                                        # Update algorithm depending on length of order
+                                        if len(product_ids) <= 5:
+                                            self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.BRANCH_AND_BOUND}")
+                                            self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+                                        else:
+                                            self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR}")
+                                            self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
+
                                     except ValueError:
                                         self.log(f"Invalid order '{order}'! Please use the specified order format.")
 
@@ -2341,6 +2349,14 @@ class ItemRoutingSystem:
                                             self.log(f"Invalid order number '{order_number}'. Please try entering a number under {len(self.order_info)}.")
 
                                 elif mult_option == "4":
+                                    # Update algorithm depending on length of order
+                                    if len(product_ids) <= 5:
+                                        self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.BRANCH_AND_BOUND}")
+                                        self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+                                    else:
+                                        self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR}")
+                                        self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
+
                                     continue
 
                                 else:
