@@ -849,18 +849,19 @@ class ItemRoutingSystem:
         for key in temp_matrix.keys():
             row_cost = INFINITY
             zero_col_cost = INFINITY
-			
+
             for k,v in temp_matrix.items():
                 if (key[0] == k[0]):
                     for direc in v:
                         direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
                         row_cost = min(row_cost, direc_cost)
+
                 # minimum zero col
                 elif ('End' == k[1]):
                     for direc in v:
                         zero_direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
                         zero_col_cost = min(zero_col_cost, zero_direc_cost)
-				
+
             if (row_cost == INFINITY):
                 row_cost = 0;
             if (zero_col_cost == INFINITY):
@@ -874,7 +875,7 @@ class ItemRoutingSystem:
                             v[direc]['cost'] = INFINITY
                         else:
                             v[direc]['cost'] = (v.get(direc).get('cost') - row_cost)
-							
+
                 # zero col zeroing
                 elif ('End' == k[1]):
                     for direc in v:
