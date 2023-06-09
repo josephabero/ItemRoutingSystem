@@ -848,6 +848,7 @@ class ItemRoutingSystem:
         # Finds the minimum value to make a row have a zero
         for key in temp_matrix.keys():
             row_cost = INFINITY
+            zero_col_cost = INFINITY
 
             for k,v in temp_matrix.items():
                 if (key[0] == k[0]):
@@ -855,8 +856,17 @@ class ItemRoutingSystem:
                         direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
                         row_cost = min(row_cost, direc_cost)
 
+				# minimum zero col
+                if ('End' == k[1]):
+                    for direc in v:
+                        zero_direc_cost = INFINITY if (v.get(direc).get('cost') is None) else v.get(direc).get('cost')
+                        zero_col_cost = min(row_cost, zero_direc_cost)
+
+
             if (row_cost == INFINITY):
                 row_cost = 0;
+            if (zero_col_cost == INFINITY):
+                zero_col_cost = 0;
 
             # reduces the values in the matrix
             for k,v in temp_matrix.items():
@@ -870,7 +880,15 @@ class ItemRoutingSystem:
             if (row_cost != 0):
                 self.log(f"Row: {row_cost}", print_type=PrintType.MINOR)
 
-            reduction_cost += row_cost
+                # zero col zeroing
+                if ('End' == k[1]):
+                    for direc in v:
+                        if (v.get(direc).get('cost') is None or v.get(direc).get('cost') == INFINITY):
+                            v[direc]['cost'] = INFINITY
+                        else:
+                            v[direc]['cost'] = (v.get(direc).get('cost') - zero_col_cost)
+
+            reduction_cost += row_cost + zero_col_cost
 
         self.log("Final Child", print_type=PrintType.MINOR)
         # print_matrix(temp_matrix)
@@ -939,6 +957,7 @@ class ItemRoutingSystem:
                     queue.append( (start, src_dir, reduced_cost, child_matrix, child_path) )
 
             minimum_cost = INFINITY
+            cached_matrices = {}
             while queue:
 
                 # Get lowest cost node
@@ -1002,7 +1021,13 @@ class ItemRoutingSystem:
                                 # self.log("Cost is None or Infinity", print_type=PrintType.MINOR)
                                 continue
 
-                            reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
+                            if (str(src_path), dest) in cached_matrices:
+                                # print(f"Using cached matrix for ({start} {src_dir} -> {dest} {direc})")
+                                reduction, temp_matrix = cached_matrices[(str(src_path), dest)]
+
+                            else:
+                                reduction, temp_matrix = self.matrix_reduction( matrix, (start, dest, src_dir), direc )
+                                cached_matrices[(str(src_path), dest)] = (reduction, temp_matrix)
 
                             if self.bnb_access_type == AccessType.SINGLE_ACCESS:
                                 # Filter for minimum Single Access Point
@@ -2842,8 +2867,8 @@ class ItemRoutingSystem:
 
                                             # Run Test Case against desired algorithms
                                             algorithms_to_test = [
-                                                # AlgoMethod.LOCALIZED_MIN_PATH,
-                                                # AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
+                                                AlgoMethod.LOCALIZED_MIN_PATH,
+                                                AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
                                                 AlgoMethod.BRANCH_AND_BOUND
                                             ]
 
