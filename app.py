@@ -1248,7 +1248,7 @@ class ItemRoutingSystem:
     def run_tsp_algorithm(self, graph, order, algorithm=None, rerun=False):
         # If not specified, use length of order to determine algorithm to run
         if algorithm is None:
-            if len(order) <= 5:
+            if len(order) - 2 <= 5:
                 algo_func = self.branch_and_bound
                 self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
             else:
@@ -2274,6 +2274,7 @@ class ItemRoutingSystem:
 
                         # Multiple Orders from File
                         elif order_option == "2":
+                            product_ids = []
                             if self.order_file is None:
                                 # Set Order File Name
                                 success = False
@@ -2350,12 +2351,13 @@ class ItemRoutingSystem:
 
                                 elif mult_option == "4":
                                     # Update algorithm depending on length of order
-                                    if len(product_ids) <= 5:
-                                        self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.BRANCH_AND_BOUND}")
-                                        self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
-                                    else:
-                                        self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR}")
-                                        self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
+                                    if product_ids:
+                                        if len(product_ids) <= 5:
+                                            self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.BRANCH_AND_BOUND}")
+                                            self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+                                        else:
+                                            self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR}")
+                                            self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
 
                                     continue
 
