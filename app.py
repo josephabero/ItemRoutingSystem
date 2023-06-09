@@ -1323,7 +1323,6 @@ class ItemRoutingSystem:
 
                     # first time through, set the starting node as unvisited, used for cycling
                     if (first_time_thru):
-                        first_time_thru = False
                         queue.pop()
                     min_cost = INFINITY
                     visited_min_cost = INFINITY
@@ -1353,13 +1352,18 @@ class ItemRoutingSystem:
                     # is there exists a path to a unvisited node, prioritize by adding it
                     # else, add the least cost path to a visited node
                     if (next_node is not None):
-                        total_cost += min_cost
+                        if not first_time_thru:
+                            total_cost += min_cost
                         queue.append(next_node)
                         if next_node[0] in item_list:
                             item_list.remove(next_node[0])
                     else:
-                        total_cost += visited_min_cost
+                        if not first_time_thru:
+                            total_cost += visited_min_cost
                         queue.append(visited_next_node)
+
+                    if first_time_thru:
+                        first_time_thru = False
 
                 # adds the cost of the the last edge
                 last_node = queue[-1]
@@ -1369,10 +1373,6 @@ class ItemRoutingSystem:
 
                 elif beginning_node[0] == "Start" and last_node[0] != "End":
                     total_cost += graph[ ( last_node[0], "End", last_node[1])][ beginning_node[1] ][ 'cost' ]
-
-                else:
-                    # Invalid path
-                    total_cost = INFINITY
 
                 # a path completed, save it as a path based on least cost
                 if (final_cost > total_cost):
@@ -2967,7 +2967,7 @@ class ItemRoutingSystem:
 
                                             # Run Test Case against desired algorithms
                                             algorithms_to_test = [
-                                                # AlgoMethod.LOCALIZED_MIN_PATH,
+                                                AlgoMethod.LOCALIZED_MIN_PATH,
                                                 AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
                                                 AlgoMethod.BRANCH_AND_BOUND
                                             ]
