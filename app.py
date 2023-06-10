@@ -1,7 +1,7 @@
 """
 Welcome to Item Routing System!
 
-Authors: Joseph Abero, ChatGPT
+Authors: Supa Dupa Logistics, ChatGPT
 
 ItemRoutingSystem is a text-based application used to provide store workers with
 directions to gather shopping items around a warehouse.
@@ -14,7 +14,6 @@ from queue import PriorityQueue
 from copy import deepcopy
 import heapq
 import itertools
-import json
 from math import ceil
 import os
 import platform
@@ -22,8 +21,6 @@ import random
 import signal
 import sys
 import time
-
-INCREMENT = 0
 
 def timeout_handler(signum, frame):
     raise TimeoutError
@@ -75,14 +72,14 @@ class ItemRoutingSystem:
         # Default item settings
         self.item_mode = GenerateMode.RANDOM
         self.minimum_items = 0
-        self.maximum_items = 8
+        self.maximum_items = 20
         self.items = self.get_item_positions()
 
         # Default algorithm
         self.gathering_algo = AlgoMethod.DIJKSTRA
         self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
         self.maximum_routing_time = 60
-        self.bnb_access_type = AccessType.SINGLE_ACCESS
+        self.bnb_access_type = AccessType.MULTI_ACCESS
 
         # Generate initial map from default settings
         self.map, self.inserted_order = self.generate_map()
@@ -127,6 +124,10 @@ class ItemRoutingSystem:
             success (bool): Status of whether opening and parsing of file was successful.
         """
         success = True
+        reason = None
+
+        original_starting_worker = self.starting_position
+        original_ending_worker = self.ending_position
 
         try:
             self.product_file = product_file_name
@@ -137,13 +138,29 @@ class ItemRoutingSystem:
                 fields = line.strip().split()
                 self.product_info[int(fields[0])] = int(float(fields[1])), int(float(fields[2]))
             f.close()
+
+            # Successfully loaded, reset worker positions
+            self.log("Loaded product file, resetting worker positions!")
+            self.starting_position = (0, 0)
+            self.ending_position = (0, 0)
+
         except FileNotFoundError:
+            reason = FileNotFoundError
             success = False
 
-        return success
+        except ValueError:
+            reason = ValueError
+            success = False
+
+        except Exception as e:
+            reason = e
+            success = False
+
+        return success, reason
 
     def load_order_file(self, order_file_name):
         success = True
+        reason = None
         original_order_info = deepcopy(self.order_info)
 
         try:
@@ -156,16 +173,29 @@ class ItemRoutingSystem:
                 formatted_line = [ int(l.lstrip()) for l in line.rstrip().split(",") ]
                 self.order_info.append(formatted_line)
             f.close()
+
         except FileNotFoundError:
-            self.order_file = None
-            self.order_info = original_order_info
+            reason = FileNotFoundError
             success = False
 
-        return success
+        except ValueError:
+            reason = ValueError
+            success = False
+
+        except Exception as e:
+            reason = e
+            success = False
+
+        if not success:
+            self.order_file = None
+            self.order_info = original_order_info
+
+        return success, reason
 
     def load_test_case_file(self, test_case_filename):
         cases = []
         success = True
+        reason = None
 
         try:
             with open(test_case_filename, "r") as f:
@@ -188,14 +218,24 @@ class ItemRoutingSystem:
                     product_ids = [int(p_id) for p_id in product_ids]
 
                     cases.append((size, product_ids))
+
         except FileNotFoundError:
+            reason = FileNotFoundError
+            success = False
+
+        except ValueError:
+            reason = ValueError
+            success = False
+
+        except Exception as e:
+            reason = e
             success = False
 
         if success:
             self.test_cases = cases
             self.test_product_file = filename
 
-        return success
+        return success, reason
 
     def display_menu(self, menu_type, clear=True):
         """
@@ -457,7 +497,9 @@ class ItemRoutingSystem:
                           Positions are labeled as (X, Y)
 
             Current Settings:
-              Worker Position: (0, 0)
+              f"  Worker Settings:\n" \
+                   f"   Starting Position: {self.starting_position}\n" \
+                   f"   Ending Position: {self.ending_position}\n" \
               Ordered Item Maximum: 8
               Gathering Algorithm: Dijkstra
               Maximum Time To Process: 60
@@ -506,7 +548,9 @@ class ItemRoutingSystem:
             self.log("")
 
             settings_info = "Current Settings:\n" \
-                            f"  Worker Position: {self.starting_position}\n" \
+                            f"  Worker Settings:\n" \
+                            f"   Starting Position: {self.starting_position}\n" \
+                            f"   Ending Position: {self.ending_position}\n" \
                             f"  Ordered Item Maximum: {self.maximum_items}\n" \
                             f"  Algorithm: {self.tsp_algorithm}\n" \
                             f"  Maximum Routing Time: {self.maximum_routing_time}\n" \
@@ -514,7 +558,9 @@ class ItemRoutingSystem:
 
             if self.tsp_algorithm == AlgoMethod.BRANCH_AND_BOUND:
                 settings_info = "Current Settings:\n" \
-                            f"  Worker Position: {self.starting_position}\n" \
+                            f"  Worker Settings:\n" \
+                            f"   Starting Position: {self.starting_position}\n" \
+                            f"   Ending Position: {self.ending_position}\n" \
                             f"  Ordered Item Maximum: {self.maximum_items}\n" \
                             f"  Algorithm: {self.tsp_algorithm}\n" \
                             f"    Item Access Type: {self.bnb_access_type}\n" \
@@ -890,11 +936,6 @@ class ItemRoutingSystem:
             reduction_cost += row_cost + zero_col_cost
 
         self.log("Final Child", print_type=PrintType.MINOR)
-        # print_matrix = self.print_matrix(temp_matrix)
-        # with open(f"{INCREMENT}_{source}.txt", "w+") as f:
-        #     f.write(f"Reduction Cost: {reduction_cost}\n")
-        #     f.write(json.dumps(print_matrix, indent=4))
-        #     INCREMENT += 1
         self.log(f"Reduction Cost: {reduction_cost}", print_type=PrintType.MINOR)
         return reduction_cost, temp_matrix
 
@@ -938,24 +979,11 @@ class ItemRoutingSystem:
         try:
             # 1. Create Matrix
             # 2. Reduction
-            # self.log("Parent Matrix", print_type=PrintType.MINOR)
-            global INCREMENT
-            # print_matrix = self.print_matrix(graph)
-            # with open(f"0_parent.txt", "w+") as f:
-            #     f.write(json.dumps(print_matrix, indent=4))
-            #     INCREMENT += 1
             reduced_cost, parent_matrix = self.matrix_reduction(graph)
-
-            print_matrix = self.print_matrix(parent_matrix)
-            # with open(f"{INCREMENT}_parent.txt", "w+") as f:
-            #     f.write(f"Reduction Cost: {reduced_cost}\n")
-            #     f.write(json.dumps(print_matrix, indent=4))
-            #     INCREMENT += 1
             child_matrix = deepcopy(parent_matrix)
 
             # 3. Choose Random Start
             start_node, dest_node, start_dir = random.choice( list(graph) )
-            # self.log(start_node, dest_node, start_dir, print_type=PrintType.MINOR)
 
             # 4. Set Upper Bound
             upper_bound = order
@@ -967,7 +995,6 @@ class ItemRoutingSystem:
             for (start, dest, src_dir), values in parent_matrix.items():
                 if start_node == start:
                     child_path = [(start, src_dir)]
-                    # self.log(f"Will Visit: {start}, {dest}, {src_dir}", print_type=PrintType.MINOR)
                     queue.append( (start, src_dir, reduced_cost, child_matrix, child_path) )
 
             minimum_cost = INFINITY
@@ -983,18 +1010,13 @@ class ItemRoutingSystem:
                             index = i
 
                 source, source_direction, cost, matrix, src_path = queue.pop(index)
-                # self.log(f"New Source: {source}", print_type=PrintType.MINOR)
-                # self.log(f"New Source Path: {cost} {src_path}", print_type=PrintType.DEBUG)
 
                 # If cost is greater than minimum cost of already found path, ignore
                 if cost > minimum_cost:
-                    # self.log(f"Cost {cost} is bigger than {minimum_cost}, skipping.", print_type=PrintType.MINOR)
                     continue
 
                 # If all nodes have been visited
-                # self.log(len(src_path), len(order), print_type=PrintType.MINOR)
                 if len(src_path) == len(order):
-                    # self.log(f"Reached Level: {len(src_path)}, {src_path}", print_type=PrintType.MINOR)
                     final_node, final_dir = src_path[0]
                     path_cost = matrix[(source, final_node, source_direction)][final_dir]["cost"]
                     final_reduction, final_matrix = self.matrix_reduction(matrix)
@@ -1003,14 +1025,8 @@ class ItemRoutingSystem:
 
                     # Store path if minimum path
                     if total_final_reduction <= minimum_cost:
-                        # self.log(f"New minimum cost: {total_final_reduction}", print_type=PrintType.DEBUG)
                         final_path = src_path
                         minimum_cost = total_final_reduction
-
-                # if source == 'Start':
-                #     self.log(f"Beginning Traversal for '{source}', {src_path}, {cost}", print_type=PrintType.DEBUG)
-                # else:
-                #     self.log(f"Beginning Traversal for '{source}{source_direction}', {src_path}, {cost}", print_type=PrintType.DEBUG)
 
                 for (start, dest, src_dir), access_points in matrix.items():
                     # Ignore other irrelevant entries
@@ -1026,7 +1042,6 @@ class ItemRoutingSystem:
                         if found:
                             continue
 
-                        # self.log(f"Traversal Info: {start}, {src_dir}, {dest}, {values.keys()}", print_type=PrintType.MINOR)
                         child_path = []
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS:
@@ -1035,13 +1050,10 @@ class ItemRoutingSystem:
                             chosen_matrix = None
 
                         for direc in access_points:
-                            # self.log(f"Try '{source}{source_direction}' to '{dest}{direc}..'", print_type=PrintType.DEBUG)
                             if access_points[direc].get('cost') is None or (access_points[direc].get('cost') == INFINITY):
-                                # self.log("Cost is None or Infinity", print_type=PrintType.DEBUG)
                                 continue
 
                             if (str(src_path), dest) in cached_matrices:
-                                # print(f"Using cached matrix for ({start} {src_dir} -> {dest} {direc})")
                                 reduction, temp_matrix = cached_matrices[(str(src_path), dest)]
 
                             else:
@@ -1049,7 +1061,6 @@ class ItemRoutingSystem:
                                 cached_matrices[(str(src_path), dest)] = (reduction, temp_matrix)
 
                             total_reduction = cost + access_points[direc].get('cost') + reduction
-                            # print(start, src_dir, dest, src_path, total_reduction)
 
                             if self.bnb_access_type == AccessType.SINGLE_ACCESS:
                                 # Filter for minimum Single Access Point
@@ -1059,12 +1070,7 @@ class ItemRoutingSystem:
                                     highest_reduction = total_reduction
                                     chosen_matrix = deepcopy(temp_matrix)
 
-                                    # self.log(f"Before Child Path: {child_path}", print_type=PrintType.MINOR)
-                                    # self.log(f"{src_path}", print_type=PrintType.MINOR)
                                     child_path = src_path + [(dest, direc)]
-                                    # self.log(f"After Child Path: {child_path}", print_type=PrintType.MINOR)
-                                # else:
-                                #     self.log(f"{start}{src_dir} to {dest}{direc} not higher: {total_reduction} > {highest_reduction}")
 
                             elif self.bnb_access_type == AccessType.MULTI_ACCESS:
                                 child_path = src_path + [(dest, direc)]
@@ -1077,14 +1083,11 @@ class ItemRoutingSystem:
 
 
                         if self.bnb_access_type == AccessType.SINGLE_ACCESS and child_path:
-                            # self.log(f"Will Visit: {start}, {chosen_start}, {chosen_direc}, {child_path}", print_type=PrintType.DEBUG)
                             node_to_visit = (chosen_start, chosen_direc, total_reduction, chosen_matrix, child_path)
 
                             if (total_reduction) <= minimum_cost:
                                 index = binary_search(queue, 0, len(queue) - 1, total_reduction)
                                 queue.insert(index, node_to_visit)
-                        # else:
-                        #     self.log(f"No child path: {child_path}")
 
         # Algorithm Timed out, return
         except TimeoutError as exc:
@@ -1242,9 +1245,15 @@ class ItemRoutingSystem:
         except ValueError:
             return path
 
-    def run_tsp_algorithm(self, graph, order, algorithm=None):
+    def run_tsp_algorithm(self, graph, order, algorithm=None, rerun=False):
+        # If not specified, use length of order to determine algorithm to run
         if algorithm is None:
-            algorithm = self.tsp_algorithm
+            if len(order) - 2 <= 5:
+                algo_func = self.branch_and_bound
+                self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+            else:
+                algo_func = self.nearest_neighbor
+                self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
 
         # Choose algorithm to run
         if algorithm == AlgoMethod.BRANCH_AND_BOUND:
@@ -1260,6 +1269,8 @@ class ItemRoutingSystem:
         start_time = time.time()
 
         # Run Algorithm
+        if not rerun:
+            self.log("Getting path to your order...")
         cost, algo_path = algo_func(graph, order)
         rotated_path = self.rotate_path(algo_path)
 
@@ -1313,7 +1324,6 @@ class ItemRoutingSystem:
 
                     # first time through, set the starting node as unvisited, used for cycling
                     if (first_time_thru):
-                        first_time_thru = False
                         queue.pop()
                     min_cost = INFINITY
                     visited_min_cost = INFINITY
@@ -1343,13 +1353,18 @@ class ItemRoutingSystem:
                     # is there exists a path to a unvisited node, prioritize by adding it
                     # else, add the least cost path to a visited node
                     if (next_node is not None):
-                        total_cost += min_cost
+                        if not first_time_thru:
+                            total_cost += min_cost
                         queue.append(next_node)
                         if next_node[0] in item_list:
                             item_list.remove(next_node[0])
                     else:
-                        total_cost += visited_min_cost
+                        if not first_time_thru:
+                            total_cost += visited_min_cost
                         queue.append(visited_next_node)
+
+                    if first_time_thru:
+                        first_time_thru = False
 
                 # adds the cost of the the last edge
                 last_node = queue[-1]
@@ -1359,10 +1374,6 @@ class ItemRoutingSystem:
 
                 elif beginning_node[0] == "Start" and last_node[0] != "End":
                     total_cost += graph[ ( last_node[0], "End", last_node[1])][ beginning_node[1] ][ 'cost' ]
-
-                else:
-                    # Invalid path
-                    total_cost = INFINITY
 
                 # a path completed, save it as a path based on least cost
                 if (final_cost > total_cost):
@@ -1876,10 +1887,13 @@ class ItemRoutingSystem:
                             self.starting_position = (int(x), int(y))
                             success = True
 
-                except ValueError:
-                    self.log("Invalid worker positions, please try again!")
+                    else:
+                        self.log("") # Newline for readability
 
-                self.log(f"Current Worker Starting Position: {self.starting_position}")
+                except ValueError:
+                    self.log("Invalid worker positions, please try again!\n")
+
+                self.log(f"\nCurrent Worker Starting Position: {self.starting_position}")
         return success
 
 
@@ -1928,9 +1942,9 @@ class ItemRoutingSystem:
                             self.ending_position = (int(x), int(y))
                             success = True
                 except ValueError:
-                    self.log("Invalid worker positions, please try again!")
+                    self.log("Invalid worker positions, please try again!\n")
 
-                self.log(f"Current Worker Ending Position: {self.ending_position}")
+                self.log(f"\nCurrent Worker Ending Position: {self.ending_position}")
         return success
 
 
@@ -2094,12 +2108,12 @@ class ItemRoutingSystem:
 
                     self.maximum_routing_time = ceil(float(routing_time))
                 else:
-                    self.log("Invalid value, please try again!")
+                    self.log("Invalid value, please try again!\n")
 
             except ValueError:
-                self.log(f"Invalid value {routing_time}, please try again!")
+                self.log(f"Invalid value {routing_time}, please try again!\n")
 
-        self.log(f"Maximum Routing Time in Seconds: {self.maximum_routing_time:.2f}")
+        self.log(f"\nMaximum Routing Time in Seconds: {self.maximum_routing_time:.2f}")
 
         return success
 
@@ -2128,15 +2142,19 @@ class ItemRoutingSystem:
                 while not success:
                     product_file = input("Enter product filename: ")
 
-                    success = self.load_product_file(product_file.rstrip())
+                    success, reason = self.load_product_file(product_file.rstrip())
 
                     if success:
                         self.item_mode = GenerateMode.LOADED_FILE
                         self.items = self.get_item_positions()
                         self.map, self.inserted_order = self.generate_map()
 
+                    elif reason == FileNotFoundError:
+                        self.log(f"File '{product_file}' was not found, please try entering full path to file!\n")
+                    elif reason == ValueError:
+                        self.log(f"File '{product_file}' is the incorrect format, please try changing the format or try a new file!\n")
                     else:
-                        self.log(f"File '{product_file}' was not found, please try entering full path to file!")
+                        self.log(f"Something went wrong with '{product_file}', please try again!\n")
 
             # Display map after file is loaded
             if update:
@@ -2151,6 +2169,16 @@ class ItemRoutingSystem:
                 # Create View Map menu
                 if update:
                     self.display_menu(MenuType.VIEW_MAP, clear=clear)
+
+                    if self.order:
+                        order = []
+                        for product in self.order:
+                            if product == "Start" or product == "End":
+                                continue
+                            else:
+                                order.append(str(product))
+
+                        self.log(f"Current Order is: {', '.join(order)}")
                 else:
                     update = True
                     clear = True
@@ -2161,6 +2189,8 @@ class ItemRoutingSystem:
                 # Create Order
                 if suboption == '1':
                     clear = True
+                    order_success = True
+
                     while True:
                         if update:
                             self.display_menu(MenuType.CREATE_ORDER, clear=clear)
@@ -2211,15 +2241,32 @@ class ItemRoutingSystem:
                                         else:
                                             order_list = [int(order)]
 
-                                        for product_id in order_list:
-                                            if int(product_id) in self.product_info:
-                                                product_ids.append(int(product_id))
-                                                success = True
+                                        # More items than maximum allowed
+                                        if len(order_list) > self.maximum_items:
+                                            self.log(f"{len(order_list)} is more than the maximum number of items allowed of {self.maximum_items}!\n")
+                                            success = False
+                                            clear = False
 
-                                            else:
-                                                success = False
-                                                clear = False
-                                                self.log(f"Product '{product_id}' is not within inventory. Not including in path.")
+                                        # Valid list, get IDs
+                                        else:
+                                            for product_id in order_list:
+                                                if int(product_id) in self.product_info:
+                                                    product_ids.append(int(product_id))
+                                                    success = True
+
+                                                else:
+                                                    success = False
+                                                    clear = False
+                                                    product_ids = []
+                                                    self.log(f"Product '{product_id}' is not within inventory. Not including in path.")
+
+                                        # Update algorithm depending on length of order
+                                        if len(product_ids) <= 5:
+                                            self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.BRANCH_AND_BOUND}")
+                                            self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+                                        else:
+                                            self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR}")
+                                            self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
 
                                     except ValueError:
                                         self.log(f"Invalid order '{order}'! Please use the specified order format.")
@@ -2227,18 +2274,27 @@ class ItemRoutingSystem:
 
                         # Multiple Orders from File
                         elif order_option == "2":
+                            product_ids = []
                             if self.order_file is None:
                                 # Set Order File Name
                                 success = False
                                 while not success:
                                     order_file = input("Enter order filename: ")
 
-                                    success = self.load_order_file(order_file)
+                                    success, reason = self.load_order_file(order_file)
 
                                     if success:
                                         self.log(f"Successfully loaded orders from file '{order_file}'!")
+                                        self.order_number = 0
+                                        product_ids = self.order_info[self.order_number]
+                                        self.log(f"Loaded Order #{self.order_number}!")
+
+                                    elif reason == FileNotFoundError:
+                                        self.log(f"File '{order_file}' was not found, please try entering full path to file!\n")
+                                    elif reason == ValueError:
+                                        self.log(f"File '{order_file}' is the incorrect format, please try changing the format or try a new file!\n")
                                     else:
-                                        self.log(f"Invalid order file '{order_file}'! Please try again.")
+                                        self.log(f"Something went wrong with '{order_file}', please try again!\n")
 
                             self.display_menu(MenuType.MULTIPLE_ORDERS, clear=clear)
 
@@ -2254,12 +2310,20 @@ class ItemRoutingSystem:
                                     while not success:
                                         order_file = input("Enter order filename: ")
 
-                                        success = self.load_order_file(order_file)
+                                        success, reason = self.load_order_file(order_file)
 
                                         if success:
                                             self.log(f"Successfully loaded orders from file '{order_file}'!")
+                                            self.order_number = 0
+                                            product_ids = self.order_info[self.order_number]
+                                            self.log(f"Loaded Order #{self.order_number}!")
+
+                                        elif reason == FileNotFoundError:
+                                            self.log(f"File '{order_file}' was not found, please try entering full path to file!\n")
+                                        elif reason == ValueError:
+                                            self.log(f"File '{order_file}' is the incorrect format, please try changing the format or try a new file!\n")
                                         else:
-                                            self.log(f"Invalid order file '{order_file}'! Please try again.")
+                                            self.log(f"Something went wrong with '{order_file}', please try again!\n")
 
                                 elif mult_option == "2":
                                     self.log(f"Current Order is #{self.order_number}, continuing to next order.")
@@ -2286,10 +2350,19 @@ class ItemRoutingSystem:
                                             self.log(f"Invalid order number '{order_number}'. Please try entering a number under {len(self.order_info)}.")
 
                                 elif mult_option == "4":
+                                    # Update algorithm depending on length of order
+                                    if product_ids:
+                                        if len(product_ids) <= 5:
+                                            self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.BRANCH_AND_BOUND}")
+                                            self.tsp_algorithm = AlgoMethod.BRANCH_AND_BOUND
+                                        else:
+                                            self.log(f"Number of items in the order is {len(product_ids)}, setting algorithm to {AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR}")
+                                            self.tsp_algorithm = AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR
+
                                     continue
 
                                 else:
-                                    self.log(f"Invalid option '{mult_option}'! Please try again.")
+                                    self.log(f"Invalid option '{mult_option}'! Please try again.\n")
                                     ordering = True
 
                         # Back
@@ -2298,7 +2371,8 @@ class ItemRoutingSystem:
                             break
 
                         else:
-                            self.log(f"Invalid option '{order_option}. Please try again.")
+                            self.log(f"Invalid option '{order_option}'. Please try again.\n")
+                            order_success = False
                             clear = False
 
                         if product_ids:
@@ -2328,8 +2402,9 @@ class ItemRoutingSystem:
 
                         # Go back to View Map Menu
                         clear = False
-                        break
 
+                        if order_success:
+                            break
 
                 # Get Path for Order
                 elif suboption == '2':
@@ -2341,7 +2416,7 @@ class ItemRoutingSystem:
 
                         # Algo Timed Out
                         if run_time == self.maximum_routing_time:
-                            cost, id_path, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR)
+                            cost, id_path, path, run_time = self.run_tsp_algorithm(self.graph, self.order, AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR, rerun=True)
 
 
                         target_locations = []
@@ -2379,6 +2454,7 @@ class ItemRoutingSystem:
 
                     # Request Product ID to find path for
                     complete = False
+                    success = True
                     while not complete:
                         try:
                             if self.debug:
@@ -2392,26 +2468,28 @@ class ItemRoutingSystem:
                             complete = True
 
                         except ValueError:
-                            self.log(f"Invalid Product ID '{product_id}', please try again!")
+                            self.log(f"Invalid Product ID '{product_id}', please try again!\n")
 
                         except KeyError:
-                            self.log("Product was not found!")
-                            complete = False
+                            self.log("Product was not found!\n")
+                            success = False
+                            complete = True
 
-                    steps = self.get_items(self.gathering_algo, item_position)
+                    if success:
+                        steps = self.get_items(self.gathering_algo, item_position)
 
-                    if steps:
-                        self.display_path_in_map(steps)
+                        if steps:
+                            self.display_path_in_map(steps)
 
-                        self.log("Directions:")
-                        self.log("-----------")
-                        for step, action in enumerate(steps, 1):
-                                if "Total Steps" in action:
-                                    self.log(action)
-                                else:
-                                    self.log(f"{step}. {action}")
-                    else:
-                        self.log(f"Path to {product_id} was not found!")
+                            self.log("Directions:")
+                            self.log("-----------")
+                            for step, action in enumerate(steps, 1):
+                                    if "Total Steps" in action:
+                                        self.log(action)
+                                    else:
+                                        self.log(f"{step}. {action}")
+                        else:
+                            self.log(f"Path to {product_id} was not found!")
 
                     clear = False
 
@@ -2434,10 +2512,10 @@ class ItemRoutingSystem:
                             complete = True
 
                         except ValueError:
-                            self.log(f"Invalid Product ID '{product_id}', please try again!")
+                            self.log(f"Invalid Product ID '{product_id}', please try again!\n")
 
                         except KeyError:
-                            self.log("Product was not found!")
+                            self.log("Product was not found!\n")
                             complete = True
 
                 # Back
@@ -2460,7 +2538,7 @@ class ItemRoutingSystem:
                     break
 
                 else:
-                    self.log("Invalid choice. Try again.")
+                    self.log("Invalid choice. Try again.\n")
                     update = False
 
         # Settings
@@ -2491,7 +2569,7 @@ class ItemRoutingSystem:
                     while not success:
                         product_file = input("Enter product filename: ")
 
-                        success = self.load_product_file(product_file)
+                        success, reason = self.load_product_file(product_file)
 
                         if success:
                             self.item_mode = GenerateMode.LOADED_FILE
@@ -2513,8 +2591,12 @@ class ItemRoutingSystem:
 
                             self.map, self.inserted_order = self.generate_map()
 
+                        elif reason == FileNotFoundError:
+                            self.log(f"File '{product_file}' was not found, please try entering full path to file!\n")
+                        elif reason == ValueError:
+                            self.log(f"File '{product_file}' is the incorrect format, please try changing the format or try a new file!\n")
                         else:
-                            self.log(f"File '{product_file}' was not found, please try entering full path to file!")
+                            self.log(f"Something went wrong with '{product_file}', please try again!\n")
 
                 # Set Worker Starting Position
                 elif suboption == '2':
@@ -2554,7 +2636,7 @@ class ItemRoutingSystem:
                                 break
 
                             else:
-                                self.log("Invalid choice. Try again.")
+                                self.log("Invalid choice. Try again.\n")
                                 update = False
                                 clear = False
 
@@ -2610,7 +2692,7 @@ class ItemRoutingSystem:
                                 break
 
                             else:
-                                self.log("Invalid choice. Try again.")
+                                self.log("Invalid choice. Try again.\n")
                                 update = False
                                 clear = False
 
@@ -2700,7 +2782,7 @@ class ItemRoutingSystem:
                                         break
 
                                     else:
-                                        self.log("Invalid choice. Try again.")
+                                        self.log("Invalid choice. Try again.\n")
                                         update = False
                                         clear = False
 
@@ -2741,7 +2823,7 @@ class ItemRoutingSystem:
                                         break
 
                                     else:
-                                        self.log("Invalid choice. Try again.")
+                                        self.log("Invalid choice. Try again.\n")
                                         update = False
                                         clear = False
 
@@ -2776,7 +2858,7 @@ class ItemRoutingSystem:
                                         break
 
                                     else:
-                                        self.log("Invalid choice. Try again.")
+                                        self.log("Invalid choice. Try again.\n")
                                         update = False
                                         clear = False
 
@@ -2806,7 +2888,7 @@ class ItemRoutingSystem:
                                         break
 
                                     else:
-                                        self.log("Invalid choice. Try again.")
+                                        self.log("Invalid choice. Try again.\n")
                                         update = False
                                         clear = False
 
@@ -2823,7 +2905,7 @@ class ItemRoutingSystem:
                                 while not success:
                                     test_case_file = input("Enter test case filename: ")
 
-                                    success = self.load_test_case_file(test_case_file)
+                                    success, reason = self.load_test_case_file(test_case_file)
 
                                     if success:
                                         self.test_case_file = test_case_file
@@ -2833,13 +2915,17 @@ class ItemRoutingSystem:
                                                 size, ids = test_case
                                                 self.log(size, ids, print_type=PrintType.MINOR)
 
+                                    elif reason == FileNotFoundError:
+                                        self.log(f"File '{test_case_file}' was not found, please try entering full path to file!\n")
+                                    elif reason == ValueError:
+                                        self.log(f"File '{test_case_file}' is the incorrect format, please try changing the format or try a new file!\n")
                                     else:
-                                        self.log(f"File '{test_case_file}' was not found, please try entering full path to file!")
+                                        self.log(f"Something went wrong with '{test_case_file}', please try again!\n")
 
                             # Run Test Cases
                             elif adv_option == '8':
                                 if self.test_case_file and self.test_product_file:
-                                    success = self.load_product_file(self.test_product_file)
+                                    success, reason = self.load_product_file(self.test_product_file)
 
                                     if not success:
                                         self.log(f"Failed to load test case product file {self.test_product_file}!\n" \
@@ -2886,8 +2972,6 @@ class ItemRoutingSystem:
                                             self.log(f"{k}: \n\t{v}")
                                         self.log("")
 
-                                        global INCREMENT
-
                                         # Run All Test Cases
                                         for test_case in self.test_cases:
                                             size, product_ids = test_case
@@ -2902,13 +2986,12 @@ class ItemRoutingSystem:
 
                                             # Run Test Case against desired algorithms
                                             algorithms_to_test = [
-                                                # AlgoMethod.LOCALIZED_MIN_PATH,
+                                                AlgoMethod.LOCALIZED_MIN_PATH,
                                                 AlgoMethod.REPETITIVE_NEAREST_NEIGHBOR,
                                                 AlgoMethod.BRANCH_AND_BOUND
                                             ]
 
                                             for algo in algorithms_to_test:
-                                                INCREMENT = 0
 
                                                 algo_str = f"Running {algo}....."
                                                 if algo == AlgoMethod.BRANCH_AND_BOUND:
@@ -2993,7 +3076,7 @@ class ItemRoutingSystem:
                                 break
 
                             else:
-                                self.log("Invalid choice. Try again.")
+                                self.log("Invalid choice. Try again.\n")
                                 update = False
                                 clear = False
 
@@ -3006,7 +3089,7 @@ class ItemRoutingSystem:
                     break
 
                 else:
-                    self.log("Invalid choice. Try again.")
+                    self.log("Invalid choice. Try again.\n")
                     update = False
 
         # Exit
@@ -3014,7 +3097,7 @@ class ItemRoutingSystem:
             self.log("Exiting...")
             sys.exit()
         else:
-            self.log("Invalid choice. Try again.")
+            self.log("Invalid choice. Try again.\n")
             update = False
 
     def run(self):
