@@ -2140,7 +2140,7 @@ class ItemRoutingSystem:
                 # Set Product File Name
                 success = False
                 while not success:
-                    product_file = input("Enter product filename: ")
+                    product_file = input("Enter product filename (full path to file): ")
 
                     success, reason = self.load_product_file(product_file.rstrip())
 
@@ -2279,9 +2279,9 @@ class ItemRoutingSystem:
                                 # Set Order File Name
                                 success = False
                                 while not success:
-                                    order_file = input("Enter order filename: ")
+                                    order_file = input("Enter order filename (full path to file): ")
 
-                                    success, reason = self.load_order_file(order_file)
+                                    success, reason = self.load_order_file(order_file.rstrip())
 
                                     if success:
                                         self.log(f"Successfully loaded orders from file '{order_file}'!")
@@ -2308,9 +2308,9 @@ class ItemRoutingSystem:
                                     # Set Order File Name
                                     success = False
                                     while not success:
-                                        order_file = input("Enter order filename: ")
+                                        order_file = input("Enter order filename (full path to file): ")
 
-                                        success, reason = self.load_order_file(order_file)
+                                        success, reason = self.load_order_file(order_file.rstrip())
 
                                         if success:
                                             self.log(f"Successfully loaded orders from file '{order_file}'!")
@@ -2567,9 +2567,9 @@ class ItemRoutingSystem:
                     # Set Product File Name
                     success = False
                     while not success:
-                        product_file = input("Enter product filename: ")
+                        product_file = input("Enter product filename (full path to file): ")
 
-                        success, reason = self.load_product_file(product_file)
+                        success, reason = self.load_product_file(product_file.rstrip())
 
                         if success:
                             self.item_mode = GenerateMode.LOADED_FILE
@@ -2903,9 +2903,9 @@ class ItemRoutingSystem:
                                 # Set Product File Name
                                 success = False
                                 while not success:
-                                    test_case_file = input("Enter test case filename: ")
+                                    test_case_file = input("Enter test case filename (full path to file): ")
 
-                                    success, reason = self.load_test_case_file(test_case_file)
+                                    success, reason = self.load_test_case_file(test_case_file.rstrip())
 
                                     if success:
                                         self.test_case_file = test_case_file
