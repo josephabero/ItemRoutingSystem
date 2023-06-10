@@ -26,10 +26,9 @@ make clean
 ```
 
 # Known Issues
-1. Current Branch and Bound Implementation for Single Access does not guarantee optimal path due to random starting node access point chosen (The optimal access point may be excluded from consideration)
-2. Single Access and Multi-Access Branch and Bound Implementation is slower than intended as Matrix Reduction takes time due to data structure.
-3. On Windows, `SIGALRM` is an unknown signal, so any algorithm with a timeout exception will crash.
-4. On Windows, some ASCII values in the menu may be unknown and appear as Question Blocks.
+1. Current Branch and Bound Implementation for Single Access does not guarantee optimal path due to limited number of path choices. This is intended, **only Multi Access Branch and Bound guarantees optimal path**.
+2. On Windows, `SIGALRM` is an unknown signal, so any algorithm with a timeout exception will crash.
+3. On Windows, some ASCII values in the menu may be unknown and appear as Question Blocks.
 
 # Completed Tasks (For Beta Release 1: 1.3.0)
 
